@@ -6,9 +6,11 @@ services.
 
 The current application is a canvas-first editor workspace with one active control area, local UI
 primitives, source-photograph import, and a single WebGL2 preview path. It validates JPEG, PNG, and
-WebP files selected by picker or drag and drop, prepares a bounded preview texture, and sends the
-current exposure and contrast Adjustments through the fragment shader. The rest of the editing
-workflow will land in the tickets that follow this increment.
+WebP files selected by picker or drag and drop, prepares a bounded preview texture, sends the
+current exposure and contrast Adjustments through the fragment shader, resets those Adjustments,
+and downloads the visible result as a JPEG. Replacing a changed Edit asks for confirmation before
+returning its adjustment state to neutral. The rest of the editing workflow will land in the
+tickets that follow this increment.
 
 ## Requirements
 
@@ -37,16 +39,17 @@ npm run preview
 
 ## Verification scripts
 
-| Script                 | Purpose                                                       |
-| ---------------------- | ------------------------------------------------------------- |
-| `npm run dev`          | Start the Vite development server                             |
-| `npm run typecheck`    | Run the TypeScript project build without emitting files       |
-| `npm run lint`         | Run ESLint                                                    |
-| `npm run format:check` | Verify Prettier formatting                                    |
-| `npm run format`       | Apply Prettier formatting                                     |
-| `npm run test:unit`    | Run the Vitest unit and component tests                       |
-| `npm run build`        | Create the static production bundle                           |
-| `npm run check`        | Run formatting, lint, typecheck, tests, and build in sequence |
+| Script                 | Purpose                                                             |
+| ---------------------- | ------------------------------------------------------------------- |
+| `npm run dev`          | Start the Vite development server                                   |
+| `npm run typecheck`    | Run the TypeScript project build without emitting files             |
+| `npm run lint`         | Run ESLint                                                          |
+| `npm run format:check` | Verify Prettier formatting                                          |
+| `npm run format`       | Apply Prettier formatting                                           |
+| `npm run test:unit`    | Run the Vitest unit and component tests                             |
+| `npm run test:e2e`     | Run the Playwright Chromium import, reset, replace, and export flow |
+| `npm run build`        | Create the static production bundle                                 |
+| `npm run check`        | Run formatting, lint, typecheck, tests, and build in sequence       |
 
 ## Architecture
 
@@ -55,8 +58,8 @@ The source is intentionally split into a few plain module folders:
 - `src/editor` contains editor state and reducer actions independent of React components.
 - `src/import` validates common source-photograph files, decodes them through browser APIs, and
   owns local object-URL cleanup.
-- `src/rendering` contains the bounded WebGL2 preview renderer, shader uniforms, resize handling,
-  and context-loss recovery.
+- `src/rendering` contains the bounded WebGL2 preview renderer, shader uniforms, JPEG export,
+  resize handling, and context-loss recovery.
 - `src/storage` contains browser-storage capability and product-language boundaries.
 - `src/ui` contains design tokens, layout styles, and small reusable controls: buttons, icon
   buttons, fields, sliders, panels, and dialogs.
@@ -77,10 +80,12 @@ Import is local-only: it uses a browser object URL and does not upload the sourc
 make a runtime network request. Object URLs and temporary decoder image resources are released
 when an import is replaced or fails.
 
-The application does not yet persist an Edit, apply the complete Look adjustment set, or export an
-image. The preview texture is bounded to 4,096 pixels on its longest side and the canvas drawing
-buffer is bounded to the same dimension. WebGL2 is required; the interface explains how to recover
-when the capability is missing or its context is lost.
+The application does not yet persist an Edit, apply the complete Look adjustment set, or offer
+selectable export formats, quality, or source-dimension sizing. The first JPEG export re-encodes
+the visible WebGL2 result at the bounded preview dimensions, without source metadata. The preview
+texture and canvas drawing buffer are bounded to 4,096 pixels on their longest side. WebGL2 is
+required; the interface explains how to recover when the capability is missing or its context is
+lost.
 
 Browser storage is intended for recovery and is not a backup. WebGL2 is the rendering path; the
 interface reports when the capability is unavailable.

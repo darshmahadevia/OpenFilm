@@ -39,6 +39,7 @@ export interface RendererOptions extends RendererDependencies {
 
 export interface PreviewRenderer {
   dispose(): void;
+  exportJpeg(): Promise<Blob>;
   redraw(): void;
   replaceImage(source: RendererSourcePhotograph): Promise<void>;
   resize(displayWidth?: number, displayHeight?: number, devicePixelRatio?: number): void;
@@ -609,6 +610,66 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     }
   }
 
+  exportJpeg(): Promise<Blob> {
+    if (this.disposed || this.contextLost || !this.resources.texture || !this.imageDimensions) {
+      return Promise.reject(
+        new RendererError('Import a source photograph before downloading a JPEG.'),
+      );
+    }
+
+    if (typeof this.canvas.toBlob !== 'function') {
+      return Promise.reject(new RendererError('This browser cannot encode the JPEG download.'));
+    }
+
+    const previewWidth = this.canvas.width;
+    const previewHeight = this.canvas.height;
+    const exportWidth = this.imageDimensions.width;
+    const exportHeight = this.imageDimensions.height;
+    let restored = false;
+
+    const restorePreview = () => {
+      if (restored) {
+        return;
+      }
+
+      restored = true;
+      this.canvas.width = previewWidth;
+      this.canvas.height = previewHeight;
+
+      if (!this.contextLost && !this.disposed) {
+        this.gl.viewport(0, 0, previewWidth, previewHeight);
+        this.redraw();
+      }
+    };
+
+    this.canvas.width = exportWidth;
+    this.canvas.height = exportHeight;
+    this.gl.viewport(0, 0, exportWidth, exportHeight);
+    this.redraw();
+
+    return new Promise<Blob>((resolve, reject) => {
+      try {
+        this.canvas.toBlob(
+          (blob) => {
+            restorePreview();
+
+            if (!blob) {
+              reject(new RendererError('OpenFilm could not encode the JPEG download.'));
+              return;
+            }
+
+            resolve(blob);
+          },
+          'image/jpeg',
+          0.92,
+        );
+      } catch {
+        restorePreview();
+        reject(new RendererError('OpenFilm could not encode the JPEG download.'));
+      }
+    });
+  }
+
   resize(
     displayWidth?: number,
     displayHeight?: number,
@@ -666,7 +727,7 @@ export function createRenderer(
     gl = canvas.getContext('webgl2', {
       alpha: false,
       antialias: false,
-      preserveDrawingBuffer: false,
+      preserveDrawingBuffer: true,
     });
   } catch {
     gl = null;

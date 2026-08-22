@@ -160,4 +160,56 @@ describe('OpenFilm shell', () => {
       mocks.restore();
     }
   });
+
+  it('resets adjustments and confirms replacing a source with a changed edit', async () => {
+    const mocks = installImportBrowserMocks();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const firstFile = createSourcePhotographFixtureFile(sourcePhotographFixtures[0]);
+    const rejectedReplacement = createSourcePhotographFixtureFile(sourcePhotographFixtures[1]);
+    const acceptedReplacement = createSourcePhotographFixtureFile(sourcePhotographFixtures[2]);
+
+    try {
+      render(<App />);
+
+      const input = screen.getByLabelText('Choose source photograph');
+      fireEvent.change(input, { target: { files: [firstFile] } });
+      expect(
+        await screen.findByRole('heading', { name: 'orientation-6-portrait.jpg' }),
+      ).toBeInTheDocument();
+
+      const exposure = screen.getByLabelText('Exposure');
+      fireEvent.change(exposure, { target: { value: '0.5' } });
+      expect(exposure).toHaveValue('0.5');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Reset adjustments' }));
+      expect(exposure).toHaveValue('0');
+
+      fireEvent.change(exposure, { target: { value: '0.5' } });
+      fireEvent.change(input, { target: { files: [rejectedReplacement] } });
+
+      expect(
+        await screen.findByText('The current source photograph is still open.'),
+      ).toBeInTheDocument();
+      expect(confirm).toHaveBeenCalledWith(
+        'Replace the current source photograph? The current adjustment state will be reset.',
+      );
+      expect(
+        screen.getByRole('heading', { name: 'orientation-6-portrait.jpg' }),
+      ).toBeInTheDocument();
+      expect(exposure).toHaveValue('0.5');
+      expect(mocks.revokeObjectUrl).toHaveBeenCalledWith('blob:landscape.png');
+
+      confirm.mockReturnValue(true);
+      fireEvent.change(input, { target: { files: [acceptedReplacement] } });
+
+      expect(await screen.findByText(/Loaded square\.webp/)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'square.webp' })).toBeInTheDocument();
+      expect(exposure).toHaveValue('0');
+      await waitFor(() =>
+        expect(mocks.revokeObjectUrl).toHaveBeenCalledWith('blob:orientation-6-portrait.jpg'),
+      );
+    } finally {
+      mocks.restore();
+    }
+  });
 });

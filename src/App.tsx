@@ -46,6 +46,15 @@ const toolDetails: Record<EditorTool, { description: string; title: string }> = 
   },
 };
 
+function hasNonNeutralAdjustments(adjustments: RendererAdjustments): boolean {
+  return adjustments.exposure !== 0 || adjustments.contrast !== 0;
+}
+
+function getJpegDownloadFileName(fileName: string): string {
+  const baseName = fileName.replace(/\.[^.]+$/, '') || 'openfilm';
+  return `${baseName}-openfilm.jpg`;
+}
+
 function RendererStatusLabel({ status }: { status: RendererStatus }) {
   const isAvailable = status === 'available';
   const label = isAvailable
@@ -67,11 +76,13 @@ function ToolControls({
   adjustments,
   hasSource,
   onAdjustmentChange,
+  onReset,
 }: {
   activeTool: EditorTool;
   adjustments: RendererAdjustments;
   hasSource: boolean;
   onAdjustmentChange: (key: keyof RendererAdjustments, value: number) => void;
+  onReset: () => void;
 }) {
   if (activeTool === 'geometry') {
     return (
@@ -173,6 +184,9 @@ function ToolControls({
           <option value="neutral">Neutral</option>
         </select>
       </Field>
+      <Button disabled={!hasSource} onClick={onReset} size="small" variant="outline">
+        Reset adjustments
+      </Button>
     </div>
   );
 }
@@ -190,14 +204,21 @@ export default function App() {
     kind: 'error' | 'success';
     message: string;
   } | null>(null);
+  const [exportFeedback, setExportFeedback] = useState<{
+    kind: 'error' | 'success';
+    message: string;
+  } | null>(null);
   const [isDropActive, setIsDropActive] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isPreviewReady, setIsPreviewReady] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<PreviewRenderer | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importRequestRef = useRef(0);
   const storageAvailable = hasBrowserStorage();
   const activeTool = toolDetails[state.activeTool];
+  const editHasNonNeutralAdjustments = hasNonNeutralAdjustments(adjustments);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -211,6 +232,9 @@ export default function App() {
       onError: (error) => setRendererError(error.message),
       onStatusChange: (status) => {
         setRendererStatus(status);
+        if (status !== 'available') {
+          setIsPreviewReady(false);
+        }
         if (status === 'available') {
           setRendererError(null);
         }
@@ -251,10 +275,12 @@ export default function App() {
     const renderer = rendererRef.current;
 
     if (!renderer || !sourcePhotograph) {
+      setIsPreviewReady(false);
       return;
     }
 
     let cancelled = false;
+    setIsPreviewReady(false);
     setRendererError(null);
 
     void renderer
@@ -262,6 +288,11 @@ export default function App() {
         height: sourcePhotograph.height,
         objectUrl: sourcePhotograph.objectUrl,
         width: sourcePhotograph.width,
+      })
+      .then(() => {
+        if (!cancelled) {
+          setIsPreviewReady(true);
+        }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -314,7 +345,26 @@ export default function App() {
         return;
       }
 
+      const replacementConfirmed =
+        !sourcePhotograph ||
+        !editHasNonNeutralAdjustments ||
+        typeof window === 'undefined' ||
+        window.confirm(
+          'Replace the current source photograph? The current adjustment state will be reset.',
+        );
+
+      if (!replacementConfirmed) {
+        releaseSourcePhotographObjectUrl(imported.objectUrl);
+        setImportFeedback({
+          kind: 'success',
+          message: 'The current source photograph is still open.',
+        });
+        return;
+      }
+
       setSourcePhotograph(imported);
+      setAdjustments({ ...neutralRendererAdjustments });
+      setExportFeedback(null);
       dispatch({ type: 'source-selected', fileName: imported.fileName });
       setImportFeedback({
         kind: 'success',
@@ -353,6 +403,57 @@ export default function App() {
 
   function handleAdjustmentChange(key: keyof RendererAdjustments, value: number) {
     setAdjustments((current) => ({ ...current, [key]: value }));
+  }
+
+  function resetAdjustments() {
+    setAdjustments({ ...neutralRendererAdjustments });
+  }
+
+  async function handleDownloadJpeg() {
+    const renderer = rendererRef.current;
+
+    if (
+      !sourcePhotograph ||
+      !renderer ||
+      rendererStatus !== 'available' ||
+      !isPreviewReady ||
+      isExporting
+    ) {
+      return;
+    }
+
+    setExportFeedback(null);
+    setIsExporting(true);
+
+    try {
+      const blob = await renderer.exportJpeg();
+      const objectUrl = URL.createObjectURL(blob);
+      const downloadFileName = getJpegDownloadFileName(sourcePhotograph.fileName);
+      const link = document.createElement('a');
+
+      link.download = downloadFileName;
+      link.href = objectUrl;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+
+      setExportFeedback({
+        kind: 'success',
+        message: `Downloaded ${downloadFileName}.`,
+      });
+    } catch (error) {
+      setExportFeedback({
+        kind: 'error',
+        message:
+          error instanceof RendererError
+            ? error.message
+            : 'OpenFilm could not create the JPEG download.',
+      });
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   const rendererMessage = rendererError ?? describeRendererStatus(rendererStatus);
@@ -404,7 +505,7 @@ export default function App() {
           >
             <canvas
               aria-label="Image preview canvas"
-              className={`render-canvas ${sourcePhotograph && !rendererMessage ? 'render-canvas--visible' : ''}`}
+              className={`render-canvas ${sourcePhotograph && isPreviewReady && !rendererMessage ? 'render-canvas--visible' : ''}`}
               ref={canvasRef}
             />
             <div aria-hidden="true" className="stage-art">
@@ -469,6 +570,15 @@ export default function App() {
             </p>
           ) : null}
           <p className="storage-note">{storageNotice}</p>
+          {exportFeedback ? (
+            <p
+              aria-live={exportFeedback.kind === 'error' ? 'assertive' : 'polite'}
+              className={`export-feedback export-feedback--${exportFeedback.kind}`}
+              role={exportFeedback.kind === 'error' ? 'alert' : 'status'}
+            >
+              {exportFeedback.message}
+            </p>
+          ) : null}
           <input
             accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
             aria-label="Choose source photograph"
@@ -506,14 +616,35 @@ export default function App() {
               adjustments={adjustments}
               hasSource={Boolean(sourcePhotograph)}
               onAdjustmentChange={handleAdjustmentChange}
+              onReset={resetAdjustments}
             />
           </Panel>
 
           <div className="control-area__footer">
             <p>{sourcePhotograph?.fileName ?? 'No source photograph yet'}</p>
-            <Button disabled={isImporting} onClick={openFilePicker} size="small" variant="outline">
-              {sourcePhotograph ? 'Choose another source' : 'Choose a source'}
-            </Button>
+            <div className="control-area__actions">
+              <Button
+                disabled={
+                  !sourcePhotograph ||
+                  rendererStatus !== 'available' ||
+                  !isPreviewReady ||
+                  isExporting
+                }
+                onClick={handleDownloadJpeg}
+                size="small"
+                variant={sourcePhotograph ? 'primary' : 'outline'}
+              >
+                {isExporting ? 'Preparing JPEG…' : 'Download JPEG'}
+              </Button>
+              <Button
+                disabled={isImporting}
+                onClick={openFilePicker}
+                size="small"
+                variant={sourcePhotograph ? 'outline' : 'primary'}
+              >
+                {sourcePhotograph ? 'Choose another source' : 'Choose a source'}
+              </Button>
+            </div>
           </div>
         </aside>
       </main>

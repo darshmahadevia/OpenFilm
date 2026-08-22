@@ -97,8 +97,15 @@ function createRendererFixture() {
   const gl = createFakeWebGL2Context();
   const statuses: RendererStatus[] = [];
   const imageBitmaps: Array<{ close: ReturnType<typeof vi.fn> }> = [];
+  const toBlob = vi.fn((callback: BlobCallback) => {
+    callback(new Blob(['jpeg'], { type: 'image/jpeg' }));
+  });
 
   vi.spyOn(canvas, 'getContext').mockReturnValue(gl);
+  Object.defineProperty(canvas, 'toBlob', {
+    configurable: true,
+    value: toBlob,
+  });
 
   const renderer = createRenderer(canvas, {
     createImage: () => new RendererImage() as unknown as HTMLImageElement,
@@ -116,7 +123,7 @@ function createRendererFixture() {
     throw new Error('The renderer fixture could not create a renderer.');
   }
 
-  return { canvas, gl, imageBitmaps, renderer, statuses };
+  return { canvas, gl, imageBitmaps, renderer, statuses, toBlob };
 }
 
 describe('renderer capability and geometry helpers', () => {
@@ -193,6 +200,21 @@ describe('WebGL2 preview renderer', () => {
     );
     expect(FRAGMENT_SHADER_SOURCE).toContain('exp2(u_exposure)');
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_contrast');
+    renderer.dispose();
+  });
+
+  it('exports the visible source orientation as a JPEG and restores the preview buffer', async () => {
+    const { canvas, renderer, toBlob } = createRendererFixture();
+
+    renderer.resize(1200, 800, 1);
+    await renderer.replaceImage({ height: 2, objectUrl: 'blob:landscape.png', width: 3 });
+
+    const blob = await renderer.exportJpeg();
+
+    expect(blob.type).toBe('image/jpeg');
+    expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', 0.92);
+    expect(canvas.width).toBe(1200);
+    expect(canvas.height).toBe(800);
     renderer.dispose();
   });
 

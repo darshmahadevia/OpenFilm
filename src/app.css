@@ -348,6 +348,20 @@ strong {
   color: var(--color-accent-dark);
 }
 
+.export-feedback {
+  font-size: var(--type-xs);
+  line-height: 1.5;
+  margin-top: var(--space-3);
+}
+
+.export-feedback--success {
+  color: var(--color-success);
+}
+
+.export-feedback--error {
+  color: var(--color-accent-dark);
+}
+
 .renderer-feedback {
   color: var(--color-accent-dark);
   font-size: var(--type-xs);
@@ -620,6 +634,11 @@ select:disabled {
   display: grid;
   gap: var(--space-3);
   padding-top: var(--space-6);
+}
+
+.control-area__actions {
+  display: grid;
+  gap: var(--space-2);
 }
 
 .control-area__footer p {
