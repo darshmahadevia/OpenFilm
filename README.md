@@ -5,8 +5,10 @@ photographs locally and is designed to deploy as static files without accounts, 
 services.
 
 The current application is the editor shell: a canvas-first workspace, one active control area,
-local UI primitives, and the seams for editor state, rendering, and browser storage. Image
-processing and the full adjustment workflow will land in the tickets that follow this scaffold.
+local UI primitives, and seams for source-photograph import, editor state, rendering, and browser
+storage. It can validate and preview a JPEG, PNG, or WebP selected by picker or drag and drop.
+Image processing and the full adjustment workflow will land in the tickets that follow this
+scaffold.
 
 ## Requirements
 
@@ -51,6 +53,8 @@ npm run preview
 The source is intentionally split into a few plain module folders:
 
 - `src/editor` contains editor state and reducer actions independent of React components.
+- `src/import` validates common source-photograph files, decodes them through browser APIs, and
+  owns local object-URL cleanup.
 - `src/rendering` contains the WebGL2 capability seam used by the preview shell.
 - `src/storage` contains browser-storage capability and product-language boundaries.
 - `src/ui` contains design tokens, layout styles, and small reusable controls: buttons, icon
@@ -61,10 +65,19 @@ remote font, analytics script, server route, or API client.
 
 ## Known limits
 
-This first scaffold does not yet decode or render a selected photograph, persist an Edit, apply a
-Look, or export an image. The file picker and controls establish the interaction shell for those
-later increments. Only JPEG, PNG, and WebP are advertised by the shell; unsupported formats and
-the full validation path will be handled by the import ticket.
+The current import path accepts JPEG, PNG, and WebP files at most 20 MiB. After browser
+decoding, it accepts photographs up to 16,384 pixels on either side and 80 million total pixels;
+these limits keep ordinary phone and camera photographs practical for a browser preview. The
+preview uses the browser's `from-image` orientation behavior, so EXIF-oriented photographs are
+shown in their intended orientation. Failed type checks, oversized files, invalid dimensions,
+and decode failures are reported without replacing the current source photograph.
+
+Import is local-only: it uses a browser object URL and does not upload the source photograph or
+make a runtime network request. Object URLs and temporary decoder image resources are released
+when an import is replaced or fails.
+
+The application does not yet persist an Edit, apply a Look, or export an image. The WebGL2 canvas
+and controls establish the interaction shell for those later increments.
 
 Browser storage is intended for recovery and is not a backup. WebGL2 is the planned rendering path;
 the shell reports when the capability is unavailable.

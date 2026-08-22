@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, DragEvent } from 'react';
 
 import {
   editorReducer,
@@ -7,6 +7,12 @@ import {
   initialEditorState,
   type EditorTool,
 } from './editor/editorState';
+import {
+  describeSourcePhotographImportError,
+  importSourcePhotograph,
+  releaseSourcePhotographObjectUrl,
+  type ImportedSourcePhotograph,
+} from './import';
 import { getRendererStatus, type RendererStatus } from './rendering/renderer';
 import { hasBrowserStorage, storageNotice } from './storage/browserStorage';
 import { Button, Dialog, Field, IconButton, Panel, Slider } from './ui/components';
@@ -146,10 +152,18 @@ function ToolControls({ activeTool, hasSource }: { activeTool: EditorTool; hasSo
 
 export default function App() {
   const [state, dispatch] = useReducer(editorReducer, initialEditorState);
+  const [sourcePhotograph, setSourcePhotograph] = useState<ImportedSourcePhotograph | null>(null);
   const [rendererStatus, setRendererStatus] = useState<RendererStatus>('unsupported');
   const [helpOpen, setHelpOpen] = useState(false);
+  const [importFeedback, setImportFeedback] = useState<{
+    kind: 'error' | 'success';
+    message: string;
+  } | null>(null);
+  const [isDropActive, setIsDropActive] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importRequestRef = useRef(0);
   const storageAvailable = hasBrowserStorage();
   const activeTool = toolDetails[state.activeTool];
 
@@ -157,19 +171,77 @@ export default function App() {
     setRendererStatus(getRendererStatus(canvasRef.current));
   }, []);
 
+  useEffect(() => {
+    const objectUrl = sourcePhotograph?.objectUrl;
+
+    return () => {
+      if (objectUrl) {
+        releaseSourcePhotographObjectUrl(objectUrl);
+      }
+    };
+  }, [sourcePhotograph?.objectUrl]);
+
   function openFilePicker() {
+    if (isImporting) {
+      return;
+    }
+
     fileInputRef.current?.click();
+  }
+
+  async function importSelectedSource(file: File | undefined) {
+    if (!file) {
+      return;
+    }
+
+    const requestId = importRequestRef.current + 1;
+    importRequestRef.current = requestId;
+    setImportFeedback(null);
+    setIsImporting(true);
+
+    try {
+      const imported = await importSourcePhotograph(file);
+
+      if (requestId !== importRequestRef.current) {
+        releaseSourcePhotographObjectUrl(imported.objectUrl);
+        return;
+      }
+
+      setSourcePhotograph(imported);
+      dispatch({ type: 'source-selected', fileName: imported.fileName });
+      setImportFeedback({
+        kind: 'success',
+        message: `Loaded ${imported.fileName} — ${imported.width.toLocaleString()} × ${imported.height.toLocaleString()} pixels.`,
+      });
+    } catch (error) {
+      if (requestId === importRequestRef.current) {
+        setImportFeedback({
+          kind: 'error',
+          message: describeSourcePhotographImportError(error, file.name),
+        });
+      }
+    } finally {
+      if (requestId === importRequestRef.current) {
+        setIsImporting(false);
+      }
+    }
   }
 
   function handleFileSelected(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+    event.target.value = '';
 
     if (!file) {
       return;
     }
 
-    dispatch({ type: 'source-selected', fileName: file.name });
-    event.target.value = '';
+    void importSelectedSource(file);
+  }
+
+  function handleSourceDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsDropActive(false);
+    void importSelectedSource(event.dataTransfer.files?.[0]);
   }
 
   return (
@@ -204,8 +276,29 @@ export default function App() {
             <h1 id="preview-title">Your photograph, in focus.</h1>
           </div>
 
-          <div className={`canvas-stage ${state.sourceFileName ? 'canvas-stage--ready' : ''}`}>
+          <div
+            aria-busy={isImporting}
+            aria-label="Source photograph import area"
+            className={`canvas-stage ${sourcePhotograph ? 'canvas-stage--ready' : ''} ${isDropActive ? 'canvas-stage--drop-active' : ''}`}
+            onDragEnter={(event) => {
+              event.preventDefault();
+              setIsDropActive(true);
+            }}
+            onDragLeave={() => setIsDropActive(false)}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={handleSourceDrop}
+            role="group"
+          >
             <canvas aria-label="Image preview canvas" className="render-canvas" ref={canvasRef} />
+            {sourcePhotograph ? (
+              <img
+                alt={`Preview of ${sourcePhotograph.fileName}`}
+                className="source-preview"
+                draggable="false"
+                key={sourcePhotograph.objectUrl}
+                src={sourcePhotograph.objectUrl}
+              />
+            ) : null}
             <div aria-hidden="true" className="stage-art">
               <div className="stage-art__frame">
                 <div className="stage-art__sun" />
@@ -214,18 +307,19 @@ export default function App() {
               </div>
             </div>
             <div className="canvas-stage__content">
-              {state.sourceFileName ? (
+              {sourcePhotograph ? (
                 <>
-                  <h2>{state.sourceFileName}</h2>
+                  <h2>{sourcePhotograph.fileName}</h2>
                   <p>
-                    Source photograph selected. The preview canvas is ready for the active Look.
+                    {sourcePhotograph.width.toLocaleString()} ×{' '}
+                    {sourcePhotograph.height.toLocaleString()} pixels. Ready for the active Look.
                   </p>
                 </>
               ) : (
                 <>
                   <h2>Bring a photograph into focus.</h2>
-                  <p>Start with one JPEG, PNG, or WebP source photograph.</p>
-                  <Button onClick={openFilePicker} variant="primary">
+                  <p>Choose or drop one JPEG, PNG, or WebP source photograph.</p>
+                  <Button disabled={isImporting} onClick={openFilePicker} variant="primary">
                     Import photograph
                   </Button>
                 </>
@@ -239,9 +333,28 @@ export default function App() {
               {storageAvailable ? 'Browser recovery available' : 'Browser recovery unavailable'}
             </span>
           </div>
+          {isImporting ? (
+            <p
+              aria-live="polite"
+              className="import-feedback import-feedback--loading"
+              role="status"
+            >
+              Reading source photograph locally…
+            </p>
+          ) : null}
+          {importFeedback ? (
+            <p
+              aria-live={importFeedback.kind === 'error' ? 'assertive' : 'polite'}
+              className={`import-feedback import-feedback--${importFeedback.kind}`}
+              role={importFeedback.kind === 'error' ? 'alert' : 'status'}
+            >
+              {importFeedback.message}
+            </p>
+          ) : null}
           <p className="storage-note">{storageNotice}</p>
           <input
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+            aria-label="Choose source photograph"
             className="visually-hidden"
             onChange={handleFileSelected}
             ref={fileInputRef}
@@ -271,13 +384,13 @@ export default function App() {
           </div>
 
           <Panel description={activeTool.description} id="active-tool" title={activeTool.title}>
-            <ToolControls activeTool={state.activeTool} hasSource={Boolean(state.sourceFileName)} />
+            <ToolControls activeTool={state.activeTool} hasSource={Boolean(sourcePhotograph)} />
           </Panel>
 
           <div className="control-area__footer">
-            <p>{state.sourceFileName ?? 'No source photograph yet'}</p>
-            <Button onClick={openFilePicker} size="small" variant="outline">
-              {state.sourceFileName ? 'Choose another source' : 'Choose a source'}
+            <p>{sourcePhotograph?.fileName ?? 'No source photograph yet'}</p>
+            <Button disabled={isImporting} onClick={openFilePicker} size="small" variant="outline">
+              {sourcePhotograph ? 'Choose another source' : 'Choose a source'}
             </Button>
           </div>
         </aside>
