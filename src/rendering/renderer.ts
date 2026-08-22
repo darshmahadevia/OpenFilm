@@ -17,6 +17,13 @@ import {
   type GeometryValues,
 } from '../editor/geometry';
 import { createToneCurveLookup, neutralToneCurve } from '../editor/toneCurve';
+import {
+  getExportDimensions,
+  getExportSourceDimensions,
+  getExportFormatOption,
+  normalizeExportOptions,
+  type ExportOptions,
+} from './export';
 
 export type RendererStatus = 'available' | 'context-lost' | 'unsupported';
 
@@ -91,6 +98,7 @@ export interface RendererOptions extends RendererDependencies {
 
 export interface PreviewRenderer {
   dispose(): void;
+  exportImage(options?: Partial<ExportOptions>): Promise<Blob>;
   exportJpeg(): Promise<Blob>;
   getHistogram(): LuminanceHistogram | null;
   redraw(): void;
@@ -593,8 +601,9 @@ async function prepareImageSource(
   image: HTMLImageElement,
   source: RendererSourcePhotograph,
   dependencies: RendererDependencies,
+  requestedDimensions = getPreviewDimensions(source.width, source.height),
 ): Promise<PreparedImageSource> {
-  const dimensions = getPreviewDimensions(source.width, source.height);
+  const dimensions = requestedDimensions;
   const createImageBitmap = dependencies.createImageBitmap ?? getBrowserImageBitmap();
 
   if (createImageBitmap) {
@@ -728,6 +737,97 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     canvas.addEventListener('webglcontextrestored', this.handleContextRestored, false);
   }
 
+  private createExportTexture(
+    prepared: PreparedImageSource,
+    dimensions: PreviewDimensions,
+  ): WebGLTexture {
+    if (typeof this.gl.getParameter === 'function') {
+      const maximumTextureSize = this.gl.getParameter(this.gl.MAX_TEXTURE_SIZE);
+
+      if (
+        typeof maximumTextureSize === 'number' &&
+        Number.isFinite(maximumTextureSize) &&
+        (dimensions.width > maximumTextureSize || dimensions.height > maximumTextureSize)
+      ) {
+        throw new RendererError(
+          `This browser's WebGL2 texture limit is too small for a ${dimensions.width.toLocaleString()} × ${dimensions.height.toLocaleString()} export. Choose a smaller maximum long edge.`,
+        );
+      }
+    }
+
+    const texture = this.gl.createTexture();
+
+    if (!texture) {
+      throw new RendererError(
+        `OpenFilm could not allocate a ${dimensions.width.toLocaleString()} × ${dimensions.height.toLocaleString()} export. Choose a smaller maximum long edge.`,
+      );
+    }
+
+    try {
+      this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+      this.gl.texImage2D(
+        this.gl.TEXTURE_2D,
+        0,
+        this.gl.RGBA,
+        this.gl.RGBA,
+        this.gl.UNSIGNED_BYTE,
+        prepared.source,
+      );
+
+      if (typeof this.gl.getError === 'function') {
+        const error = this.gl.getError();
+
+        if (error !== undefined && error !== this.gl.NO_ERROR) {
+          throw new RendererError(
+            `OpenFilm could not allocate a ${dimensions.width.toLocaleString()} × ${dimensions.height.toLocaleString()} export in WebGL2. Choose a smaller maximum long edge.`,
+          );
+        }
+      }
+
+      return texture;
+    } catch (error) {
+      this.gl.deleteTexture(texture);
+
+      if (error instanceof RendererError) {
+        throw error;
+      }
+
+      throw new RendererError(
+        `OpenFilm could not allocate a ${dimensions.width.toLocaleString()} × ${dimensions.height.toLocaleString()} export. Choose a smaller maximum long edge.`,
+      );
+    }
+  }
+
+  private encodeExport(format: ExportOptions['format'], quality: number): Promise<Blob> {
+    const formatOption = getExportFormatOption(format);
+    const errorMessage = `OpenFilm could not encode the ${formatOption.label} export. Try a smaller maximum long edge or a different format.`;
+
+    return new Promise<Blob>((resolve, reject) => {
+      const handleBlob: BlobCallback = (blob) => {
+        if (!blob) {
+          reject(new RendererError(errorMessage));
+          return;
+        }
+
+        resolve(blob);
+      };
+
+      try {
+        if (formatOption.lossy) {
+          this.canvas.toBlob(handleBlob, formatOption.mimeType, quality / 100);
+        } else {
+          this.canvas.toBlob(handleBlob, formatOption.mimeType);
+        }
+      } catch {
+        reject(new RendererError(errorMessage));
+      }
+    });
+  }
+
   dispose(): void {
     if (this.disposed) {
       return;
@@ -747,7 +847,7 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     this.histogramCanvas = null;
   }
 
-  redraw(): void {
+  redraw(outputDimensionsOverride?: PreviewDimensions): void {
     if (this.disposed || this.contextLost) {
       return;
     }
@@ -759,7 +859,8 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
       return;
     }
 
-    const outputDimensions = getGeometryOutputDimensions(this.imageDimensions, this.geometry);
+    const outputDimensions =
+      outputDimensionsOverride ?? getGeometryOutputDimensions(this.imageDimensions, this.geometry);
     const scale = calculateImageScale(
       this.canvas.width,
       this.canvas.height,
@@ -860,65 +961,112 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     }
   }
 
-  exportJpeg(): Promise<Blob> {
+  async exportImage(options: Partial<ExportOptions> = {}): Promise<Blob> {
+    const normalizedOptions = normalizeExportOptions(options);
+    const formatOption = getExportFormatOption(normalizedOptions.format);
+
     if (this.disposed || this.contextLost || !this.resources.texture || !this.imageDimensions) {
-      return Promise.reject(
-        new RendererError('Import a source photograph before downloading a JPEG.'),
+      throw new RendererError(
+        `Import a source photograph before downloading the ${formatOption.label} export.`,
       );
     }
 
     if (typeof this.canvas.toBlob !== 'function') {
-      return Promise.reject(new RendererError('This browser cannot encode the JPEG download.'));
+      throw new RendererError(`This browser cannot encode the ${formatOption.label} export.`);
     }
 
+    const source = this.source;
+
+    if (!source) {
+      throw new RendererError(
+        `Import a source photograph before downloading the ${formatOption.label} export.`,
+      );
+    }
+
+    const request = this.sourceRequest;
+    const outputDimensions = getExportDimensions(
+      source,
+      this.geometry,
+      normalizedOptions.maximumLongEdge,
+    );
+    const sourceDimensions = getExportSourceDimensions(
+      source,
+      this.geometry,
+      normalizedOptions.maximumLongEdge,
+    );
     const previewWidth = this.canvas.width;
     const previewHeight = this.canvas.height;
-    const outputDimensions = getGeometryOutputDimensions(this.imageDimensions, this.geometry);
-    const exportWidth = outputDimensions.width;
-    const exportHeight = outputDimensions.height;
-    let restored = false;
+    const previewTexture = this.resources.texture;
+    const previewImageDimensions = this.imageDimensions;
+    let image: HTMLImageElement | null = null;
+    let prepared: PreparedImageSource | null = null;
+    let exportTexture: WebGLTexture | null = null;
+    let exportStateActive = false;
 
-    const restorePreview = () => {
-      if (restored) {
-        return;
+    try {
+      image = await loadSourceImage(source, this.options.createImage ?? createBrowserImage);
+      prepared = await prepareImageSource(image, source, this.options, sourceDimensions);
+
+      if (
+        this.disposed ||
+        this.contextLost ||
+        request !== this.sourceRequest ||
+        this.source !== source
+      ) {
+        throw new RendererError('The source photograph changed before export finished. Try again.');
       }
 
-      restored = true;
-      this.canvas.width = previewWidth;
-      this.canvas.height = previewHeight;
+      exportTexture = this.createExportTexture(prepared, sourceDimensions);
+      this.resources.texture = exportTexture;
+      this.imageDimensions = sourceDimensions;
+      exportStateActive = true;
 
-      if (!this.contextLost && !this.disposed) {
-        this.gl.viewport(0, 0, previewWidth, previewHeight);
-        this.redraw();
-      }
-    };
-
-    this.canvas.width = exportWidth;
-    this.canvas.height = exportHeight;
-    this.gl.viewport(0, 0, exportWidth, exportHeight);
-    this.redraw();
-
-    return new Promise<Blob>((resolve, reject) => {
       try {
-        this.canvas.toBlob(
-          (blob) => {
-            restorePreview();
-
-            if (!blob) {
-              reject(new RendererError('OpenFilm could not encode the JPEG download.'));
-              return;
-            }
-
-            resolve(blob);
-          },
-          'image/jpeg',
-          0.92,
-        );
+        this.canvas.width = outputDimensions.width;
+        this.canvas.height = outputDimensions.height;
+        this.gl.viewport(0, 0, outputDimensions.width, outputDimensions.height);
       } catch {
-        restorePreview();
-        reject(new RendererError('OpenFilm could not encode the JPEG download.'));
+        throw new RendererError(
+          `OpenFilm could not allocate a ${outputDimensions.width.toLocaleString()} × ${outputDimensions.height.toLocaleString()} export. Choose a smaller maximum long edge.`,
+        );
       }
-    });
+
+      this.redraw(outputDimensions);
+      return await this.encodeExport(normalizedOptions.format, normalizedOptions.quality);
+    } catch (error) {
+      if (error instanceof RendererError) {
+        throw error;
+      }
+
+      throw new RendererError(
+        `OpenFilm could not create the ${formatOption.label} export. Try a smaller maximum long edge or a different format.`,
+      );
+    } finally {
+      if (exportStateActive) {
+        if (!this.contextLost && !this.disposed) {
+          this.resources.texture = previewTexture;
+          this.imageDimensions = previewImageDimensions;
+          this.canvas.width = previewWidth;
+          this.canvas.height = previewHeight;
+          this.gl.viewport(0, 0, previewWidth, previewHeight);
+          this.redraw();
+        } else {
+          this.resources.texture = null;
+          this.imageDimensions = null;
+        }
+      }
+
+      if (exportTexture && !this.contextLost && !this.disposed) {
+        this.gl.deleteTexture(exportTexture);
+      }
+
+      prepared?.release();
+      image?.removeAttribute('src');
+    }
+  }
+
+  exportJpeg(): Promise<Blob> {
+    return this.exportImage({ format: 'jpeg', maximumLongEdge: null, quality: 92 });
   }
 
   getHistogram(): LuminanceHistogram | null {

@@ -7,15 +7,17 @@ services.
 The current application is a canvas-first editor workspace with one active control area, local UI
 primitives, source-photograph import, and a single WebGL2 preview path. It validates JPEG, PNG, and
 WebP files selected by picker or drag and drop, prepares a bounded preview texture, sends the six
-core Adjustments, vignette, grain, and one RGB tone curve through the fragment shader, and downloads
-the visible result as a JPEG. Each scalar control has a slider and a numeric field. The tone curve
+core Adjustments, vignette, grain, and one RGB tone curve through the fragment shader, and exports
+the visible result as JPEG, PNG, or WebP. Lossy exports have a quality control, and every export
+reports its estimated dimensions before download. Each scalar control has a slider and a numeric
+field. The tone curve
 has a bounded plot, ordered points, pointer dragging, arrow-key movement, and numeric input.
 Individual resets, vignette and grain group resets, the all-adjustments reset, undo, and redo use
 the shared Edit history. One history covers Adjustments, curve changes, and geometry. It keeps the
 latest 50 committed changes, and a slider or drag gesture commits one entry when it ends. A bundled
 sample photograph lets someone try the controls without choosing a file. The Geometry tool provides
 a free or common-ratio crop, normalized crop fields, 90-degree rotation, horizontal and vertical
-flips, and the same WebGL2 transform for preview and JPEG export. Geometry stays in the Edit rather
+flips, and the same WebGL2 transform for preview and every export format. Geometry stays in the Edit rather
 than a reusable Look. The canvas offers a persistent before-and-after toggle and a deferred
 luminance histogram so histogram sampling does not run on every control event. Replacing a changed
 Edit asks for confirmation before returning its adjustment and geometry state to neutral.
@@ -107,7 +109,8 @@ The source is intentionally split into a few plain module folders:
   owns local object-URL cleanup.
 - `src/rendering` contains the bounded WebGL2 preview renderer, geometry uniforms and output sizing,
   the tone curve lookup texture, image-relative vignette, deterministic grain, deferred luminance
-  histogram sampling, JPEG export, resize handling, and context-loss recovery.
+  histogram sampling, format-aware export sizing and encoding, resize handling, and context-loss
+  recovery.
 - `src/storage` contains browser-storage capability and product-language boundaries.
 - `src/ui` contains design tokens, layout styles, and small reusable controls: buttons, icon
   buttons, fields, sliders, panels, and dialogs.
@@ -128,10 +131,14 @@ Import is local-only: it uses a browser object URL and does not upload the sourc
 make a runtime network request. Object URLs and temporary decoder image resources are released
 when an import is replaced or fails.
 
-The application does not yet persist a complete Edit, offer selectable export formats, quality, or
-source-dimension sizing. The current editor-state representation preserves normalized geometry and
-the Edit-specific grain seed for the local-recovery work that follows. The first JPEG export
-re-encodes the visible WebGL2 result at the bounded preview dimensions, without source metadata.
+The application does not yet persist a complete Edit. Export re-encodes the current Edit as JPEG,
+PNG, or WebP, exposes quality for JPEG and WebP, and lets the user keep the rendered source
+dimensions or choose a maximum long edge without upscaling. The estimated dimensions include the
+current crop and rotation. Export re-decodes the local source photograph at the requested render
+size and sends it through the same WebGL2 adjustment, curve, effect, grain, and geometry path as
+the preview; browser re-encoding strips source metadata and creates a new download without
+overwriting the source. Very large source-dimension exports can exceed a browser's WebGL2 texture
+or canvas allocation limit; OpenFilm reports that failure and suggests a smaller maximum long edge.
 The preview texture and canvas drawing buffer are bounded to 4,096 pixels on their longest side.
 The tone curve is intentionally limited to eight ordered points and one shared RGB mapping. WebGL2
 is required; the interface explains how to recover when the capability is missing or its context is

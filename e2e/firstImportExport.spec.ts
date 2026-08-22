@@ -65,6 +65,41 @@ test('imports, previews, resets, replaces, and downloads a JPEG', async ({ page 
   );
 });
 
+test('selects PNG, reports bounded dimensions, and downloads a fresh export', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+
+  const format = page.getByRole('combobox', { name: 'Format' });
+  const quality = page.getByRole('slider', { name: 'Quality' });
+  const outputSize = page.getByRole('combobox', { name: 'Output size' });
+  const downloadButton = page.getByRole('button', { name: 'Download JPEG' });
+
+  await expect(quality).toBeVisible();
+  await format.selectOption('png');
+  await expect(quality).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Download PNG' })).toBeEnabled();
+
+  await outputSize.selectOption('maximum');
+  const maximumLongEdge = page.getByRole('spinbutton', { name: 'Maximum long edge' });
+  await maximumLongEdge.fill('200');
+  await expect(page.getByText('200 × 150 pixels')).toBeVisible();
+
+  await expect(downloadButton).toBeHidden();
+  const pngDownloadButton = page.getByRole('button', { name: 'Download PNG' });
+  const downloadPromise = page.waitForEvent('download');
+  await pngDownloadButton.click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toBe('openfilm-sample-openfilm.png');
+  const downloadPath = await download.path();
+  expect(downloadPath).not.toBeNull();
+  const bytes = await readFile(downloadPath as string);
+  expect(bytes.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  expect(bytes.readUInt32BE(16)).toBe(200);
+  expect(bytes.readUInt32BE(20)).toBe(150);
+});
+
 test('tries the bundled sample and edits the core adjustments', async ({ page }) => {
   await page.goto('/');
 

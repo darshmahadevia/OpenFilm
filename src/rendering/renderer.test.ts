@@ -105,9 +105,9 @@ function createRendererFixture() {
   const statuses: RendererStatus[] = [];
   const imageBitmaps: Array<{ close: ReturnType<typeof vi.fn> }> = [];
   const blobDimensions: Array<{ height: number; width: number }> = [];
-  const toBlob = vi.fn((callback: BlobCallback) => {
+  const toBlob = vi.fn((callback: BlobCallback, type?: string) => {
     blobDimensions.push({ height: canvas.height, width: canvas.width });
-    callback(new Blob(['jpeg'], { type: 'image/jpeg' }));
+    callback(new Blob(['encoded'], { type: type ?? 'image/png' }));
   });
 
   vi.spyOn(canvas, 'getContext').mockReturnValue(gl);
@@ -306,6 +306,51 @@ describe('WebGL2 preview renderer', () => {
     expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', 0.92);
     expect(canvas.width).toBe(1200);
     expect(canvas.height).toBe(800);
+    renderer.dispose();
+  });
+
+  it('exports selected formats at a bounded size with lossy quality', async () => {
+    const { blobDimensions, canvas, renderer, toBlob } = createRendererFixture();
+
+    renderer.resize(1000, 800, 1);
+    await renderer.replaceImage({ height: 800, objectUrl: 'blob:landscape.png', width: 1200 });
+
+    const blob = await renderer.exportImage({
+      format: 'webp',
+      maximumLongEdge: 600,
+      quality: 47,
+    });
+
+    expect(blob.type).toBe('image/webp');
+    expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/webp', 0.47);
+    expect(blobDimensions.at(-1)).toEqual({ height: 400, width: 600 });
+    expect(canvas.width).toBe(1000);
+    expect(canvas.height).toBe(800);
+    renderer.dispose();
+  });
+
+  it('exports PNG without passing a lossy quality value', async () => {
+    const { renderer, toBlob } = createRendererFixture();
+
+    await renderer.replaceImage({ height: 2, objectUrl: 'blob:landscape.png', width: 3 });
+    const blob = await renderer.exportImage({ format: 'png', quality: 12 });
+
+    expect(blob.type).toBe('image/png');
+    expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png');
+    renderer.dispose();
+  });
+
+  it('reports a useful encoding failure and leaves the preview available', async () => {
+    const { canvas, renderer, toBlob } = createRendererFixture();
+
+    await renderer.replaceImage({ height: 2, objectUrl: 'blob:landscape.png', width: 3 });
+    toBlob.mockImplementation((callback) => callback(null));
+
+    await expect(renderer.exportImage({ format: 'png' })).rejects.toThrow(
+      'Try a smaller maximum long edge or a different format',
+    );
+    expect(canvas.width).toBeGreaterThan(0);
+    expect(canvas.height).toBeGreaterThan(0);
     renderer.dispose();
   });
 

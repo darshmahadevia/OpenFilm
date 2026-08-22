@@ -53,6 +53,15 @@ import {
   type RendererStatus,
   type LuminanceHistogram,
 } from './rendering/renderer';
+import {
+  defaultExportOptions,
+  exportFormatOptions,
+  getExportDimensions,
+  getExportFileName,
+  isLossyExportFormat,
+  normalizeMaximumLongEdge,
+  type ExportFormat,
+} from './rendering/export';
 import { hasBrowserStorage, storageNotice } from './storage/browserStorage';
 import {
   addToneCurvePoint,
@@ -104,11 +113,6 @@ function isTextEntryTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement
     ? ['email', 'number', 'password', 'search', 'tel', 'text', 'url'].includes(target.type)
     : false;
-}
-
-function getJpegDownloadFileName(fileName: string): string {
-  const baseName = fileName.replace(/\.[^.]+$/, '') || 'openfilm';
-  return `${baseName}-openfilm.jpg`;
 }
 
 function RendererStatusLabel({ status }: { status: RendererStatus }) {
@@ -1035,6 +1039,149 @@ function ToolControls({
   );
 }
 
+type ExportSizeMode = 'maximum' | 'source';
+
+function ExportControls({
+  estimatedOutputDimensions,
+  exportFormat,
+  exportMaximumLongEdge,
+  exportMaximumLongEdgeInput,
+  exportQuality,
+  exportSizeMode,
+  hasSource,
+  maximumLongEdgeIsValid,
+  onExportFormatChange,
+  onExportMaximumLongEdgeChange,
+  onExportQualityChange,
+  onExportSizeModeChange,
+}: {
+  estimatedOutputDimensions: { height: number; width: number } | null;
+  exportFormat: ExportFormat;
+  exportMaximumLongEdge: number | null;
+  exportMaximumLongEdgeInput: string;
+  exportQuality: number;
+  exportSizeMode: ExportSizeMode;
+  hasSource: boolean;
+  maximumLongEdgeIsValid: boolean;
+  onExportFormatChange: (format: ExportFormat) => void;
+  onExportMaximumLongEdgeChange: (value: string) => void;
+  onExportQualityChange: (value: number) => void;
+  onExportSizeModeChange: (mode: ExportSizeMode) => void;
+}) {
+  const formatOption = exportFormatOptions.find((option) => option.value === exportFormat);
+
+  return (
+    <Panel
+      description="Re-encode the current Edit without changing the source photograph."
+      id="export"
+      title="Export"
+    >
+      <div className="export-controls">
+        <Field
+          hint="The browser re-encodes the rendered image, so source metadata is not copied."
+          id="export-format"
+          label="Format"
+        >
+          <select
+            aria-describedby="export-format-hint"
+            disabled={!hasSource}
+            id="export-format"
+            onChange={(event) => onExportFormatChange(event.currentTarget.value as ExportFormat)}
+            value={exportFormat}
+          >
+            {exportFormatOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        {isLossyExportFormat(exportFormat) ? (
+          <Slider
+            disabled={!hasSource}
+            displayValue={`${exportQuality}%`}
+            hint={`${formatOption?.label ?? 'Lossy'} quality from 1 to 100. Higher values usually create larger files.`}
+            id="export-quality"
+            label="Quality"
+            max={100}
+            min={1}
+            onChange={(event) => onExportQualityChange(Number(event.currentTarget.value))}
+            step={1}
+            value={exportQuality}
+          />
+        ) : null}
+
+        <Field
+          hint="Source dimensions keeps the rendered crop at its natural size. A maximum long edge never enlarges it."
+          id="export-size"
+          label="Output size"
+        >
+          <select
+            aria-describedby="export-size-hint"
+            disabled={!hasSource}
+            id="export-size"
+            onChange={(event) =>
+              onExportSizeModeChange(event.currentTarget.value as ExportSizeMode)
+            }
+            value={exportSizeMode}
+          >
+            <option value="source">Source dimensions</option>
+            <option value="maximum">Maximum long edge</option>
+          </select>
+        </Field>
+
+        {exportSizeMode === 'maximum' ? (
+          <Field
+            hint="The current Edit will not be upscaled when this value exceeds its natural long edge."
+            id="export-long-edge"
+            label="Maximum long edge"
+          >
+            <input
+              aria-describedby="export-long-edge-hint"
+              className="export-controls__number"
+              disabled={!hasSource}
+              id="export-long-edge"
+              inputMode="numeric"
+              max={16_384}
+              min={1}
+              onChange={(event) => onExportMaximumLongEdgeChange(event.currentTarget.value)}
+              step={1}
+              type="number"
+              value={exportMaximumLongEdgeInput}
+            />
+          </Field>
+        ) : null}
+
+        <div aria-live="polite" className="export-estimate">
+          <span>Estimated output</span>
+          {estimatedOutputDimensions ? (
+            <strong>
+              {estimatedOutputDimensions.width.toLocaleString()} ×{' '}
+              {estimatedOutputDimensions.height.toLocaleString()} pixels
+            </strong>
+          ) : (
+            <strong>Import a source photograph first</strong>
+          )}
+        </div>
+
+        {exportSizeMode === 'maximum' && !maximumLongEdgeIsValid ? (
+          <p className="export-controls__error" role="alert">
+            Enter a maximum long edge of at least 1 pixel to export.
+          </p>
+        ) : null}
+
+        {exportMaximumLongEdge !== null && estimatedOutputDimensions ? (
+          <p className="field__hint">
+            {formatOption?.label ?? 'Export'} will be written as a fresh file; the source remains
+            untouched.
+          </p>
+        ) : null}
+      </div>
+    </Panel>
+  );
+}
+
 export default function App() {
   const [state, dispatch] = useReducer(editorReducer, initialEditorState);
   const [sourcePhotograph, setSourcePhotograph] = useState<ImportedSourcePhotograph | null>(null);
@@ -1052,6 +1199,10 @@ export default function App() {
   } | null>(null);
   const [isDropActive, setIsDropActive] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>(defaultExportOptions.format);
+  const [exportQuality, setExportQuality] = useState(defaultExportOptions.quality);
+  const [exportSizeMode, setExportSizeMode] = useState<ExportSizeMode>('source');
+  const [exportMaximumLongEdgeInput, setExportMaximumLongEdgeInput] = useState('4096');
   const [isImporting, setIsImporting] = useState(false);
   const [isPreviewReady, setIsPreviewReady] = useState(false);
   const [showBefore, setShowBefore] = useState(false);
@@ -1066,6 +1217,14 @@ export default function App() {
   const adjustments = editHistory.present.adjustments;
   const geometry = editHistory.present.geometry;
   const editHasChanges = hasNonNeutralEdit(editHistory.present);
+  const exportMaximumLongEdge =
+    exportSizeMode === 'maximum'
+      ? normalizeMaximumLongEdge(exportMaximumLongEdgeInput)
+      : defaultExportOptions.maximumLongEdge;
+  const maximumLongEdgeIsValid = exportSizeMode === 'source' || exportMaximumLongEdge !== null;
+  const estimatedOutputDimensions = sourcePhotograph
+    ? getExportDimensions(sourcePhotograph, geometry, exportMaximumLongEdge)
+    : null;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1410,14 +1569,21 @@ export default function App() {
     void importSelectedSource(createBundledSamplePhotographFile());
   }
 
-  async function handleDownloadJpeg() {
+  async function handleDownload() {
     const renderer = rendererRef.current;
+    const source = sourcePhotograph;
+    const selectedFormat = exportFormat;
+    const formatLabel =
+      exportFormatOptions.find((option) => option.value === selectedFormat)?.label ?? 'image';
+    const outputDimensions = estimatedOutputDimensions;
 
     if (
-      !sourcePhotograph ||
+      !source ||
       !renderer ||
       rendererStatus !== 'available' ||
       !isPreviewReady ||
+      !maximumLongEdgeIsValid ||
+      !outputDimensions ||
       isExporting
     ) {
       return;
@@ -1425,11 +1591,21 @@ export default function App() {
 
     setExportFeedback(null);
     setIsExporting(true);
+    const restoreBeforeState = showBefore;
+
+    if (restoreBeforeState) {
+      renderer.setAdjustments(adjustments);
+      renderer.setGeometry(geometry);
+    }
 
     try {
-      const blob = await renderer.exportJpeg();
+      const blob = await renderer.exportImage({
+        format: selectedFormat,
+        maximumLongEdge: exportMaximumLongEdge,
+        quality: exportQuality,
+      });
       const objectUrl = URL.createObjectURL(blob);
-      const downloadFileName = getJpegDownloadFileName(sourcePhotograph.fileName);
+      const downloadFileName = getExportFileName(source.fileName, selectedFormat);
       const link = document.createElement('a');
 
       link.download = downloadFileName;
@@ -1442,7 +1618,7 @@ export default function App() {
 
       setExportFeedback({
         kind: 'success',
-        message: `Downloaded ${downloadFileName}.`,
+        message: `Downloaded ${downloadFileName} at ${outputDimensions.width.toLocaleString()} × ${outputDimensions.height.toLocaleString()} pixels.`,
       });
     } catch (error) {
       setExportFeedback({
@@ -1450,9 +1626,13 @@ export default function App() {
         message:
           error instanceof RendererError
             ? error.message
-            : 'OpenFilm could not create the JPEG download.',
+            : `OpenFilm could not create the ${formatLabel} download.`,
       });
     } finally {
+      if (restoreBeforeState) {
+        renderer.setAdjustments(neutralRendererAdjustments);
+        renderer.setGeometry(neutralGeometry);
+      }
       setIsExporting(false);
     }
   }
@@ -1670,6 +1850,21 @@ export default function App() {
             />
           </Panel>
 
+          <ExportControls
+            estimatedOutputDimensions={estimatedOutputDimensions}
+            exportFormat={exportFormat}
+            exportMaximumLongEdge={exportMaximumLongEdge}
+            exportMaximumLongEdgeInput={exportMaximumLongEdgeInput}
+            exportQuality={exportQuality}
+            exportSizeMode={exportSizeMode}
+            hasSource={Boolean(sourcePhotograph)}
+            maximumLongEdgeIsValid={maximumLongEdgeIsValid}
+            onExportFormatChange={setExportFormat}
+            onExportMaximumLongEdgeChange={setExportMaximumLongEdgeInput}
+            onExportQualityChange={setExportQuality}
+            onExportSizeModeChange={setExportSizeMode}
+          />
+
           <div className="control-area__footer">
             <p>{sourcePhotograph?.fileName ?? 'No source photograph yet'}</p>
             <div className="control-area__actions">
@@ -1678,13 +1873,16 @@ export default function App() {
                   !sourcePhotograph ||
                   rendererStatus !== 'available' ||
                   !isPreviewReady ||
+                  !maximumLongEdgeIsValid ||
                   isExporting
                 }
-                onClick={handleDownloadJpeg}
+                onClick={handleDownload}
                 size="small"
                 variant={sourcePhotograph ? 'primary' : 'outline'}
               >
-                {isExporting ? 'Preparing JPEG…' : 'Download JPEG'}
+                {isExporting
+                  ? `Preparing ${exportFormatOptions.find((option) => option.value === exportFormat)?.label ?? 'export'}…`
+                  : `Download ${exportFormatOptions.find((option) => option.value === exportFormat)?.label ?? 'export'}`}
               </Button>
               <Button
                 disabled={isImporting}
