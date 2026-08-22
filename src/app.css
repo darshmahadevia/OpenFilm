@@ -468,6 +468,125 @@ strong {
   justify-self: end;
 }
 
+.tone-curve-control {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.tone-curve-control__header {
+  align-items: start;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.tone-curve-control__header h3 {
+  font-size: var(--type-md);
+  margin: 0;
+}
+
+.tone-curve-control__header p {
+  color: var(--color-ink-soft);
+  font-size: var(--type-xs);
+  line-height: 1.45;
+  margin-top: var(--space-1);
+}
+
+.tone-curve-control__count {
+  color: var(--color-muted);
+  font-size: var(--type-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tone-curve-plot {
+  aspect-ratio: 1;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line-strong);
+  max-width: 21rem;
+  position: relative;
+  touch-action: none;
+  width: 100%;
+}
+
+.tone-curve-plot__grid {
+  display: block;
+  height: 100%;
+  inset: 0;
+  overflow: visible;
+  position: absolute;
+  width: 100%;
+}
+
+.tone-curve-plot__grid path {
+  fill: none;
+  stroke: var(--color-line);
+  stroke-width: 0.45;
+}
+
+.tone-curve-plot__grid .tone-curve-plot__neutral {
+  stroke: var(--color-line-strong);
+  stroke-dasharray: 2 2;
+  stroke-width: 0.65;
+}
+
+.tone-curve-plot__grid .tone-curve-plot__line {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+
+.tone-curve-point {
+  align-items: center;
+  background: var(--color-surface);
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-round);
+  display: flex;
+  height: 1rem;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 1rem;
+  z-index: 1;
+}
+
+.tone-curve-point span {
+  background: var(--color-accent);
+  border-radius: var(--radius-round);
+  display: block;
+  height: 0.28rem;
+  width: 0.28rem;
+}
+
+.tone-curve-point--selected {
+  background: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(180, 83, 53, 0.2);
+}
+
+.tone-curve-point--selected span {
+  background: var(--color-accent-ink);
+}
+
+.tone-curve-point:disabled {
+  cursor: not-allowed;
+  opacity: 0.64;
+}
+
+.tone-curve-control__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tone-curve-control__coordinates {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .field,
 .slider-field {
   display: grid;

@@ -125,6 +125,11 @@ test('keeps the adjustment controls labeled and usable at a phone width', async 
     await expect(page.getByRole('spinbutton', { name: `${label} value` })).toBeVisible();
   }
 
+  await expect(page.getByRole('group', { name: 'RGB tone curve plot' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add tone curve point' })).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: 'Input (x)' })).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: 'Output (y)' })).toBeVisible();
+
   const accessibilitySnapshot = await page.evaluate(() => ({
     controlsWithoutNames: Array.from(document.querySelectorAll('button, input, select')).filter(
       (element) => {
@@ -144,4 +149,44 @@ test('keeps the adjustment controls labeled and usable at a phone width', async 
   expect(accessibilitySnapshot.controlsWithoutNames).toBe(0);
   expect(accessibilitySnapshot.horizontalOverflow).toBe(false);
   expect(consoleErrors).toEqual([]);
+});
+
+test('edits the bounded RGB tone curve with numeric and keyboard controls', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+
+  await expect(page.getByText('2 / 8 points')).toBeVisible();
+  await page.getByRole('button', { name: 'Add tone curve point' }).click();
+  await expect(page.getByText('3 / 8 points')).toBeVisible();
+
+  const input = page.getByRole('spinbutton', { name: 'Input (x)' });
+  const output = page.getByRole('spinbutton', { name: 'Output (y)' });
+  await expect(input).toHaveValue('0.50');
+  await expect(output).toHaveValue('0.50');
+
+  const plot = page.getByRole('group', { name: 'RGB tone curve plot' });
+  const plotBox = await plot.boundingBox();
+  const pointBox = await page
+    .getByRole('button', { name: /Tone curve point 2, input 0\.50, output 0\.50/ })
+    .boundingBox();
+  expect(plotBox).not.toBeNull();
+  expect(pointBox).not.toBeNull();
+  await page.mouse.move(pointBox!.x + pointBox!.width / 2, pointBox!.y + pointBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(plotBox!.x + plotBox!.width * 0.35, plotBox!.y + plotBox!.height * 0.25);
+  await page.mouse.up();
+  await expect(input).toHaveValue('0.35');
+  await expect(output).toHaveValue('0.75');
+
+  await input.fill('0.25');
+  await expect(input).toHaveValue('0.25');
+  const selectedPoint = page.getByRole('button', {
+    name: /Tone curve point 2, input 0\.25, output 0\.75/,
+  });
+  await selectedPoint.press('ArrowUp');
+  await expect(output).toHaveValue('0.76');
+
+  await page.getByRole('button', { name: 'Remove selected tone curve point' }).click();
+  await expect(page.getByText('2 / 8 points')).toBeVisible();
 });

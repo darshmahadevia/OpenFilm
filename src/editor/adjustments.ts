@@ -1,3 +1,13 @@
+import {
+  cloneToneCurve,
+  isValidToneCurve,
+  isNeutralToneCurve,
+  neutralToneCurve,
+  normalizeToneCurve,
+  toneCurvesEqual,
+  type ToneCurvePoint,
+} from './toneCurve';
+
 export const adjustmentKeys = [
   'exposure',
   'contrast',
@@ -16,6 +26,7 @@ export interface AdjustmentValues {
   saturation: number;
   temperature: number;
   tint: number;
+  toneCurve: ToneCurvePoint[];
 }
 
 interface AdjustmentDefinition {
@@ -92,6 +103,7 @@ export const neutralAdjustments: AdjustmentValues = {
   saturation: 0,
   temperature: 0,
   tint: 0,
+  toneCurve: cloneToneCurve(neutralToneCurve),
 };
 
 export interface AdjustmentHistoryState {
@@ -102,7 +114,9 @@ export interface AdjustmentHistoryState {
 
 export type AdjustmentAction =
   | { type: 'set'; key: AdjustmentKey; value: number }
+  | { type: 'set-tone-curve'; points: ToneCurvePoint[] }
   | { type: 'reset-one'; key: AdjustmentKey }
+  | { type: 'reset-tone-curve' }
   | { type: 'reset-all' }
   | { type: 'undo' }
   | { type: 'redo' }
@@ -119,10 +133,15 @@ export function clampAdjustment(key: AdjustmentKey, value: number): number {
 }
 
 export function normalizeAdjustments(values: Partial<AdjustmentValues>): AdjustmentValues {
-  return adjustmentKeys.reduce((normalized, key) => {
-    normalized[key] = clampAdjustment(key, values[key] ?? neutralAdjustments[key]);
-    return normalized;
+  const normalized = adjustmentKeys.reduce((result, key) => {
+    result[key] = clampAdjustment(key, values[key] ?? neutralAdjustments[key]);
+    return result;
   }, {} as AdjustmentValues);
+
+  return {
+    ...normalized,
+    toneCurve: normalizeToneCurve(values.toneCurve),
+  };
 }
 
 export function createAdjustmentHistory(
@@ -136,7 +155,10 @@ export function createAdjustmentHistory(
 }
 
 function adjustmentsEqual(first: AdjustmentValues, second: AdjustmentValues): boolean {
-  return adjustmentKeys.every((key) => first[key] === second[key]);
+  return (
+    adjustmentKeys.every((key) => first[key] === second[key]) &&
+    toneCurvesEqual(first.toneCurve, second.toneCurve)
+  );
 }
 
 function recordAdjustment(
@@ -164,10 +186,24 @@ export function adjustmentReducer(
         ...state.present,
         [action.key]: clampAdjustment(action.key, action.value),
       });
+    case 'set-tone-curve':
+      if (!isValidToneCurve(action.points)) {
+        return state;
+      }
+
+      return recordAdjustment(state, {
+        ...state.present,
+        toneCurve: cloneToneCurve(action.points),
+      });
     case 'reset-one':
       return recordAdjustment(state, {
         ...state.present,
         [action.key]: neutralAdjustments[action.key],
+      });
+    case 'reset-tone-curve':
+      return recordAdjustment(state, {
+        ...state.present,
+        toneCurve: cloneToneCurve(neutralToneCurve),
       });
     case 'reset-all':
       return recordAdjustment(state, { ...neutralAdjustments });
@@ -205,7 +241,10 @@ export function adjustmentReducer(
 }
 
 export function hasNonNeutralAdjustments(values: AdjustmentValues): boolean {
-  return adjustmentKeys.some((key) => values[key] !== neutralAdjustments[key]);
+  return (
+    adjustmentKeys.some((key) => values[key] !== neutralAdjustments[key]) ||
+    !isNeutralToneCurve(values.toneCurve)
+  );
 }
 
 export function serializeAdjustments(values: AdjustmentValues): string {
@@ -223,6 +262,12 @@ export function deserializeAdjustments(serialized: string): AdjustmentValues {
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('OpenFilm could not read the adjustment values.');
+  }
+
+  const parsedRecord = parsed as Record<string, unknown>;
+
+  if ('toneCurve' in parsedRecord && !isValidToneCurve(parsedRecord.toneCurve)) {
+    throw new Error('OpenFilm could not read the tone curve.');
   }
 
   return normalizeAdjustments(parsed as Partial<AdjustmentValues>);

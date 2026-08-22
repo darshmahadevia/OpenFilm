@@ -4,6 +4,7 @@ import {
   normalizeAdjustments,
   type AdjustmentValues,
 } from '../editor/adjustments';
+import { createToneCurveLookup, neutralToneCurve } from '../editor/toneCurve';
 
 export type RendererStatus = 'available' | 'context-lost' | 'unsupported';
 
@@ -79,6 +80,7 @@ uniform float u_temperature;
 uniform float u_tint;
 uniform float u_saturation;
 uniform float u_fade;
+uniform sampler2D u_tone_curve;
 
 in vec2 v_tex_coord;
 
@@ -93,8 +95,16 @@ void main() {
   float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
   color = mix(vec3(luminance), color, 1.0 + u_saturation);
   color = mix(color, vec3(0.5), u_fade * 0.32);
+  color = vec3(
+    texture(u_tone_curve, vec2(clamp(color.r, 0.0, 1.0), 0.5)).r,
+    texture(u_tone_curve, vec2(clamp(color.g, 0.0, 1.0), 0.5)).r,
+    texture(u_tone_curve, vec2(clamp(color.b, 0.0, 1.0), 0.5)).r
+  );
   out_color = vec4(clamp(color, 0.0, 1.0), source.a);
 }`;
+
+export const TONE_CURVE_LUT_SIZE = 256;
+const TONE_CURVE_TEXTURE_UNIT = 1;
 
 interface GpuResources {
   imageScale: WebGLUniformLocation;
@@ -102,6 +112,8 @@ interface GpuResources {
   program: WebGLProgram;
   source: WebGLUniformLocation;
   texture: WebGLTexture | null;
+  toneCurve: WebGLUniformLocation;
+  toneCurveTexture: WebGLTexture;
   texCoordAttribute: number;
   uniformContrast: WebGLUniformLocation;
   uniformExposure: WebGLUniformLocation;
@@ -178,12 +190,16 @@ function requireUniform(
   return location;
 }
 
-function createGpuResources(gl: WebGL2RenderingContext): GpuResources {
+function createGpuResources(
+  gl: WebGL2RenderingContext,
+  initialToneCurve = neutralToneCurve,
+): GpuResources {
   let vertexShader: WebGLShader | null = null;
   let fragmentShader: WebGLShader | null = null;
   let program: WebGLProgram | null = null;
   let vertexArray: WebGLVertexArrayObject | null = null;
   let vertexBuffer: WebGLBuffer | null = null;
+  let toneCurveTexture: WebGLTexture | null = null;
 
   try {
     vertexShader = requireShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER_SOURCE);
@@ -230,6 +246,32 @@ function createGpuResources(gl: WebGL2RenderingContext): GpuResources {
 
     const source = requireUniform(gl, program, 'u_source');
     gl.uniform1i(source, 0);
+    const toneCurve = requireUniform(gl, program, 'u_tone_curve');
+    gl.uniform1i(toneCurve, TONE_CURVE_TEXTURE_UNIT);
+    toneCurveTexture = gl.createTexture();
+
+    if (!toneCurveTexture) {
+      throw new RendererError('OpenFilm could not create its tone curve lookup texture.');
+    }
+
+    gl.activeTexture(gl.TEXTURE0 + TONE_CURVE_TEXTURE_UNIT);
+    gl.bindTexture(gl.TEXTURE_2D, toneCurveTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      TONE_CURVE_LUT_SIZE,
+      1,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      createToneCurveLookup(initialToneCurve, TONE_CURVE_LUT_SIZE),
+    );
+    gl.activeTexture(gl.TEXTURE0);
 
     return {
       imageScale: requireUniform(gl, program, 'u_image_scale'),
@@ -237,6 +279,8 @@ function createGpuResources(gl: WebGL2RenderingContext): GpuResources {
       program,
       source,
       texture: null,
+      toneCurve,
+      toneCurveTexture,
       texCoordAttribute,
       uniformContrast: requireUniform(gl, program, 'u_contrast'),
       uniformExposure: requireUniform(gl, program, 'u_exposure'),
@@ -253,6 +297,9 @@ function createGpuResources(gl: WebGL2RenderingContext): GpuResources {
     }
     if (vertexBuffer) {
       gl.deleteBuffer(vertexBuffer);
+    }
+    if (toneCurveTexture) {
+      gl.deleteTexture(toneCurveTexture);
     }
     if (program) {
       gl.deleteProgram(program);
@@ -278,9 +325,31 @@ function deleteTexture(gl: WebGL2RenderingContext, resources: GpuResources): voi
 
 function deleteGpuResources(gl: WebGL2RenderingContext, resources: GpuResources): void {
   deleteTexture(gl, resources);
+  gl.deleteTexture(resources.toneCurveTexture);
   gl.deleteBuffer(resources.vertexBuffer);
   gl.deleteVertexArray(resources.vertexArray);
   gl.deleteProgram(resources.program);
+}
+
+function updateToneCurveTexture(
+  gl: WebGL2RenderingContext,
+  resources: GpuResources,
+  points: RendererAdjustments['toneCurve'],
+): void {
+  gl.activeTexture(gl.TEXTURE0 + TONE_CURVE_TEXTURE_UNIT);
+  gl.bindTexture(gl.TEXTURE_2D, resources.toneCurveTexture);
+  gl.texSubImage2D(
+    gl.TEXTURE_2D,
+    0,
+    0,
+    0,
+    TONE_CURVE_LUT_SIZE,
+    1,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    createToneCurveLookup(points, TONE_CURVE_LUT_SIZE),
+  );
+  gl.activeTexture(gl.TEXTURE0);
 }
 
 function createBrowserImage(): HTMLImageElement {
@@ -502,7 +571,7 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     }
 
     try {
-      this.resources = createGpuResources(this.gl);
+      this.resources = createGpuResources(this.gl, this.adjustments.toneCurve);
       this.contextLost = false;
       this.options.onStatusChange?.('available');
       this.resize();
@@ -525,7 +594,7 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     private readonly gl: WebGL2RenderingContext,
     private readonly options: RendererOptions,
   ) {
-    this.resources = createGpuResources(gl);
+    this.resources = createGpuResources(gl, this.adjustments.toneCurve);
     gl.clearColor(0.87, 0.866, 0.831, 1);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
     canvas.addEventListener('webglcontextlost', this.handleContextLost, false);
@@ -571,6 +640,9 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     gl.bindVertexArray(resources.vertexArray);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, resources.texture);
+    gl.activeTexture(gl.TEXTURE0 + TONE_CURVE_TEXTURE_UNIT);
+    gl.bindTexture(gl.TEXTURE_2D, resources.toneCurveTexture);
+    gl.activeTexture(gl.TEXTURE0);
     gl.uniform2f(resources.imageScale, scale.x, scale.y);
     const shaderAdjustments = getShaderAdjustmentValues(this.adjustments);
     gl.uniform1f(resources.uniformExposure, shaderAdjustments.exposure);
@@ -738,6 +810,7 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
 
     if (!this.contextLost && !this.disposed) {
       this.gl.useProgram(this.resources.program);
+      updateToneCurveTexture(this.gl, this.resources, this.adjustments.toneCurve);
       const shaderAdjustments = getShaderAdjustmentValues(this.adjustments);
       this.gl.uniform1f(this.resources.uniformExposure, shaderAdjustments.exposure);
       this.gl.uniform1f(this.resources.uniformContrast, shaderAdjustments.contrast);

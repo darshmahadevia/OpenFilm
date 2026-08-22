@@ -218,6 +218,44 @@ describe('OpenFilm shell', () => {
     }
   });
 
+  it('supports adding, selecting, numerically editing, keyboard moving, and removing a curve point', async () => {
+    const mocks = installImportBrowserMocks();
+    const sourceFile = createSourcePhotographFixtureFile(sourcePhotographFixtures[0]);
+
+    try {
+      render(<App />);
+      fireEvent.change(screen.getByLabelText('Choose source photograph'), {
+        target: { files: [sourceFile] },
+      });
+      expect(
+        await screen.findByRole('heading', { name: 'orientation-6-portrait.jpg' }),
+      ).toBeInTheDocument();
+
+      expect(screen.getByText('2 / 8 points')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Add tone curve point' }));
+      expect(screen.getByText('3 / 8 points')).toBeInTheDocument();
+
+      const input = screen.getByLabelText('Input (x)');
+      const output = screen.getByLabelText('Output (y)');
+      expect(input).toHaveValue(0.5);
+      expect(output).toHaveValue(0.5);
+
+      fireEvent.change(input, { target: { value: '0.25' } });
+      expect(input).toHaveValue(0.25);
+
+      const selectedPoint = screen.getByRole('button', {
+        name: /Tone curve point 2, input 0\.25, output 0\.50/,
+      });
+      fireEvent.keyDown(selectedPoint, { key: 'ArrowUp' });
+      expect(output).toHaveValue(0.51);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Remove selected tone curve point' }));
+      expect(screen.getByText('2 / 8 points')).toBeInTheDocument();
+    } finally {
+      mocks.restore();
+    }
+  });
+
   it('resets adjustments and confirms replacing a source with a changed edit', async () => {
     const mocks = installImportBrowserMocks();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);

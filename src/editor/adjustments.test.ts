@@ -32,6 +32,11 @@ describe('shared adjustment values', () => {
       exposure: 1.25,
       saturation: -40,
       temperature: 18,
+      toneCurve: [
+        { x: 0, y: 0 },
+        { x: 0.35, y: 0.62 },
+        { x: 1, y: 1 },
+      ],
     };
 
     expect(deserializeAdjustments(serializeAdjustments(values))).toEqual(values);
@@ -42,8 +47,14 @@ describe('shared adjustment values', () => {
       saturation: 0,
       temperature: 0,
       tint: 0,
+      toneCurve: neutralAdjustments.toneCurve,
     });
     expect(() => deserializeAdjustments('not json')).toThrow('could not read');
+    expect(() =>
+      deserializeAdjustments(
+        '{"toneCurve":[{"x":0,"y":0},{"x":0.5,"y":0.5},{"x":0.5,"y":0.8},{"x":1,"y":1}]}',
+      ),
+    ).toThrow('tone curve');
   });
 });
 
@@ -85,5 +96,23 @@ describe('adjustment history reducer', () => {
     state = adjustmentReducer(state, { type: 'replace-source' });
 
     expect(state).toEqual({ future: [], past: [], present: neutralAdjustments });
+  });
+
+  it('records tone curve edits and resets them through history', () => {
+    let state = createAdjustmentHistory();
+    const points = [
+      { x: 0, y: 0 },
+      { x: 0.5, y: 0.72 },
+      { x: 1, y: 1 },
+    ];
+
+    state = adjustmentReducer(state, { type: 'set-tone-curve', points });
+    expect(state.present.toneCurve).toEqual(points);
+
+    state = adjustmentReducer(state, { type: 'reset-tone-curve' });
+    expect(state.present.toneCurve).toEqual(neutralAdjustments.toneCurve);
+
+    state = adjustmentReducer(state, { type: 'undo' });
+    expect(state.present.toneCurve).toEqual(points);
   });
 });

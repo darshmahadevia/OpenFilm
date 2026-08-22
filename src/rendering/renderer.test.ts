@@ -6,6 +6,8 @@ import {
   getPreviewDimensions,
   getRendererStatus,
   MAX_PREVIEW_DIMENSION,
+  neutralRendererAdjustments,
+  TONE_CURVE_LUT_SIZE,
   type RendererStatus,
 } from './renderer';
 import { sourcePhotographFixtures } from '../import/sourcePhotographFixtures';
@@ -81,6 +83,7 @@ function createFakeWebGL2Context() {
     shaderSource: vi.fn(),
     texImage2D: vi.fn(),
     texParameteri: vi.fn(),
+    texSubImage2D: vi.fn(),
     uniform1f: vi.fn(),
     uniform1i: vi.fn(),
     uniform2f: vi.fn(),
@@ -176,7 +179,7 @@ describe('WebGL2 preview renderer', () => {
         width: fixture.width,
       });
 
-      expect(gl.texImage2D).toHaveBeenCalledTimes(1);
+      expect(gl.texImage2D).toHaveBeenCalledTimes(2);
       expect(gl.drawArrays).toHaveBeenCalledWith(gl.TRIANGLES, 0, 6);
       expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_exposure' }, 0);
       expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_contrast' }, 0);
@@ -198,6 +201,11 @@ describe('WebGL2 preview renderer', () => {
       saturation: 40,
       temperature: 20,
       tint: -15,
+      toneCurve: [
+        { x: 0, y: 0 },
+        { x: 0.5, y: 0.75 },
+        { x: 1, y: 1 },
+      ],
     });
 
     expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_exposure' }, 0.5);
@@ -206,6 +214,17 @@ describe('WebGL2 preview renderer', () => {
     expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_tint' }, -0.15);
     expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_saturation' }, 0.4);
     expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_fade' }, 0.1);
+    expect(gl.texSubImage2D).toHaveBeenCalledWith(
+      gl.TEXTURE_2D,
+      0,
+      0,
+      0,
+      TONE_CURVE_LUT_SIZE,
+      1,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      expect.any(Uint8Array),
+    );
     expect((gl.drawArrays as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(
       drawsBeforeAdjustment,
     );
@@ -215,6 +234,13 @@ describe('WebGL2 preview renderer', () => {
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_tint');
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_saturation');
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_fade');
+    expect(FRAGMENT_SHADER_SOURCE).toContain('u_tone_curve');
+    expect(FRAGMENT_SHADER_SOURCE).toContain('texture(u_tone_curve');
+    expect(TONE_CURVE_LUT_SIZE).toBe(256);
+    expect(neutralRendererAdjustments.toneCurve).toEqual([
+      { x: 0, y: 0 },
+      { x: 1, y: 1 },
+    ]);
     renderer.dispose();
   });
 

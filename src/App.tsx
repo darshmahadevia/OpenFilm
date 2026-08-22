@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
-import type { ChangeEvent, DragEvent } from 'react';
+import type { ChangeEvent, DragEvent, KeyboardEvent, PointerEvent } from 'react';
 
 import {
   adjustmentDefinitions,
@@ -33,6 +33,15 @@ import {
   type RendererStatus,
 } from './rendering/renderer';
 import { hasBrowserStorage, storageNotice } from './storage/browserStorage';
+import {
+  addToneCurvePoint,
+  isNeutralToneCurve,
+  moveToneCurvePoint,
+  removeToneCurvePoint,
+  TONE_CURVE_MAX_POINTS,
+  TONE_CURVE_STEP,
+  type ToneCurvePoint,
+} from './editor/toneCurve';
 import { Button, Dialog, Field, IconButton, Panel, Slider } from './ui/components';
 
 const toolLabels: Record<EditorTool, string> = {
@@ -120,6 +129,255 @@ function AdjustmentControl({
   );
 }
 
+function ToneCurveControl({
+  hasSource,
+  onChange,
+  onReset,
+  points,
+}: {
+  hasSource: boolean;
+  onChange: (points: ToneCurvePoint[]) => void;
+  onReset: () => void;
+  points: ToneCurvePoint[];
+}) {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const draggingIndex = useRef<number | null>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
+  const safeSelectedIndex = Math.max(0, Math.min(selectedIndex, points.length - 1));
+  const selectedPoint = points[safeSelectedIndex];
+
+  function updatePointFromPointer(index: number, event: PointerEvent<HTMLButtonElement>) {
+    const bounds = plotRef.current?.getBoundingClientRect();
+
+    if (!bounds || bounds.width < 1 || bounds.height < 1) {
+      return;
+    }
+
+    const x = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width));
+    const y = Math.min(1, Math.max(0, 1 - (event.clientY - bounds.top) / bounds.height));
+    const next = moveToneCurvePoint(points, index, { x, y });
+
+    if (next) {
+      onChange(next);
+    }
+  }
+
+  function handlePointPointerDown(index: number, event: PointerEvent<HTMLButtonElement>) {
+    if (!hasSource) {
+      return;
+    }
+
+    event.preventDefault();
+    setSelectedIndex(index);
+    draggingIndex.current = index;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    updatePointFromPointer(index, event);
+  }
+
+  function handlePointPointerMove(index: number, event: PointerEvent<HTMLButtonElement>) {
+    if (draggingIndex.current === index) {
+      updatePointFromPointer(index, event);
+    }
+  }
+
+  function handlePointPointerUp(index: number, event: PointerEvent<HTMLButtonElement>) {
+    if (draggingIndex.current !== index) {
+      return;
+    }
+
+    draggingIndex.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function handlePointKeyDown(index: number, event: KeyboardEvent<HTMLButtonElement>) {
+    if (!hasSource) {
+      return;
+    }
+
+    const step = event.shiftKey ? TONE_CURVE_STEP * 5 : TONE_CURVE_STEP;
+    let position: Partial<ToneCurvePoint>;
+
+    switch (event.key) {
+      case 'ArrowLeft':
+        position = { x: points[index].x - step };
+        break;
+      case 'ArrowRight':
+        position = { x: points[index].x + step };
+        break;
+      case 'ArrowUp':
+        position = { y: points[index].y + step };
+        break;
+      case 'ArrowDown':
+        position = { y: points[index].y - step };
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    setSelectedIndex(index);
+    const next = moveToneCurvePoint(points, index, position);
+
+    if (next) {
+      onChange(next);
+    }
+  }
+
+  function handleCoordinateChange(axis: keyof ToneCurvePoint, value: string) {
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue)) {
+      return;
+    }
+
+    const next = moveToneCurvePoint(points, safeSelectedIndex, { [axis]: numericValue });
+
+    if (next) {
+      onChange(next);
+    }
+  }
+
+  function addPoint() {
+    const next = addToneCurvePoint(points);
+
+    if (!next) {
+      return;
+    }
+
+    const insertedIndex = next.findIndex((point, index) => point.x !== points[index]?.x);
+    setSelectedIndex(insertedIndex < 0 ? next.length - 2 : insertedIndex);
+    onChange(next);
+  }
+
+  function removeSelectedPoint() {
+    const next = removeToneCurvePoint(points, safeSelectedIndex);
+
+    if (!next) {
+      return;
+    }
+
+    setSelectedIndex(Math.max(0, safeSelectedIndex - 1));
+    onChange(next);
+  }
+
+  return (
+    <div className="tone-curve-control">
+      <div className="tone-curve-control__header">
+        <div>
+          <h3>RGB tone curve</h3>
+          <p>Shape all three color channels with one bounded curve.</p>
+        </div>
+        <span className="tone-curve-control__count">
+          {points.length} / {TONE_CURVE_MAX_POINTS} points
+        </span>
+      </div>
+      <div aria-label="RGB tone curve plot" className="tone-curve-plot" ref={plotRef} role="group">
+        <svg aria-hidden="true" className="tone-curve-plot__grid" viewBox="0 0 100 100">
+          <path d="M0 25H100M0 50H100M0 75H100M25 0V100M50 0V100M75 0V100" />
+          <path className="tone-curve-plot__neutral" d="M0 100L100 0" />
+          <polyline
+            className="tone-curve-plot__line"
+            points={points.map((point) => `${point.x * 100},${100 - point.y * 100}`).join(' ')}
+          />
+        </svg>
+        {points.map((point, index) => (
+          <button
+            aria-label={`Tone curve point ${index + 1}, input ${point.x.toFixed(2)}, output ${point.y.toFixed(2)}`}
+            aria-pressed={safeSelectedIndex === index}
+            aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
+            className={`tone-curve-point ${safeSelectedIndex === index ? 'tone-curve-point--selected' : ''}`}
+            disabled={!hasSource}
+            key={index}
+            onClick={() => setSelectedIndex(index)}
+            onKeyDown={(event) => handlePointKeyDown(index, event)}
+            onPointerCancel={(event) => handlePointPointerUp(index, event)}
+            onPointerDown={(event) => handlePointPointerDown(index, event)}
+            onPointerMove={(event) => handlePointPointerMove(index, event)}
+            onPointerUp={(event) => handlePointPointerUp(index, event)}
+            style={{ left: `${point.x * 100}%`, top: `${(1 - point.y) * 100}%` }}
+            type="button"
+          >
+            <span aria-hidden="true" />
+          </button>
+        ))}
+      </div>
+      <p className="field__hint">
+        Select a point, drag it, use the arrow keys, or edit its input and output values. Endpoints
+        keep their input positions; point inputs must stay ordered.
+      </p>
+      <div className="tone-curve-control__actions">
+        <Button
+          aria-label="Add tone curve point"
+          disabled={!hasSource || points.length >= TONE_CURVE_MAX_POINTS}
+          onClick={addPoint}
+          size="small"
+          variant="outline"
+        >
+          Add point
+        </Button>
+        <Button
+          aria-label="Remove selected tone curve point"
+          disabled={
+            !hasSource || safeSelectedIndex === 0 || safeSelectedIndex === points.length - 1
+          }
+          onClick={removeSelectedPoint}
+          size="small"
+          variant="outline"
+        >
+          Remove point
+        </Button>
+        <Button
+          aria-label="Reset tone curve"
+          disabled={!hasSource || isNeutralToneCurve(points)}
+          onClick={onReset}
+          size="small"
+          variant="quiet"
+        >
+          Reset curve
+        </Button>
+      </div>
+      <div className="tone-curve-control__coordinates">
+        <Field
+          hint="0 to 1; interior inputs must stay between their neighbors."
+          id="tone-curve-input"
+          label="Input (x)"
+        >
+          <input
+            aria-describedby="tone-curve-input-hint"
+            className="slider-field__number"
+            disabled={
+              !hasSource || safeSelectedIndex === 0 || safeSelectedIndex === points.length - 1
+            }
+            id="tone-curve-input"
+            max={1}
+            min={0}
+            onChange={(event) => handleCoordinateChange('x', event.currentTarget.value)}
+            step={TONE_CURVE_STEP}
+            type="number"
+            value={selectedPoint.x.toFixed(2)}
+          />
+        </Field>
+        <Field hint="0 to 1." id="tone-curve-output" label="Output (y)">
+          <input
+            aria-describedby="tone-curve-output-hint"
+            className="slider-field__number"
+            disabled={!hasSource}
+            id="tone-curve-output"
+            max={1}
+            min={0}
+            onChange={(event) => handleCoordinateChange('y', event.currentTarget.value)}
+            step={TONE_CURVE_STEP}
+            type="number"
+            value={selectedPoint.y.toFixed(2)}
+          />
+        </Field>
+      </div>
+    </div>
+  );
+}
+
 function ToolControls({
   activeTool,
   adjustments,
@@ -130,6 +388,8 @@ function ToolControls({
   onRedo,
   onResetAdjustment,
   onReset,
+  onResetToneCurve,
+  onToneCurveChange,
   onUndo,
 }: {
   activeTool: EditorTool;
@@ -141,6 +401,8 @@ function ToolControls({
   onRedo: () => void;
   onResetAdjustment: (key: AdjustmentKey) => void;
   onReset: () => void;
+  onResetToneCurve: () => void;
+  onToneCurveChange: (points: ToneCurvePoint[]) => void;
   onUndo: () => void;
 }) {
   if (activeTool === 'geometry') {
@@ -222,6 +484,12 @@ function ToolControls({
           onReset={onResetAdjustment}
         />
       ))}
+      <ToneCurveControl
+        hasSource={hasSource}
+        onChange={onToneCurveChange}
+        onReset={onResetToneCurve}
+        points={adjustments.toneCurve}
+      />
       <Button disabled={!hasSource} onClick={onReset} size="small" variant="outline">
         Reset adjustments
       </Button>
@@ -451,6 +719,14 @@ export default function App() {
 
   function resetAdjustment(key: AdjustmentKey) {
     dispatchAdjustments({ type: 'reset-one', key });
+  }
+
+  function handleToneCurveChange(points: ToneCurvePoint[]) {
+    dispatchAdjustments({ type: 'set-tone-curve', points });
+  }
+
+  function resetToneCurve() {
+    dispatchAdjustments({ type: 'reset-tone-curve' });
   }
 
   function undoAdjustment() {
@@ -687,6 +963,8 @@ export default function App() {
               onRedo={redoAdjustment}
               onResetAdjustment={resetAdjustment}
               onReset={resetAdjustments}
+              onResetToneCurve={resetToneCurve}
+              onToneCurveChange={handleToneCurveChange}
               onUndo={undoAdjustment}
             />
           </Panel>
