@@ -12,8 +12,11 @@ the visible result as a JPEG. Each scalar control has a slider and a numeric fie
 has a bounded plot, ordered points, pointer dragging, arrow-key movement, and numeric input.
 Individual resets, effect-group resets, the all-adjustments reset, undo, and redo use the shared
 adjustment history. A bundled sample photograph lets someone try the controls without choosing a
-file. Replacing a changed Edit asks for confirmation before returning its adjustment state to
-neutral. The rest of the editing workflow will land in the tickets that follow this increment.
+file. The Geometry tool provides a free or common-ratio crop, normalized crop fields, 90-degree
+rotation, horizontal and vertical flips, and its own undoable history. Geometry uses the same
+transform for the WebGL2 preview and JPEG export, and stays in the Edit rather than a reusable Look.
+Replacing a changed Edit asks for confirmation before returning its adjustment and geometry state
+to neutral. The rest of the editing workflow will land in the tickets that follow this increment.
 
 ## Core adjustments
 
@@ -77,31 +80,32 @@ npm run preview
 
 ## Verification scripts
 
-| Script                 | Purpose                                                             |
-| ---------------------- | ------------------------------------------------------------------- |
-| `npm run dev`          | Start the Vite development server                                   |
-| `npm run typecheck`    | Run the TypeScript project build without emitting files             |
-| `npm run lint`         | Run ESLint                                                          |
-| `npm run format:check` | Verify Prettier formatting                                          |
-| `npm run format`       | Apply Prettier formatting                                           |
-| `npm run test:unit`    | Run the Vitest unit and component tests                             |
-| `npm run test:e2e`     | Run the Playwright Chromium import, reset, replace, and export flow |
-| `npm run build`        | Create the static production bundle                                 |
-| `npm run check`        | Run formatting, lint, typecheck, tests, and build in sequence       |
+| Script                 | Purpose                                                                    |
+| ---------------------- | -------------------------------------------------------------------------- |
+| `npm run dev`          | Start the Vite development server                                          |
+| `npm run typecheck`    | Run the TypeScript project build without emitting files                    |
+| `npm run lint`         | Run ESLint                                                                 |
+| `npm run format:check` | Verify Prettier formatting                                                 |
+| `npm run format`       | Apply Prettier formatting                                                  |
+| `npm run test:unit`    | Run the Vitest unit and component tests                                    |
+| `npm run test:e2e`     | Run the Playwright Chromium import, geometry, adjustment, and export flows |
+| `npm run build`        | Create the static production bundle                                        |
+| `npm run check`        | Run formatting, lint, typecheck, tests, and build in sequence              |
 
 ## Architecture
 
 The source is intentionally split into a few plain module folders:
 
-- `src/editor` contains editor state, the shared adjustment values, the Edit-specific grain seed,
-  and undoable reducer actions independent of React components. The tone curve model owns bounded
-  points, interpolation, lookup generation, ordering rules, and JSON serialization. Editor-state
-  serialization preserves the seed for local recovery without making it part of a Look.
+- `src/editor` contains editor state, the shared adjustment values, normalized Edit geometry, the
+  Edit-specific grain seed, and undoable reducer actions independent of React components. The tone
+  curve model owns bounded points, interpolation, lookup generation, ordering rules, and JSON
+  serialization. Editor-state serialization preserves geometry and the seed for local recovery
+  without making either part of a Look.
 - `src/import` validates common source-photograph files, decodes them through browser APIs, and
   owns local object-URL cleanup.
-- `src/rendering` contains the bounded WebGL2 preview renderer, shader uniforms, the tone curve
-  lookup texture, image-relative vignette, deterministic grain, JPEG export, resize handling, and
-  context-loss recovery.
+- `src/rendering` contains the bounded WebGL2 preview renderer, geometry uniforms and output sizing,
+  the tone curve lookup texture, image-relative vignette, deterministic grain, JPEG export, resize
+  handling, and context-loss recovery.
 - `src/storage` contains browser-storage capability and product-language boundaries.
 - `src/ui` contains design tokens, layout styles, and small reusable controls: buttons, icon
   buttons, fields, sliders, panels, and dialogs.
@@ -123,12 +127,13 @@ make a runtime network request. Object URLs and temporary decoder image resource
 when an import is replaced or fails.
 
 The application does not yet persist a complete Edit, offer selectable export formats, quality, or
-source-dimension sizing. The current editor-state representation preserves the Edit-specific grain
-seed for the local-recovery work that follows. The first JPEG export re-encodes the visible WebGL2
-result at the bounded preview dimensions, without source metadata. The preview texture and canvas
-drawing buffer are bounded to 4,096 pixels on their longest side. The tone curve is intentionally
-limited to eight ordered points and one shared RGB mapping. WebGL2 is required; the interface
-explains how to recover when the capability is missing or its context is lost.
+source-dimension sizing. The current editor-state representation preserves normalized geometry and
+the Edit-specific grain seed for the local-recovery work that follows. The first JPEG export
+re-encodes the visible WebGL2 result at the bounded preview dimensions, without source metadata.
+The preview texture and canvas drawing buffer are bounded to 4,096 pixels on their longest side.
+The tone curve is intentionally limited to eight ordered points and one shared RGB mapping. WebGL2
+is required; the interface explains how to recover when the capability is missing or its context is
+lost.
 
 Browser storage is intended for recovery and is not a backup. WebGL2 is the rendering path; the
 interface reports when the capability is unavailable.

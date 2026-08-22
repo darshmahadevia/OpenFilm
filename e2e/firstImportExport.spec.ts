@@ -235,3 +235,106 @@ test('edits deterministic vignette and grain effects with group reset history', 
   await expect(page.getByRole('spinbutton', { name: 'Grain amount value' })).toHaveValue('35');
   await expect(page.getByRole('spinbutton', { name: 'Grain size value' })).toHaveValue('22');
 });
+
+test('crops, rotates, flips, and resets geometry with accessible alternatives to dragging', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await expect(page.getByRole('group', { name: 'Crop preview' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Resize crop top left' })).toBeVisible();
+
+  const cropWidth = page.getByRole('spinbutton', { name: 'Crop width value' });
+  const cropHeight = page.getByRole('spinbutton', { name: 'Crop height value' });
+  await cropWidth.fill('60');
+  await expect(cropWidth).toHaveValue('60');
+
+  await page.getByRole('combobox', { name: 'Aspect ratio' }).selectOption('1:1');
+  await expect(cropWidth).toHaveValue('60');
+  await expect(cropHeight).toHaveValue('80');
+
+  const cropSelection = page.locator('.crop-control__selection');
+  const cropBox = await cropSelection.boundingBox();
+  expect(cropBox).not.toBeNull();
+  await page.mouse.move(cropBox!.x + cropBox!.width / 2, cropBox!.y + cropBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(cropBox!.x + cropBox!.width / 2 + 18, cropBox!.y + cropBox!.height / 2);
+  await page.mouse.up();
+  await expect(page.getByRole('spinbutton', { name: 'Crop left value' })).not.toHaveValue('0');
+
+  const rotation = page.getByRole('combobox', { name: 'Rotation' });
+  await rotation.selectOption('90');
+  await expect(rotation).toHaveValue('90');
+
+  const horizontalFlip = page.getByRole('button', { name: 'Horizontal' });
+  const verticalFlip = page.getByRole('button', { name: 'Vertical' });
+  await horizontalFlip.click();
+  await verticalFlip.click();
+  await expect(horizontalFlip).toHaveAttribute('aria-pressed', 'true');
+  await expect(verticalFlip).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(verticalFlip).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('button', { name: 'Redo' }).click();
+  await expect(verticalFlip).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByRole('button', { name: 'Reset geometry' }).click();
+  await expect(cropWidth).toHaveValue('100');
+  await expect(cropHeight).toHaveValue('100');
+  await expect(rotation).toHaveValue('0');
+  await expect(horizontalFlip).toHaveAttribute('aria-pressed', 'false');
+  await expect(verticalFlip).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
+});
+
+test('keeps geometry controls named and usable at a phone width', async ({ page }) => {
+  const consoleErrors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      consoleErrors.push(message.text());
+    }
+  });
+
+  await page.setViewportSize({ height: 844, width: 390 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+
+  for (const label of [
+    'Crop left value',
+    'Crop top value',
+    'Crop width value',
+    'Crop height value',
+  ]) {
+    await expect(page.getByRole('spinbutton', { name: label })).toBeVisible();
+  }
+
+  await expect(page.getByRole('combobox', { name: 'Aspect ratio' })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Rotation' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Horizontal' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Vertical' })).toBeVisible();
+
+  const accessibilitySnapshot = await page.evaluate(() => ({
+    controlsWithoutNames: Array.from(document.querySelectorAll('button, input, select')).filter(
+      (element) => {
+        const label = element.getAttribute('aria-label');
+        const labelledBy = element.getAttribute('aria-labelledby');
+        const text = element.textContent?.trim();
+        const associatedLabel = element.id
+          ? document.querySelector(`label[for="${element.id}"]`)?.textContent?.trim()
+          : undefined;
+
+        return !label && !labelledBy && !text && !associatedLabel;
+      },
+    ).length,
+    horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
+  }));
+
+  expect(accessibilitySnapshot.controlsWithoutNames).toBe(0);
+  expect(accessibilitySnapshot.horizontalOverflow).toBe(false);
+  expect(consoleErrors).toEqual([]);
+});

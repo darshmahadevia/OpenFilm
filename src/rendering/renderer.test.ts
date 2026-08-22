@@ -11,6 +11,7 @@ import {
   type RendererStatus,
 } from './renderer';
 import { grainSeedToUniform } from '../editor/grain';
+import { neutralGeometry } from '../editor/geometry';
 import { sourcePhotographFixtures } from '../import/sourcePhotographFixtures';
 
 class RendererImage {
@@ -87,6 +88,7 @@ function createFakeWebGL2Context() {
     texSubImage2D: vi.fn(),
     uniform1f: vi.fn(),
     uniform1i: vi.fn(),
+    uniform4f: vi.fn(),
     uniform2f: vi.fn(),
     useProgram: vi.fn(),
     vertexAttribPointer: vi.fn(),
@@ -101,7 +103,9 @@ function createRendererFixture() {
   const gl = createFakeWebGL2Context();
   const statuses: RendererStatus[] = [];
   const imageBitmaps: Array<{ close: ReturnType<typeof vi.fn> }> = [];
+  const blobDimensions: Array<{ height: number; width: number }> = [];
   const toBlob = vi.fn((callback: BlobCallback) => {
+    blobDimensions.push({ height: canvas.height, width: canvas.width });
     callback(new Blob(['jpeg'], { type: 'image/jpeg' }));
   });
 
@@ -127,7 +131,7 @@ function createRendererFixture() {
     throw new Error('The renderer fixture could not create a renderer.');
   }
 
-  return { canvas, gl, imageBitmaps, renderer, statuses, toBlob };
+  return { blobDimensions, canvas, gl, imageBitmaps, renderer, statuses, toBlob };
 }
 
 describe('renderer capability and geometry helpers', () => {
@@ -288,6 +292,31 @@ describe('WebGL2 preview renderer', () => {
     expect(blob.type).toBe('image/jpeg');
     expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', 0.92);
     expect(canvas.width).toBe(1200);
+    expect(canvas.height).toBe(800);
+    renderer.dispose();
+  });
+
+  it('applies the normalized crop transform to the shader and export buffer', async () => {
+    const { blobDimensions, canvas, gl, renderer } = createRendererFixture();
+
+    renderer.resize(1000, 800, 1);
+    await renderer.replaceImage({ height: 800, objectUrl: 'blob:landscape.png', width: 1200 });
+    renderer.setGeometry({
+      ...neutralGeometry,
+      crop: { height: 0.5, width: 0.5, x: 0.25, y: 0.1 },
+      flipHorizontal: true,
+      rotation: 90,
+    });
+
+    expect(gl.uniform4f).toHaveBeenCalledWith({ name: 'u_crop' }, 0.25, 0.1, 0.5, 0.5);
+    expect(gl.uniform1i).toHaveBeenCalledWith({ name: 'u_flip_horizontal' }, 1);
+    expect(gl.uniform1i).toHaveBeenCalledWith({ name: 'u_flip_vertical' }, 0);
+    expect(gl.uniform1i).toHaveBeenCalledWith({ name: 'u_rotation' }, 90);
+
+    await renderer.exportJpeg();
+
+    expect(blobDimensions.at(-1)).toEqual({ height: 600, width: 400 });
+    expect(canvas.width).toBe(1000);
     expect(canvas.height).toBe(800);
     renderer.dispose();
   });

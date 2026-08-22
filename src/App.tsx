@@ -18,6 +18,21 @@ import {
   initialEditorState,
   type EditorTool,
 } from './editor/editorState';
+import {
+  cropAspectRatioOptions,
+  cropForAspectRatio,
+  geometryReducer,
+  hasNonNeutralGeometry,
+  moveCrop,
+  normalizeCrop,
+  resizeCrop,
+  createGeometryHistory,
+  type CropAspectRatio,
+  type CropHandle,
+  type GeometryAction,
+  type GeometryValues,
+  type NormalizedCrop,
+} from './editor/geometry';
 import { createGrainSeed, DEFAULT_GRAIN_SEED } from './editor/grain';
 import {
   createBundledSamplePhotographFile,
@@ -436,38 +451,316 @@ function ToneCurveControl({
   );
 }
 
+interface CropDragState {
+  bounds: { height: number; width: number };
+  crop: NormalizedCrop;
+  handle: CropHandle | 'move';
+  startCrop: NormalizedCrop;
+  startX: number;
+  startY: number;
+}
+
+function CropControl({
+  geometry,
+  hasSource,
+  onCropChange,
+  sourceDimensions,
+}: {
+  geometry: GeometryValues;
+  hasSource: boolean;
+  onCropChange: (crop: NormalizedCrop) => void;
+  sourceDimensions: { height: number; width: number } | null;
+}) {
+  const cropPreviewRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<CropDragState | null>(null);
+  const [aspectRatio, setAspectRatio] = useState<CropAspectRatio>('free');
+  const [draftCrop, setDraftCrop] = useState(geometry.crop);
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    if (!dragRef.current) {
+      setDraftCrop(geometry.crop);
+    }
+  }, [geometry.crop]);
+
+  const visibleCrop = draftCrop;
+  const hasFullCrop =
+    geometry.crop.x === 0 &&
+    geometry.crop.y === 0 &&
+    geometry.crop.width === 1 &&
+    geometry.crop.height === 1;
+
+  function startDrag(handle: CropHandle | 'move', event: PointerEvent<HTMLElement>) {
+    if (!hasSource) {
+      return;
+    }
+
+    const bounds = cropPreviewRef.current?.getBoundingClientRect();
+
+    if (!bounds || bounds.width < 1 || bounds.height < 1) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      bounds: { height: bounds.height, width: bounds.width },
+      crop: geometry.crop,
+      handle,
+      startCrop: geometry.crop,
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+    setDragging(true);
+    setDraftCrop(geometry.crop);
+  }
+
+  function moveDrag(event: PointerEvent<HTMLElement>) {
+    const drag = dragRef.current;
+
+    if (!drag) {
+      return;
+    }
+
+    const deltaX = (event.clientX - drag.startX) / drag.bounds.width;
+    const deltaY = (event.clientY - drag.startY) / drag.bounds.height;
+    const crop =
+      drag.handle === 'move'
+        ? moveCrop(drag.startCrop, deltaX, deltaY)
+        : resizeCrop(drag.startCrop, drag.handle, deltaX, deltaY);
+
+    drag.crop = crop;
+    setDraftCrop(crop);
+  }
+
+  function endDrag(event: PointerEvent<HTMLElement>) {
+    const drag = dragRef.current;
+
+    if (!drag) {
+      return;
+    }
+
+    dragRef.current = null;
+    setDragging(false);
+    setDraftCrop(drag.crop);
+    onCropChange(drag.crop);
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function handleAspectRatioChange(value: string) {
+    const nextAspectRatio = cropAspectRatioOptions.some((option) => option.value === value)
+      ? (value as CropAspectRatio)
+      : 'free';
+
+    setAspectRatio(nextAspectRatio);
+
+    if (sourceDimensions) {
+      onCropChange(
+        cropForAspectRatio(
+          geometry.crop,
+          nextAspectRatio,
+          sourceDimensions.width,
+          sourceDimensions.height,
+        ),
+      );
+    }
+  }
+
+  function handleCropValueChange(key: keyof NormalizedCrop, value: string) {
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue)) {
+      return;
+    }
+
+    onCropChange(normalizeCrop({ ...geometry.crop, [key]: numericValue / 100 }));
+  }
+
+  const cropPreviewStyle = sourceDimensions
+    ? { aspectRatio: `${sourceDimensions.width} / ${sourceDimensions.height}` }
+    : undefined;
+
+  return (
+    <section aria-labelledby="crop-title" className="crop-control">
+      <div className="adjustment-group__header">
+        <div>
+          <h3 id="crop-title">Crop</h3>
+          <p>Drag the frame or enter normalized image percentages below.</p>
+        </div>
+      </div>
+      <div
+        aria-label="Crop preview"
+        className="crop-control__preview"
+        ref={cropPreviewRef}
+        role="group"
+        style={cropPreviewStyle}
+      >
+        <div className="crop-control__grid" />
+        <div
+          aria-label="Crop selection"
+          className={`crop-control__selection ${dragging ? 'crop-control__selection--dragging' : ''}`}
+          onPointerDown={(event) => startDrag('move', event)}
+          onPointerMove={moveDrag}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          role="group"
+          style={{
+            height: `${visibleCrop.height * 100}%`,
+            left: `${visibleCrop.x * 100}%`,
+            top: `${visibleCrop.y * 100}%`,
+            width: `${visibleCrop.width * 100}%`,
+          }}
+        >
+          {(['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map((handle) => (
+            <button
+              aria-label={`Resize crop ${handle.replace('-', ' ')}`}
+              className={`crop-control__handle crop-control__handle--${handle}`}
+              disabled={!hasSource}
+              key={handle}
+              onPointerCancel={endDrag}
+              onPointerDown={(event) => startDrag(handle, event)}
+              onPointerMove={moveDrag}
+              onPointerUp={endDrag}
+              type="button"
+            />
+          ))}
+        </div>
+      </div>
+      <p className="field__hint">
+        The crop stays with this Edit. It is not part of a reusable Look.
+      </p>
+      <Field
+        hint="Free keeps the crop flexible. Other options fit the current selection."
+        id="crop-aspect-ratio"
+        label="Aspect ratio"
+      >
+        <select
+          aria-describedby="crop-aspect-ratio-hint"
+          disabled={!hasSource}
+          id="crop-aspect-ratio"
+          onChange={(event) => handleAspectRatioChange(event.currentTarget.value)}
+          value={hasFullCrop ? 'free' : aspectRatio}
+        >
+          {cropAspectRatioOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <div className="crop-control__coordinates">
+        {(
+          [
+            ['x', 'Left'],
+            ['y', 'Top'],
+            ['width', 'Width'],
+            ['height', 'Height'],
+          ] as const
+        ).map(([key, label]) => (
+          <Field hint="0 to 100% of the source image." id={`crop-${key}`} key={key} label={label}>
+            <input
+              aria-label={`Crop ${label.toLowerCase()} value`}
+              className="slider-field__number"
+              disabled={!hasSource}
+              id={`crop-${key}`}
+              max={100}
+              min={key === 'width' || key === 'height' ? 1 : 0}
+              onChange={(event) => handleCropValueChange(key, event.currentTarget.value)}
+              step={1}
+              type="number"
+              value={Math.round(geometry.crop[key] * 100)}
+            />
+          </Field>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ToolControls({
   activeTool,
   adjustments,
   canRedo,
+  canRedoGeometry,
   canUndo,
+  canUndoGeometry,
+  geometry,
   hasSource,
+  hasNonNeutralGeometryValue,
   onAdjustmentChange,
+  onCropChange,
+  onGeometryRedo,
+  onGeometryReset,
+  onGeometryUndo,
   onRedo,
   onResetAdjustment,
   onReset,
   onResetGroup,
   onResetToneCurve,
+  onRotationChange,
   onToneCurveChange,
+  onToggleFlipHorizontal,
+  onToggleFlipVertical,
   onUndo,
+  sourceDimensions,
 }: {
   activeTool: EditorTool;
   adjustments: RendererAdjustments;
   canRedo: boolean;
+  canRedoGeometry: boolean;
   canUndo: boolean;
+  canUndoGeometry: boolean;
+  geometry: GeometryValues;
   hasSource: boolean;
+  hasNonNeutralGeometryValue: boolean;
   onAdjustmentChange: (key: AdjustmentKey, value: number) => void;
+  onCropChange: (crop: NormalizedCrop) => void;
+  onGeometryRedo: () => void;
+  onGeometryReset: () => void;
+  onGeometryUndo: () => void;
   onRedo: () => void;
   onResetAdjustment: (key: AdjustmentKey) => void;
   onReset: () => void;
   onResetGroup: (group: AdjustmentGroup) => void;
   onResetToneCurve: () => void;
+  onRotationChange: (rotation: GeometryValues['rotation']) => void;
   onToneCurveChange: (points: ToneCurvePoint[]) => void;
+  onToggleFlipHorizontal: () => void;
+  onToggleFlipVertical: () => void;
   onUndo: () => void;
+  sourceDimensions: { height: number; width: number } | null;
 }) {
   if (activeTool === 'geometry') {
     return (
       <div className="control-stack">
+        <div aria-label="Geometry history" className="history-actions">
+          <Button
+            disabled={!hasSource || !canUndoGeometry}
+            onClick={onGeometryUndo}
+            size="small"
+            variant="quiet"
+          >
+            Undo
+          </Button>
+          <Button
+            disabled={!hasSource || !canRedoGeometry}
+            onClick={onGeometryRedo}
+            size="small"
+            variant="quiet"
+          >
+            Redo
+          </Button>
+        </div>
+        <CropControl
+          geometry={geometry}
+          hasSource={hasSource}
+          onCropChange={onCropChange}
+          sourceDimensions={sourceDimensions}
+        />
         <Field
           hint="Geometry belongs to this Edit, not its reusable Look."
           id="rotation"
@@ -475,9 +768,12 @@ function ToolControls({
         >
           <select
             aria-describedby="rotation-hint"
-            defaultValue="0"
+            onChange={(event) =>
+              onRotationChange(Number(event.currentTarget.value) as GeometryValues['rotation'])
+            }
             disabled={!hasSource}
             id="rotation"
+            value={geometry.rotation}
           >
             <option value="0">Original orientation</option>
             <option value="90">90° clockwise</option>
@@ -488,14 +784,39 @@ function ToolControls({
         <div className="field-row">
           <span className="field__label">Flip</span>
           <div className="button-row">
-            <Button disabled={!hasSource} size="small" variant="outline">
+            <Button
+              aria-pressed={geometry.flipHorizontal}
+              disabled={!hasSource}
+              onClick={onToggleFlipHorizontal}
+              size="small"
+              variant="outline"
+            >
               Horizontal
             </Button>
-            <Button disabled={!hasSource} size="small" variant="outline">
+            <Button
+              aria-pressed={geometry.flipVertical}
+              disabled={!hasSource}
+              onClick={onToggleFlipVertical}
+              size="small"
+              variant="outline"
+            >
               Vertical
             </Button>
           </div>
         </div>
+        <Button
+          aria-label="Reset geometry"
+          disabled={!hasSource || !hasNonNeutralGeometryValue}
+          onClick={onGeometryReset}
+          size="small"
+          variant="outline"
+        >
+          Reset geometry
+        </Button>
+        <p className="field__hint">
+          Geometry history is separate from adjustment history. Reusable Looks contain adjustments
+          only.
+        </p>
       </div>
     );
   }
@@ -584,6 +905,10 @@ export default function App() {
     adjustmentReducer,
     createAdjustmentHistory(),
   );
+  const [geometryHistory, dispatchGeometry] = useReducer(
+    geometryReducer,
+    createGeometryHistory(initialEditorState.geometry),
+  );
   const [rendererStatus, setRendererStatus] = useState<RendererStatus>('unsupported');
   const [rendererError, setRendererError] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -606,7 +931,8 @@ export default function App() {
   const storageAvailable = hasBrowserStorage();
   const activeTool = toolDetails[state.activeTool];
   const adjustments = adjustmentHistory.present;
-  const editHasNonNeutralAdjustments = hasNonNeutralAdjustments(adjustments);
+  const geometry = geometryHistory.present;
+  const editHasChanges = hasNonNeutralAdjustments(adjustments) || hasNonNeutralGeometry(geometry);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -639,6 +965,7 @@ export default function App() {
 
     renderer.resize();
     renderer.setAdjustments(neutralRendererAdjustments);
+    renderer.setGeometry(initialEditorState.geometry);
     renderer.setGrainSeed(DEFAULT_GRAIN_SEED);
 
     const resize = () => renderer.resize();
@@ -659,6 +986,10 @@ export default function App() {
   useEffect(() => {
     rendererRef.current?.setAdjustments(adjustments);
   }, [adjustments]);
+
+  useEffect(() => {
+    rendererRef.current?.setGeometry(geometry);
+  }, [geometry]);
 
   useEffect(() => {
     rendererRef.current?.setGrainSeed(state.grainSeed ?? DEFAULT_GRAIN_SEED);
@@ -740,10 +1071,10 @@ export default function App() {
 
       const replacementConfirmed =
         !sourcePhotograph ||
-        !editHasNonNeutralAdjustments ||
+        !editHasChanges ||
         typeof window === 'undefined' ||
         window.confirm(
-          'Replace the current source photograph? The current adjustment state will be reset.',
+          'Replace the current source photograph? The current adjustment state will be reset. Geometry will reset with it.',
         );
 
       if (!replacementConfirmed) {
@@ -757,6 +1088,7 @@ export default function App() {
 
       setSourcePhotograph(imported);
       dispatchAdjustments({ type: 'replace-source' });
+      dispatchGeometry({ type: 'replace-source' });
       setExportFeedback(null);
       dispatch({
         type: 'source-selected',
@@ -828,6 +1160,45 @@ export default function App() {
 
   function redoAdjustment() {
     dispatchAdjustments({ type: 'redo' });
+  }
+
+  function applyGeometryAction(action: GeometryAction) {
+    const nextHistory = geometryReducer(geometryHistory, action);
+
+    if (nextHistory === geometryHistory) {
+      return;
+    }
+
+    dispatchGeometry(action);
+    dispatch({ type: 'set-geometry', geometry: nextHistory.present });
+  }
+
+  function handleCropChange(crop: NormalizedCrop) {
+    applyGeometryAction({ type: 'set-crop', crop });
+  }
+
+  function handleRotationChange(rotation: GeometryValues['rotation']) {
+    applyGeometryAction({ type: 'set-rotation', rotation });
+  }
+
+  function toggleFlipHorizontal() {
+    applyGeometryAction({ type: 'toggle-flip-horizontal' });
+  }
+
+  function toggleFlipVertical() {
+    applyGeometryAction({ type: 'toggle-flip-vertical' });
+  }
+
+  function undoGeometry() {
+    applyGeometryAction({ type: 'undo' });
+  }
+
+  function redoGeometry() {
+    applyGeometryAction({ type: 'redo' });
+  }
+
+  function resetGeometry() {
+    applyGeometryAction({ type: 'reset' });
   }
 
   function importBundledSample() {
@@ -1050,16 +1421,28 @@ export default function App() {
               activeTool={state.activeTool}
               adjustments={adjustments}
               canRedo={adjustmentHistory.future.length > 0}
+              canRedoGeometry={geometryHistory.future.length > 0}
               canUndo={adjustmentHistory.past.length > 0}
+              canUndoGeometry={geometryHistory.past.length > 0}
+              geometry={geometry}
               hasSource={Boolean(sourcePhotograph)}
+              hasNonNeutralGeometryValue={hasNonNeutralGeometry(geometry)}
               onAdjustmentChange={handleAdjustmentChange}
+              onCropChange={handleCropChange}
+              onGeometryRedo={redoGeometry}
+              onGeometryReset={resetGeometry}
+              onGeometryUndo={undoGeometry}
               onRedo={redoAdjustment}
               onResetAdjustment={resetAdjustment}
               onReset={resetAdjustments}
               onResetGroup={resetAdjustmentGroup}
               onResetToneCurve={resetToneCurve}
+              onRotationChange={handleRotationChange}
               onToneCurveChange={handleToneCurveChange}
+              onToggleFlipHorizontal={toggleFlipHorizontal}
+              onToggleFlipVertical={toggleFlipVertical}
               onUndo={undoAdjustment}
+              sourceDimensions={sourcePhotograph}
             />
           </Panel>
 

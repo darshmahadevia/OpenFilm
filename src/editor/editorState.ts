@@ -1,4 +1,10 @@
 import { isValidGrainSeed, type GrainSeed } from './grain';
+import {
+  isValidGeometry,
+  neutralGeometry,
+  normalizeGeometry,
+  type GeometryValues,
+} from './geometry';
 
 export const editorTools = ['adjustments', 'geometry', 'looks'] as const;
 
@@ -6,18 +12,21 @@ export type EditorTool = (typeof editorTools)[number];
 
 export interface EditorState {
   activeTool: EditorTool;
+  geometry: GeometryValues;
   grainSeed: GrainSeed | null;
   sourceFileName: string | null;
 }
 
 export const initialEditorState: EditorState = {
   activeTool: 'adjustments',
+  geometry: normalizeGeometry(neutralGeometry),
   grainSeed: null,
   sourceFileName: null,
 };
 
 export type EditorAction =
   | { type: 'select-tool'; tool: EditorTool }
+  | { type: 'set-geometry'; geometry: GeometryValues }
   | { type: 'source-selected'; fileName: string; grainSeed: GrainSeed }
   | { type: 'clear-source' };
 
@@ -28,6 +37,7 @@ function isEditorTool(value: unknown): value is EditorTool {
 export function serializeEditorState(state: EditorState): string {
   return JSON.stringify({
     activeTool: state.activeTool,
+    geometry: normalizeGeometry(state.geometry),
     grainSeed: state.grainSeed,
     sourceFileName: state.sourceFileName,
   });
@@ -51,13 +61,18 @@ export function deserializeEditorState(serialized: string): EditorState {
   if (
     !isEditorTool(record.activeTool) ||
     (record.sourceFileName !== null && typeof record.sourceFileName !== 'string') ||
-    (record.grainSeed !== null && !isValidGrainSeed(record.grainSeed))
+    (record.grainSeed !== null && !isValidGrainSeed(record.grainSeed)) ||
+    (record.geometry !== undefined && !isValidGeometry(record.geometry))
   ) {
     throw new Error('OpenFilm could not recover the editor state.');
   }
 
   return {
     activeTool: record.activeTool,
+    geometry:
+      record.geometry === undefined
+        ? normalizeGeometry(neutralGeometry)
+        : normalizeGeometry(record.geometry),
     grainSeed: record.grainSeed,
     sourceFileName: record.sourceFileName,
   };
@@ -67,10 +82,22 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
   switch (action.type) {
     case 'select-tool':
       return { ...state, activeTool: action.tool };
+    case 'set-geometry':
+      return { ...state, geometry: normalizeGeometry(action.geometry) };
     case 'source-selected':
-      return { ...state, grainSeed: action.grainSeed, sourceFileName: action.fileName };
+      return {
+        ...state,
+        geometry: normalizeGeometry(neutralGeometry),
+        grainSeed: action.grainSeed,
+        sourceFileName: action.fileName,
+      };
     case 'clear-source':
-      return { ...state, grainSeed: null, sourceFileName: null };
+      return {
+        ...state,
+        geometry: normalizeGeometry(neutralGeometry),
+        grainSeed: null,
+        sourceFileName: null,
+      };
     default:
       return state;
   }

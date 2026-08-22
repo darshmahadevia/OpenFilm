@@ -10,11 +10,18 @@ import {
   normalizeGrainSeed,
   type GrainSeed,
 } from '../editor/grain';
+import {
+  getGeometryOutputDimensions,
+  normalizeGeometry,
+  neutralGeometry,
+  type GeometryValues,
+} from '../editor/geometry';
 import { createToneCurveLookup, neutralToneCurve } from '../editor/toneCurve';
 
 export type RendererStatus = 'available' | 'context-lost' | 'unsupported';
 
 export type RendererAdjustments = AdjustmentValues;
+export type RendererGeometry = GeometryValues;
 
 export const neutralRendererAdjustments: RendererAdjustments = Object.freeze({
   ...neutralAdjustments,
@@ -54,6 +61,7 @@ export interface PreviewRenderer {
   replaceImage(source: RendererSourcePhotograph): Promise<void>;
   resize(displayWidth?: number, displayHeight?: number, devicePixelRatio?: number): void;
   setAdjustments(adjustments: RendererAdjustments): void;
+  setGeometry(geometry: RendererGeometry): void;
   setGrainSeed(seed: GrainSeed): void;
 }
 
@@ -93,6 +101,10 @@ uniform float u_grain_amount;
 uniform float u_grain_size;
 uniform float u_grain_seed;
 uniform float u_image_aspect;
+uniform vec4 u_crop;
+uniform bool u_flip_horizontal;
+uniform bool u_flip_vertical;
+uniform int u_rotation;
 uniform sampler2D u_tone_curve;
 
 in vec2 v_tex_coord;
@@ -104,7 +116,28 @@ float grainNoise(vec2 cell) {
 }
 
 void main() {
-  vec4 source = texture(u_source, v_tex_coord);
+  vec2 output_uv = v_tex_coord;
+
+  if (u_flip_horizontal) {
+    output_uv.x = 1.0 - output_uv.x;
+  }
+
+  if (u_flip_vertical) {
+    output_uv.y = 1.0 - output_uv.y;
+  }
+
+  vec2 crop_uv = output_uv;
+
+  if (u_rotation == 90) {
+    crop_uv = vec2(output_uv.y, 1.0 - output_uv.x);
+  } else if (u_rotation == 180) {
+    crop_uv = vec2(1.0 - output_uv.x, 1.0 - output_uv.y);
+  } else if (u_rotation == 270) {
+    crop_uv = vec2(1.0 - output_uv.y, output_uv.x);
+  }
+
+  vec2 source_uv = u_crop.xy + crop_uv * u_crop.zw;
+  vec4 source = texture(u_source, source_uv);
   vec3 color = source.rgb * exp2(u_exposure);
   color = (color - 0.5) * (1.0 + u_contrast) + 0.5;
   color += vec3(0.10, 0.04, -0.10) * u_temperature;
@@ -137,6 +170,9 @@ export const TONE_CURVE_LUT_SIZE = 256;
 const TONE_CURVE_TEXTURE_UNIT = 1;
 
 interface GpuResources {
+  crop: WebGLUniformLocation;
+  flipHorizontal: WebGLUniformLocation;
+  flipVertical: WebGLUniformLocation;
   imageAspect: WebGLUniformLocation;
   imageScale: WebGLUniformLocation;
   positionAttribute: number;
@@ -159,6 +195,7 @@ interface GpuResources {
   uniformVignetteSoftness: WebGLUniformLocation;
   vertexArray: WebGLVertexArrayObject;
   vertexBuffer: WebGLBuffer;
+  rotation: WebGLUniformLocation;
 }
 
 interface PreparedImageSource {
@@ -310,6 +347,9 @@ function createGpuResources(
     gl.activeTexture(gl.TEXTURE0);
 
     return {
+      crop: requireUniform(gl, program, 'u_crop'),
+      flipHorizontal: requireUniform(gl, program, 'u_flip_horizontal'),
+      flipVertical: requireUniform(gl, program, 'u_flip_vertical'),
       imageAspect: requireUniform(gl, program, 'u_image_aspect'),
       imageScale: requireUniform(gl, program, 'u_image_scale'),
       positionAttribute,
@@ -332,6 +372,7 @@ function createGpuResources(
       uniformVignetteSoftness: requireUniform(gl, program, 'u_vignette_softness'),
       vertexArray,
       vertexBuffer,
+      rotation: requireUniform(gl, program, 'u_rotation'),
     };
   } catch (error) {
     if (vertexArray) {
@@ -597,8 +638,8 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
   private adjustments: RendererAdjustments = { ...neutralRendererAdjustments };
   private contextLost = false;
   private disposed = false;
+  private geometry: RendererGeometry = normalizeGeometry(neutralGeometry);
   private grainSeed: GrainSeed = DEFAULT_GRAIN_SEED;
-  private imageAspect = 1;
   private imageDimensions: PreviewDimensions | null = null;
   private resources: GpuResources;
   private sourceRequest = 0;
@@ -677,12 +718,14 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
       return;
     }
 
+    const outputDimensions = getGeometryOutputDimensions(this.imageDimensions, this.geometry);
     const scale = calculateImageScale(
       this.canvas.width,
       this.canvas.height,
-      this.imageDimensions.width,
-      this.imageDimensions.height,
+      outputDimensions.width,
+      outputDimensions.height,
     );
+    const crop = this.geometry.crop;
 
     gl.useProgram(resources.program);
     gl.bindVertexArray(resources.vertexArray);
@@ -692,7 +735,11 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     gl.bindTexture(gl.TEXTURE_2D, resources.toneCurveTexture);
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform2f(resources.imageScale, scale.x, scale.y);
-    gl.uniform1f(resources.imageAspect, this.imageAspect);
+    gl.uniform1f(resources.imageAspect, outputDimensions.height / outputDimensions.width);
+    gl.uniform4f(resources.crop, crop.x, crop.y, crop.width, crop.height);
+    gl.uniform1i(resources.flipHorizontal, this.geometry.flipHorizontal ? 1 : 0);
+    gl.uniform1i(resources.flipVertical, this.geometry.flipVertical ? 1 : 0);
+    gl.uniform1i(resources.rotation, this.geometry.rotation);
     const shaderAdjustments = getShaderAdjustmentValues(this.adjustments);
     gl.uniform1f(resources.uniformExposure, shaderAdjustments.exposure);
     gl.uniform1f(resources.uniformContrast, shaderAdjustments.contrast);
@@ -758,7 +805,6 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
           );
           this.resources.texture = texture;
           this.imageDimensions = prepared.dimensions;
-          this.imageAspect = prepared.dimensions.height / prepared.dimensions.width;
         } catch (error) {
           this.gl.deleteTexture(texture);
           throw error;
@@ -786,8 +832,9 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
 
     const previewWidth = this.canvas.width;
     const previewHeight = this.canvas.height;
-    const exportWidth = this.imageDimensions.width;
-    const exportHeight = this.imageDimensions.height;
+    const outputDimensions = getGeometryOutputDimensions(this.imageDimensions, this.geometry);
+    const exportWidth = outputDimensions.width;
+    const exportHeight = outputDimensions.height;
     let restored = false;
 
     const restorePreview = () => {
@@ -877,6 +924,14 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
       this.gl.uniform1f(this.resources.uniformVignetteSoftness, shaderAdjustments.vignetteSoftness);
       this.gl.uniform1f(this.resources.uniformGrainAmount, shaderAdjustments.grainAmount);
       this.gl.uniform1f(this.resources.uniformGrainSize, shaderAdjustments.grainSize);
+      this.redraw();
+    }
+  }
+
+  setGeometry(geometry: RendererGeometry): void {
+    this.geometry = normalizeGeometry(geometry);
+
+    if (!this.contextLost && !this.disposed) {
       this.redraw();
     }
   }

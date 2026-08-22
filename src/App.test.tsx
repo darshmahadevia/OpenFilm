@@ -300,6 +300,60 @@ describe('OpenFilm shell', () => {
     }
   });
 
+  it('supports normalized crop fields, aspect ratios, rotation, flips, and geometry history', async () => {
+    const mocks = installImportBrowserMocks();
+    const sourceFile = createSourcePhotographFixtureFile(sourcePhotographFixtures[1]);
+
+    try {
+      render(<App />);
+      fireEvent.change(screen.getByLabelText('Choose source photograph'), {
+        target: { files: [sourceFile] },
+      });
+      expect(await screen.findByRole('heading', { name: 'landscape.png' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Geometry' }));
+      expect(screen.getByRole('group', { name: 'Crop preview' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Resize crop top left' })).toBeInTheDocument();
+
+      const width = screen.getByLabelText('Crop width value');
+      fireEvent.change(width, { target: { value: '60' } });
+      expect(width).toHaveValue(60);
+
+      fireEvent.change(screen.getByLabelText('Aspect ratio'), { target: { value: '1:1' } });
+      expect(screen.getByLabelText('Crop width value')).toHaveValue(60);
+      expect(screen.getByLabelText('Crop height value')).toHaveValue(45);
+
+      fireEvent.change(screen.getByLabelText('Rotation'), { target: { value: '90' } });
+      expect(screen.getByLabelText('Rotation')).toHaveValue('90');
+      fireEvent.click(screen.getByRole('button', { name: 'Horizontal' }));
+      expect(screen.getByRole('button', { name: 'Horizontal' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+      expect(screen.getByRole('button', { name: 'Horizontal' })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
+      expect(screen.getByRole('button', { name: 'Horizontal' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Reset geometry' }));
+      expect(screen.getByLabelText('Rotation')).toHaveValue('0');
+      expect(screen.getByLabelText('Crop width value')).toHaveValue(100);
+      expect(screen.getByRole('button', { name: 'Horizontal' })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
+    } finally {
+      mocks.restore();
+    }
+  });
+
   it('resets adjustments and confirms replacing a source with a changed edit', async () => {
     const mocks = installImportBrowserMocks();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
@@ -330,7 +384,7 @@ describe('OpenFilm shell', () => {
         await screen.findByText('The current source photograph is still open.'),
       ).toBeInTheDocument();
       expect(confirm).toHaveBeenCalledWith(
-        'Replace the current source photograph? The current adjustment state will be reset.',
+        'Replace the current source photograph? The current adjustment state will be reset. Geometry will reset with it.',
       );
       expect(
         screen.getByRole('heading', { name: 'orientation-6-portrait.jpg' }),
