@@ -2,12 +2,22 @@ import { useEffect, useReducer, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent } from 'react';
 
 import {
+  adjustmentDefinitions,
+  adjustmentKeys,
+  adjustmentReducer,
+  createAdjustmentHistory,
+  formatAdjustmentValue,
+  hasNonNeutralAdjustments,
+  type AdjustmentKey,
+} from './editor/adjustments';
+import {
   editorReducer,
   editorTools,
   initialEditorState,
   type EditorTool,
 } from './editor/editorState';
 import {
+  createBundledSamplePhotographFile,
   describeSourcePhotographImportError,
   importSourcePhotograph,
   releaseSourcePhotographObjectUrl,
@@ -46,10 +56,6 @@ const toolDetails: Record<EditorTool, { description: string; title: string }> = 
   },
 };
 
-function hasNonNeutralAdjustments(adjustments: RendererAdjustments): boolean {
-  return adjustments.exposure !== 0 || adjustments.contrast !== 0;
-}
-
 function getJpegDownloadFileName(fileName: string): string {
   const baseName = fileName.replace(/\.[^.]+$/, '') || 'openfilm';
   return `${baseName}-openfilm.jpg`;
@@ -71,18 +77,71 @@ function RendererStatusLabel({ status }: { status: RendererStatus }) {
   );
 }
 
-function ToolControls({
-  activeTool,
+function AdjustmentControl({
   adjustments,
   hasSource,
   onAdjustmentChange,
   onReset,
+  adjustmentKey,
+}: {
+  adjustments: RendererAdjustments;
+  adjustmentKey: AdjustmentKey;
+  hasSource: boolean;
+  onAdjustmentChange: (key: AdjustmentKey, value: number) => void;
+  onReset: (key: AdjustmentKey) => void;
+}) {
+  const definition = adjustmentDefinitions[adjustmentKey];
+  const value = adjustments[adjustmentKey];
+
+  return (
+    <div className="adjustment-control">
+      <Slider
+        disabled={!hasSource}
+        displayValue={formatAdjustmentValue(adjustmentKey, value)}
+        hint={`${definition.description} ${definition.rangeHint}`}
+        id={adjustmentKey}
+        label={definition.label}
+        max={definition.max}
+        min={definition.min}
+        onChange={(event) => onAdjustmentChange(adjustmentKey, Number(event.currentTarget.value))}
+        step={definition.step}
+        value={value}
+      />
+      <Button
+        aria-label={`Reset ${definition.label}`}
+        disabled={!hasSource || value === definition.neutral}
+        onClick={() => onReset(adjustmentKey)}
+        size="small"
+        variant="outline"
+      >
+        Reset
+      </Button>
+    </div>
+  );
+}
+
+function ToolControls({
+  activeTool,
+  adjustments,
+  canRedo,
+  canUndo,
+  hasSource,
+  onAdjustmentChange,
+  onRedo,
+  onResetAdjustment,
+  onReset,
+  onUndo,
 }: {
   activeTool: EditorTool;
   adjustments: RendererAdjustments;
+  canRedo: boolean;
+  canUndo: boolean;
   hasSource: boolean;
-  onAdjustmentChange: (key: keyof RendererAdjustments, value: number) => void;
+  onAdjustmentChange: (key: AdjustmentKey, value: number) => void;
+  onRedo: () => void;
+  onResetAdjustment: (key: AdjustmentKey) => void;
   onReset: () => void;
+  onUndo: () => void;
 }) {
   if (activeTool === 'geometry') {
     return (
@@ -145,45 +204,24 @@ function ToolControls({
 
   return (
     <div className="control-stack">
-      <Slider
-        disabled={!hasSource}
-        displayValue={adjustments.exposure.toFixed(2)}
-        hint="Import a photograph to activate the controls."
-        id="exposure"
-        label="Exposure"
-        max={1}
-        min={-1}
-        onChange={(event) => onAdjustmentChange('exposure', Number(event.currentTarget.value))}
-        step={0.01}
-        value={adjustments.exposure}
-      />
-      <Slider
-        disabled={!hasSource}
-        displayValue={adjustments.contrast.toFixed(2)}
-        id="contrast"
-        label="Contrast"
-        max={100}
-        min={-100}
-        onChange={(event) =>
-          onAdjustmentChange('contrast', Number(event.currentTarget.value) / 100)
-        }
-        step={1}
-        value={Math.round(adjustments.contrast * 100)}
-      />
-      <Field
-        hint="More adjustment controls will join this focused set."
-        id="color-profile"
-        label="Color profile"
-      >
-        <select
-          aria-describedby="color-profile-hint"
-          defaultValue="neutral"
-          disabled={!hasSource}
-          id="color-profile"
-        >
-          <option value="neutral">Neutral</option>
-        </select>
-      </Field>
+      <div aria-label="Adjustment history" className="history-actions">
+        <Button disabled={!hasSource || !canUndo} onClick={onUndo} size="small" variant="quiet">
+          Undo
+        </Button>
+        <Button disabled={!hasSource || !canRedo} onClick={onRedo} size="small" variant="quiet">
+          Redo
+        </Button>
+      </div>
+      {adjustmentKeys.map((adjustmentKey) => (
+        <AdjustmentControl
+          adjustmentKey={adjustmentKey}
+          adjustments={adjustments}
+          hasSource={hasSource}
+          key={adjustmentKey}
+          onAdjustmentChange={onAdjustmentChange}
+          onReset={onResetAdjustment}
+        />
+      ))}
       <Button disabled={!hasSource} onClick={onReset} size="small" variant="outline">
         Reset adjustments
       </Button>
@@ -194,9 +232,10 @@ function ToolControls({
 export default function App() {
   const [state, dispatch] = useReducer(editorReducer, initialEditorState);
   const [sourcePhotograph, setSourcePhotograph] = useState<ImportedSourcePhotograph | null>(null);
-  const [adjustments, setAdjustments] = useState<RendererAdjustments>({
-    ...neutralRendererAdjustments,
-  });
+  const [adjustmentHistory, dispatchAdjustments] = useReducer(
+    adjustmentReducer,
+    createAdjustmentHistory(),
+  );
   const [rendererStatus, setRendererStatus] = useState<RendererStatus>('unsupported');
   const [rendererError, setRendererError] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -218,6 +257,7 @@ export default function App() {
   const importRequestRef = useRef(0);
   const storageAvailable = hasBrowserStorage();
   const activeTool = toolDetails[state.activeTool];
+  const adjustments = adjustmentHistory.present;
   const editHasNonNeutralAdjustments = hasNonNeutralAdjustments(adjustments);
 
   useEffect(() => {
@@ -363,7 +403,7 @@ export default function App() {
       }
 
       setSourcePhotograph(imported);
-      setAdjustments({ ...neutralRendererAdjustments });
+      dispatchAdjustments({ type: 'replace-source' });
       setExportFeedback(null);
       dispatch({ type: 'source-selected', fileName: imported.fileName });
       setImportFeedback({
@@ -401,12 +441,28 @@ export default function App() {
     void importSelectedSource(event.dataTransfer.files?.[0]);
   }
 
-  function handleAdjustmentChange(key: keyof RendererAdjustments, value: number) {
-    setAdjustments((current) => ({ ...current, [key]: value }));
+  function handleAdjustmentChange(key: AdjustmentKey, value: number) {
+    dispatchAdjustments({ type: 'set', key, value });
   }
 
   function resetAdjustments() {
-    setAdjustments({ ...neutralRendererAdjustments });
+    dispatchAdjustments({ type: 'reset-all' });
+  }
+
+  function resetAdjustment(key: AdjustmentKey) {
+    dispatchAdjustments({ type: 'reset-one', key });
+  }
+
+  function undoAdjustment() {
+    dispatchAdjustments({ type: 'undo' });
+  }
+
+  function redoAdjustment() {
+    dispatchAdjustments({ type: 'redo' });
+  }
+
+  function importBundledSample() {
+    void importSelectedSource(createBundledSamplePhotographFile());
   }
 
   async function handleDownloadJpeg() {
@@ -528,9 +584,19 @@ export default function App() {
                 <>
                   <h2>Bring a photograph into focus.</h2>
                   <p>Choose or drop one JPEG, PNG, or WebP source photograph.</p>
-                  <Button disabled={isImporting} onClick={openFilePicker} variant="primary">
-                    Import photograph
-                  </Button>
+                  <div className="canvas-stage__actions">
+                    <Button disabled={isImporting} onClick={openFilePicker} variant="primary">
+                      Import photograph
+                    </Button>
+                    <Button
+                      disabled={isImporting}
+                      onClick={importBundledSample}
+                      size="small"
+                      variant="quiet"
+                    >
+                      Try bundled sample
+                    </Button>
+                  </div>
                 </>
               )}
             </div>
@@ -614,9 +680,14 @@ export default function App() {
             <ToolControls
               activeTool={state.activeTool}
               adjustments={adjustments}
+              canRedo={adjustmentHistory.future.length > 0}
+              canUndo={adjustmentHistory.past.length > 0}
               hasSource={Boolean(sourcePhotograph)}
               onAdjustmentChange={handleAdjustmentChange}
+              onRedo={redoAdjustment}
+              onResetAdjustment={resetAdjustment}
               onReset={resetAdjustments}
+              onUndo={undoAdjustment}
             />
           </Panel>
 

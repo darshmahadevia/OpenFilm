@@ -13,14 +13,20 @@ export interface SliderProps extends Omit<
 
 export function Slider({
   className = '',
+  disabled,
   displayValue,
   hint,
   id,
   label,
+  max,
+  min,
+  onChange,
+  step,
   value,
   ...props
 }: SliderProps) {
   const hintId = `${id}-hint`;
+  const numericInputId = `${id}-value`;
   const classes = ['slider-field', className].filter(Boolean).join(' ');
 
   return (
@@ -29,15 +35,36 @@ export function Slider({
         <label className="field__label" htmlFor={id}>
           {label}
         </label>
-        <output className="slider-field__value" htmlFor={id}>
-          {displayValue ?? value}
-        </output>
+        <div className="slider-field__value-group">
+          <output className="slider-field__value" htmlFor={id}>
+            {displayValue ?? value}
+          </output>
+          <input
+            aria-describedby={hint ? hintId : undefined}
+            aria-label={`${label} value`}
+            className="slider-field__number"
+            disabled={disabled}
+            id={numericInputId}
+            inputMode="decimal"
+            max={max}
+            min={min}
+            onChange={onChange}
+            step={step}
+            type="number"
+            value={value}
+          />
+        </div>
       </div>
       <input
         {...props}
         aria-describedby={hint ? hintId : undefined}
         className="slider"
+        disabled={disabled}
         id={id}
+        max={max}
+        min={min}
+        onChange={onChange}
+        step={step}
         type="range"
         value={value}
       />

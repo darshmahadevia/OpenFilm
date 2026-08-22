@@ -26,7 +26,7 @@ test('imports, previews, resets, replaces, and downloads a JPEG', async ({ page 
   await expect(page.getByRole('heading', { name: previewFixture.fileName })).toBeVisible();
   await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
 
-  const exposure = page.getByLabel('Exposure');
+  const exposure = page.getByRole('slider', { name: 'Exposure' });
   await expect(exposure).toBeEnabled();
   await expect(exposure).toHaveValue('0');
   await exposure.fill('0.5');
@@ -63,4 +63,85 @@ test('imports, previews, resets, replaces, and downloads a JPEG', async ({ page 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
+});
+
+test('tries the bundled sample and edits the core adjustments', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+
+  const values = {
+    Contrast: '30',
+    Exposure: '1.25',
+    Fade: '25',
+    Saturation: '40',
+    Temperature: '20',
+    Tint: '-15',
+  } as const;
+
+  for (const [label, value] of Object.entries(values)) {
+    const slider = page.getByRole('slider', { name: label });
+    const numericInput = page.getByRole('spinbutton', { name: `${label} value` });
+
+    await expect(slider).toBeEnabled();
+    await expect(numericInput).toBeEnabled();
+    await numericInput.fill(value);
+    await expect(slider).toHaveValue(value);
+  }
+
+  const fade = page.getByRole('slider', { name: 'Fade' });
+  await fade.press('ArrowRight');
+  await expect(page.getByRole('spinbutton', { name: 'Fade value' })).toHaveValue('26');
+
+  await page.getByRole('button', { name: 'Reset Temperature' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Temperature value' })).toHaveValue('0');
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Temperature value' })).toHaveValue('20');
+
+  await page.getByRole('button', { name: 'Reset adjustments' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Exposure value' })).toHaveValue('0');
+  await expect(page.getByRole('spinbutton', { name: 'Fade value' })).toHaveValue('0');
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Exposure value' })).toHaveValue('1.25');
+  await expect(page.getByRole('spinbutton', { name: 'Fade value' })).toHaveValue('26');
+});
+
+test('keeps the adjustment controls labeled and usable at a phone width', async ({ page }) => {
+  const consoleErrors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      consoleErrors.push(message.text());
+    }
+  });
+
+  await page.setViewportSize({ height: 844, width: 390 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+
+  for (const label of ['Exposure', 'Contrast', 'Temperature', 'Tint', 'Saturation', 'Fade']) {
+    await expect(page.getByRole('slider', { name: label })).toBeVisible();
+    await expect(page.getByRole('spinbutton', { name: `${label} value` })).toBeVisible();
+  }
+
+  const accessibilitySnapshot = await page.evaluate(() => ({
+    controlsWithoutNames: Array.from(document.querySelectorAll('button, input, select')).filter(
+      (element) => {
+        const label = element.getAttribute('aria-label');
+        const labelledBy = element.getAttribute('aria-labelledby');
+        const text = element.textContent?.trim();
+        const associatedLabel = element.id
+          ? document.querySelector(`label[for="${element.id}"]`)?.textContent?.trim()
+          : undefined;
+
+        return !label && !labelledBy && !text && !associatedLabel;
+      },
+    ).length,
+    horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
+  }));
+
+  expect(accessibilitySnapshot.controlsWithoutNames).toBe(0);
+  expect(accessibilitySnapshot.horizontalOverflow).toBe(false);
+  expect(consoleErrors).toEqual([]);
 });

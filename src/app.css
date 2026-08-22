@@ -293,6 +293,14 @@ strong {
   max-width: 30ch;
 }
 
+.canvas-stage__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: center;
+}
+
 .canvas-stage--ready .canvas-stage__content {
   max-width: min(90%, 30rem);
 }
@@ -446,6 +454,20 @@ strong {
   gap: var(--space-6);
 }
 
+.history-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.adjustment-control {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.adjustment-control .button {
+  justify-self: end;
+}
+
 .field,
 .slider-field {
   display: grid;
@@ -490,6 +512,29 @@ select:disabled {
   color: var(--color-muted);
   font-size: var(--type-xs);
   font-variant-numeric: tabular-nums;
+}
+
+.slider-field__value-group {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.slider-field__number {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-ink);
+  font-size: var(--type-xs);
+  min-height: 2.25rem;
+  padding: 0 var(--space-2);
+  text-align: right;
+  width: 5.5rem;
+}
+
+.slider-field__number:disabled {
+  background: var(--color-surface-raised);
+  color: var(--color-muted);
 }
 
 .slider {

@@ -6,11 +6,27 @@ services.
 
 The current application is a canvas-first editor workspace with one active control area, local UI
 primitives, source-photograph import, and a single WebGL2 preview path. It validates JPEG, PNG, and
-WebP files selected by picker or drag and drop, prepares a bounded preview texture, sends the
-current exposure and contrast Adjustments through the fragment shader, resets those Adjustments,
-and downloads the visible result as a JPEG. Replacing a changed Edit asks for confirmation before
-returning its adjustment state to neutral. The rest of the editing workflow will land in the
-tickets that follow this increment.
+WebP files selected by picker or drag and drop, prepares a bounded preview texture, sends the six
+core Adjustments through the fragment shader, and downloads the visible result as a JPEG. Each
+control has a slider and a numeric field. Individual resets, the all-adjustments reset, undo, and
+redo use the shared adjustment history. A bundled sample photograph lets someone try the controls
+without choosing a file. Replacing a changed Edit asks for confirmation before returning its
+adjustment state to neutral. The rest of the editing workflow will land in the tickets that follow
+this increment.
+
+## Core adjustments
+
+The Adjust tool uses these ranges. Zero is neutral except for Fade, whose neutral value is zero and
+whose range starts at zero.
+
+| Adjustment  | Range          | Neutral |
+| ----------- | -------------- | ------- |
+| Exposure    | -4 to +4 stops | 0       |
+| Contrast    | -100 to +100   | 0       |
+| Temperature | -100 to +100   | 0       |
+| Tint        | -100 to +100   | 0       |
+| Saturation  | -100 to +100   | 0       |
+| Fade        | 0 to 100       | 0       |
 
 ## Requirements
 
@@ -55,7 +71,8 @@ npm run preview
 
 The source is intentionally split into a few plain module folders:
 
-- `src/editor` contains editor state and reducer actions independent of React components.
+- `src/editor` contains editor state, the shared adjustment values, and undoable reducer actions
+  independent of React components.
 - `src/import` validates common source-photograph files, decodes them through browser APIs, and
   owns local object-URL cleanup.
 - `src/rendering` contains the bounded WebGL2 preview renderer, shader uniforms, JPEG export,

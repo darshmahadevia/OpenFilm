@@ -191,15 +191,30 @@ describe('WebGL2 preview renderer', () => {
     await renderer.replaceImage({ height: 2, objectUrl: 'blob:landscape.png', width: 3 });
     const drawsBeforeAdjustment = (gl.drawArrays as ReturnType<typeof vi.fn>).mock.calls.length;
 
-    renderer.setAdjustments({ contrast: 0.25, exposure: 0.5 });
+    renderer.setAdjustments({
+      contrast: 25,
+      exposure: 0.5,
+      fade: 10,
+      saturation: 40,
+      temperature: 20,
+      tint: -15,
+    });
 
     expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_exposure' }, 0.5);
     expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_contrast' }, 0.25);
+    expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_temperature' }, 0.2);
+    expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_tint' }, -0.15);
+    expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_saturation' }, 0.4);
+    expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_fade' }, 0.1);
     expect((gl.drawArrays as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(
       drawsBeforeAdjustment,
     );
     expect(FRAGMENT_SHADER_SOURCE).toContain('exp2(u_exposure)');
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_contrast');
+    expect(FRAGMENT_SHADER_SOURCE).toContain('u_temperature');
+    expect(FRAGMENT_SHADER_SOURCE).toContain('u_tint');
+    expect(FRAGMENT_SHADER_SOURCE).toContain('u_saturation');
+    expect(FRAGMENT_SHADER_SOURCE).toContain('u_fade');
     renderer.dispose();
   });
 

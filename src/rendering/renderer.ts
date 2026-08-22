@@ -1,13 +1,16 @@
+import {
+  clampAdjustment,
+  neutralAdjustments,
+  normalizeAdjustments,
+  type AdjustmentValues,
+} from '../editor/adjustments';
+
 export type RendererStatus = 'available' | 'context-lost' | 'unsupported';
 
-export interface RendererAdjustments {
-  contrast: number;
-  exposure: number;
-}
+export type RendererAdjustments = AdjustmentValues;
 
 export const neutralRendererAdjustments: RendererAdjustments = Object.freeze({
-  contrast: 0,
-  exposure: 0,
+  ...neutralAdjustments,
 });
 
 export interface RendererSourcePhotograph {
@@ -72,6 +75,10 @@ precision highp float;
 uniform sampler2D u_source;
 uniform float u_exposure;
 uniform float u_contrast;
+uniform float u_temperature;
+uniform float u_tint;
+uniform float u_saturation;
+uniform float u_fade;
 
 in vec2 v_tex_coord;
 
@@ -81,6 +88,11 @@ void main() {
   vec4 source = texture(u_source, v_tex_coord);
   vec3 color = source.rgb * exp2(u_exposure);
   color = (color - 0.5) * (1.0 + u_contrast) + 0.5;
+  color += vec3(0.10, 0.04, -0.10) * u_temperature;
+  color += vec3(0.08, -0.08, 0.08) * u_tint;
+  float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
+  color = mix(vec3(luminance), color, 1.0 + u_saturation);
+  color = mix(color, vec3(0.5), u_fade * 0.32);
   out_color = vec4(clamp(color, 0.0, 1.0), source.a);
 }`;
 
@@ -93,6 +105,10 @@ interface GpuResources {
   texCoordAttribute: number;
   uniformContrast: WebGLUniformLocation;
   uniformExposure: WebGLUniformLocation;
+  uniformFade: WebGLUniformLocation;
+  uniformSaturation: WebGLUniformLocation;
+  uniformTemperature: WebGLUniformLocation;
+  uniformTint: WebGLUniformLocation;
   vertexArray: WebGLVertexArrayObject;
   vertexBuffer: WebGLBuffer;
 }
@@ -224,6 +240,10 @@ function createGpuResources(gl: WebGL2RenderingContext): GpuResources {
       texCoordAttribute,
       uniformContrast: requireUniform(gl, program, 'u_contrast'),
       uniformExposure: requireUniform(gl, program, 'u_exposure'),
+      uniformFade: requireUniform(gl, program, 'u_fade'),
+      uniformSaturation: requireUniform(gl, program, 'u_saturation'),
+      uniformTemperature: requireUniform(gl, program, 'u_temperature'),
+      uniformTint: requireUniform(gl, program, 'u_tint'),
       vertexArray,
       vertexBuffer,
     };
@@ -447,6 +467,17 @@ function describeRendererFailure(error: unknown): RendererError {
   return new RendererError('OpenFilm could not prepare the source photograph for WebGL2.');
 }
 
+function getShaderAdjustmentValues(adjustments: RendererAdjustments) {
+  return {
+    contrast: clampAdjustment('contrast', adjustments.contrast) / 100,
+    exposure: clampAdjustment('exposure', adjustments.exposure),
+    fade: clampAdjustment('fade', adjustments.fade) / 100,
+    saturation: clampAdjustment('saturation', adjustments.saturation) / 100,
+    temperature: clampAdjustment('temperature', adjustments.temperature) / 100,
+    tint: clampAdjustment('tint', adjustments.tint) / 100,
+  };
+}
+
 class WebGL2PreviewRenderer implements PreviewRenderer {
   private adjustments: RendererAdjustments = { ...neutralRendererAdjustments };
   private contextLost = false;
@@ -541,8 +572,13 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, resources.texture);
     gl.uniform2f(resources.imageScale, scale.x, scale.y);
-    gl.uniform1f(resources.uniformExposure, this.adjustments.exposure);
-    gl.uniform1f(resources.uniformContrast, this.adjustments.contrast);
+    const shaderAdjustments = getShaderAdjustmentValues(this.adjustments);
+    gl.uniform1f(resources.uniformExposure, shaderAdjustments.exposure);
+    gl.uniform1f(resources.uniformContrast, shaderAdjustments.contrast);
+    gl.uniform1f(resources.uniformTemperature, shaderAdjustments.temperature);
+    gl.uniform1f(resources.uniformTint, shaderAdjustments.tint);
+    gl.uniform1f(resources.uniformSaturation, shaderAdjustments.saturation);
+    gl.uniform1f(resources.uniformFade, shaderAdjustments.fade);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.bindVertexArray(null);
   }
@@ -698,15 +734,17 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
   }
 
   setAdjustments(adjustments: RendererAdjustments): void {
-    this.adjustments = {
-      contrast: clamp(finiteOrDefault(adjustments.contrast, 0), -1, 1),
-      exposure: clamp(finiteOrDefault(adjustments.exposure, 0), -4, 4),
-    };
+    this.adjustments = normalizeAdjustments(adjustments);
 
     if (!this.contextLost && !this.disposed) {
       this.gl.useProgram(this.resources.program);
-      this.gl.uniform1f(this.resources.uniformExposure, this.adjustments.exposure);
-      this.gl.uniform1f(this.resources.uniformContrast, this.adjustments.contrast);
+      const shaderAdjustments = getShaderAdjustmentValues(this.adjustments);
+      this.gl.uniform1f(this.resources.uniformExposure, shaderAdjustments.exposure);
+      this.gl.uniform1f(this.resources.uniformContrast, shaderAdjustments.contrast);
+      this.gl.uniform1f(this.resources.uniformTemperature, shaderAdjustments.temperature);
+      this.gl.uniform1f(this.resources.uniformTint, shaderAdjustments.tint);
+      this.gl.uniform1f(this.resources.uniformSaturation, shaderAdjustments.saturation);
+      this.gl.uniform1f(this.resources.uniformFade, shaderAdjustments.fade);
       this.redraw();
     }
   }

@@ -161,6 +161,63 @@ describe('OpenFilm shell', () => {
     }
   });
 
+  it('loads the bundled sample photograph without a user file', async () => {
+    const mocks = installImportBrowserMocks();
+
+    try {
+      render(<App />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Try bundled sample' }));
+
+      expect(
+        await screen.findByRole('heading', { name: 'openfilm-sample.png' }),
+      ).toBeInTheDocument();
+      expect(mocks.createObjectUrl).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'openfilm-sample.png', type: 'image/png' }),
+      );
+    } finally {
+      mocks.restore();
+    }
+  });
+
+  it('supports numeric adjustment entry and undoable individual and all-control resets', async () => {
+    const mocks = installImportBrowserMocks();
+    const sourceFile = createSourcePhotographFixtureFile(sourcePhotographFixtures[0]);
+
+    try {
+      render(<App />);
+      const input = screen.getByLabelText('Choose source photograph');
+      fireEvent.change(input, { target: { files: [sourceFile] } });
+      expect(
+        await screen.findByRole('heading', { name: 'orientation-6-portrait.jpg' }),
+      ).toBeInTheDocument();
+
+      const temperatureValue = screen.getByLabelText('Temperature value');
+      fireEvent.change(temperatureValue, { target: { value: '35' } });
+      expect(temperatureValue).toHaveValue(35);
+      expect(screen.getByLabelText('Temperature')).toHaveValue('35');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Reset Temperature' }));
+      expect(temperatureValue).toHaveValue(0);
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+      expect(temperatureValue).toHaveValue(35);
+
+      const exposureValue = screen.getByLabelText('Exposure value');
+      const saturationValue = screen.getByLabelText('Saturation value');
+      fireEvent.change(exposureValue, { target: { value: '1.5' } });
+      fireEvent.change(saturationValue, { target: { value: '-40' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Reset adjustments' }));
+      expect(exposureValue).toHaveValue(0);
+      expect(saturationValue).toHaveValue(0);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+      expect(exposureValue).toHaveValue(1.5);
+      expect(saturationValue).toHaveValue(-40);
+    } finally {
+      mocks.restore();
+    }
+  });
+
   it('resets adjustments and confirms replacing a source with a changed edit', async () => {
     const mocks = installImportBrowserMocks();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);

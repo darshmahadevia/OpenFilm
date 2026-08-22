@@ -1,3 +1,4 @@
+export { createBundledSamplePhotographFile } from './bundledSamplePhotograph';
 export {
   describeSourcePhotographImportError,
   formatSourcePhotographFileSizeLimit,
