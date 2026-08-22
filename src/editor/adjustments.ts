@@ -15,18 +15,35 @@ export const adjustmentKeys = [
   'tint',
   'saturation',
   'fade',
+  'vignetteAmount',
+  'vignetteSoftness',
+  'grainAmount',
+  'grainSize',
 ] as const;
 
 export type AdjustmentKey = (typeof adjustmentKeys)[number];
+
+export const coreAdjustmentKeys = adjustmentKeys.slice(0, 6);
+
+export const adjustmentGroups = {
+  vignette: ['vignetteAmount', 'vignetteSoftness'],
+  grain: ['grainAmount', 'grainSize'],
+} as const satisfies Record<string, readonly AdjustmentKey[]>;
+
+export type AdjustmentGroup = keyof typeof adjustmentGroups;
 
 export interface AdjustmentValues {
   contrast: number;
   exposure: number;
   fade: number;
+  grainAmount: number;
+  grainSize: number;
   saturation: number;
   temperature: number;
   tint: number;
   toneCurve: ToneCurvePoint[];
+  vignetteAmount: number;
+  vignetteSoftness: number;
 }
 
 interface AdjustmentDefinition {
@@ -94,16 +111,56 @@ export const adjustmentDefinitions = {
     rangeHint: 'Range 0 to 100; neutral 0.',
     step: 1,
   },
+  vignetteAmount: {
+    description: 'Darken the edges of the photograph toward the frame.',
+    label: 'Vignette amount',
+    max: 100,
+    min: 0,
+    neutral: 0,
+    rangeHint: 'Range 0 to 100; neutral 0.',
+    step: 1,
+  },
+  vignetteSoftness: {
+    description: 'Choose how gradually the vignette falls toward the center.',
+    label: 'Vignette softness',
+    max: 100,
+    min: 0,
+    neutral: 50,
+    rangeHint: 'Range 0 to 100; neutral 50.',
+    step: 1,
+  },
+  grainAmount: {
+    description: 'Add a restrained film-like texture to the rendered image.',
+    label: 'Grain amount',
+    max: 100,
+    min: 0,
+    neutral: 0,
+    rangeHint: 'Range 0 to 100; neutral 0.',
+    step: 1,
+  },
+  grainSize: {
+    description: 'Choose the apparent size of the grain texture.',
+    label: 'Grain size',
+    max: 100,
+    min: 1,
+    neutral: 50,
+    rangeHint: 'Range 1 to 100; neutral 50.',
+    step: 1,
+  },
 } as const satisfies Record<AdjustmentKey, AdjustmentDefinition>;
 
 export const neutralAdjustments: AdjustmentValues = {
   contrast: 0,
   exposure: 0,
   fade: 0,
+  grainAmount: 0,
+  grainSize: 50,
   saturation: 0,
   temperature: 0,
   tint: 0,
   toneCurve: cloneToneCurve(neutralToneCurve),
+  vignetteAmount: 0,
+  vignetteSoftness: 50,
 };
 
 export interface AdjustmentHistoryState {
@@ -116,6 +173,7 @@ export type AdjustmentAction =
   | { type: 'set'; key: AdjustmentKey; value: number }
   | { type: 'set-tone-curve'; points: ToneCurvePoint[] }
   | { type: 'reset-one'; key: AdjustmentKey }
+  | { type: 'reset-group'; group: AdjustmentGroup }
   | { type: 'reset-tone-curve' }
   | { type: 'reset-all' }
   | { type: 'undo' }
@@ -200,6 +258,14 @@ export function adjustmentReducer(
         ...state.present,
         [action.key]: neutralAdjustments[action.key],
       });
+    case 'reset-group':
+      return recordAdjustment(
+        state,
+        adjustmentGroups[action.group].reduce(
+          (values, key) => ({ ...values, [key]: neutralAdjustments[key] }),
+          { ...state.present },
+        ),
+      );
     case 'reset-tone-curve':
       return recordAdjustment(state, {
         ...state.present,

@@ -4,6 +4,12 @@ import {
   normalizeAdjustments,
   type AdjustmentValues,
 } from '../editor/adjustments';
+import {
+  DEFAULT_GRAIN_SEED,
+  grainSeedToUniform,
+  normalizeGrainSeed,
+  type GrainSeed,
+} from '../editor/grain';
 import { createToneCurveLookup, neutralToneCurve } from '../editor/toneCurve';
 
 export type RendererStatus = 'available' | 'context-lost' | 'unsupported';
@@ -48,6 +54,7 @@ export interface PreviewRenderer {
   replaceImage(source: RendererSourcePhotograph): Promise<void>;
   resize(displayWidth?: number, displayHeight?: number, devicePixelRatio?: number): void;
   setAdjustments(adjustments: RendererAdjustments): void;
+  setGrainSeed(seed: GrainSeed): void;
 }
 
 export class RendererError extends Error {
@@ -80,11 +87,21 @@ uniform float u_temperature;
 uniform float u_tint;
 uniform float u_saturation;
 uniform float u_fade;
+uniform float u_vignette_amount;
+uniform float u_vignette_softness;
+uniform float u_grain_amount;
+uniform float u_grain_size;
+uniform float u_grain_seed;
+uniform float u_image_aspect;
 uniform sampler2D u_tone_curve;
 
 in vec2 v_tex_coord;
 
 out vec4 out_color;
+
+float grainNoise(vec2 cell) {
+  return fract(sin(dot(cell, vec2(12.9898, 78.233)) + u_grain_seed * 91.17) * 43758.5453);
+}
 
 void main() {
   vec4 source = texture(u_source, v_tex_coord);
@@ -100,6 +117,19 @@ void main() {
     texture(u_tone_curve, vec2(clamp(color.g, 0.0, 1.0), 0.5)).r,
     texture(u_tone_curve, vec2(clamp(color.b, 0.0, 1.0), 0.5)).r
   );
+
+  vec2 centered = v_tex_coord - vec2(0.5);
+  float aspect = max(u_image_aspect, 0.0001);
+  float cornerDistance = length(centered * vec2(1.0, aspect)) / length(vec2(0.5, 0.5 * aspect));
+  float vignetteSoftness = clamp(u_vignette_softness, 0.0, 1.0);
+  float vignetteStart = mix(0.35, 0.9, vignetteSoftness);
+  float vignetteMask = smoothstep(vignetteStart, 1.0, cornerDistance);
+  color *= 1.0 - clamp(u_vignette_amount, 0.0, 1.0) * vignetteMask;
+
+  float grainFrequency = mix(160.0, 12.0, clamp(u_grain_size, 0.0, 1.0));
+  float grain = grainNoise(floor(v_tex_coord * grainFrequency)) - 0.5;
+  color += grain * clamp(u_grain_amount, 0.0, 1.0) * 0.24;
+
   out_color = vec4(clamp(color, 0.0, 1.0), source.a);
 }`;
 
@@ -107,6 +137,7 @@ export const TONE_CURVE_LUT_SIZE = 256;
 const TONE_CURVE_TEXTURE_UNIT = 1;
 
 interface GpuResources {
+  imageAspect: WebGLUniformLocation;
   imageScale: WebGLUniformLocation;
   positionAttribute: number;
   program: WebGLProgram;
@@ -118,9 +149,14 @@ interface GpuResources {
   uniformContrast: WebGLUniformLocation;
   uniformExposure: WebGLUniformLocation;
   uniformFade: WebGLUniformLocation;
+  uniformGrainAmount: WebGLUniformLocation;
+  uniformGrainSeed: WebGLUniformLocation;
+  uniformGrainSize: WebGLUniformLocation;
   uniformSaturation: WebGLUniformLocation;
   uniformTemperature: WebGLUniformLocation;
   uniformTint: WebGLUniformLocation;
+  uniformVignetteAmount: WebGLUniformLocation;
+  uniformVignetteSoftness: WebGLUniformLocation;
   vertexArray: WebGLVertexArrayObject;
   vertexBuffer: WebGLBuffer;
 }
@@ -274,6 +310,7 @@ function createGpuResources(
     gl.activeTexture(gl.TEXTURE0);
 
     return {
+      imageAspect: requireUniform(gl, program, 'u_image_aspect'),
       imageScale: requireUniform(gl, program, 'u_image_scale'),
       positionAttribute,
       program,
@@ -285,9 +322,14 @@ function createGpuResources(
       uniformContrast: requireUniform(gl, program, 'u_contrast'),
       uniformExposure: requireUniform(gl, program, 'u_exposure'),
       uniformFade: requireUniform(gl, program, 'u_fade'),
+      uniformGrainAmount: requireUniform(gl, program, 'u_grain_amount'),
+      uniformGrainSeed: requireUniform(gl, program, 'u_grain_seed'),
+      uniformGrainSize: requireUniform(gl, program, 'u_grain_size'),
       uniformSaturation: requireUniform(gl, program, 'u_saturation'),
       uniformTemperature: requireUniform(gl, program, 'u_temperature'),
       uniformTint: requireUniform(gl, program, 'u_tint'),
+      uniformVignetteAmount: requireUniform(gl, program, 'u_vignette_amount'),
+      uniformVignetteSoftness: requireUniform(gl, program, 'u_vignette_softness'),
       vertexArray,
       vertexBuffer,
     };
@@ -541,9 +583,13 @@ function getShaderAdjustmentValues(adjustments: RendererAdjustments) {
     contrast: clampAdjustment('contrast', adjustments.contrast) / 100,
     exposure: clampAdjustment('exposure', adjustments.exposure),
     fade: clampAdjustment('fade', adjustments.fade) / 100,
+    grainAmount: clampAdjustment('grainAmount', adjustments.grainAmount) / 100,
+    grainSize: clampAdjustment('grainSize', adjustments.grainSize) / 100,
     saturation: clampAdjustment('saturation', adjustments.saturation) / 100,
     temperature: clampAdjustment('temperature', adjustments.temperature) / 100,
     tint: clampAdjustment('tint', adjustments.tint) / 100,
+    vignetteAmount: clampAdjustment('vignetteAmount', adjustments.vignetteAmount) / 100,
+    vignetteSoftness: clampAdjustment('vignetteSoftness', adjustments.vignetteSoftness) / 100,
   };
 }
 
@@ -551,6 +597,8 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
   private adjustments: RendererAdjustments = { ...neutralRendererAdjustments };
   private contextLost = false;
   private disposed = false;
+  private grainSeed: GrainSeed = DEFAULT_GRAIN_SEED;
+  private imageAspect = 1;
   private imageDimensions: PreviewDimensions | null = null;
   private resources: GpuResources;
   private sourceRequest = 0;
@@ -644,6 +692,7 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     gl.bindTexture(gl.TEXTURE_2D, resources.toneCurveTexture);
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform2f(resources.imageScale, scale.x, scale.y);
+    gl.uniform1f(resources.imageAspect, this.imageAspect);
     const shaderAdjustments = getShaderAdjustmentValues(this.adjustments);
     gl.uniform1f(resources.uniformExposure, shaderAdjustments.exposure);
     gl.uniform1f(resources.uniformContrast, shaderAdjustments.contrast);
@@ -651,6 +700,11 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     gl.uniform1f(resources.uniformTint, shaderAdjustments.tint);
     gl.uniform1f(resources.uniformSaturation, shaderAdjustments.saturation);
     gl.uniform1f(resources.uniformFade, shaderAdjustments.fade);
+    gl.uniform1f(resources.uniformVignetteAmount, shaderAdjustments.vignetteAmount);
+    gl.uniform1f(resources.uniformVignetteSoftness, shaderAdjustments.vignetteSoftness);
+    gl.uniform1f(resources.uniformGrainAmount, shaderAdjustments.grainAmount);
+    gl.uniform1f(resources.uniformGrainSize, shaderAdjustments.grainSize);
+    gl.uniform1f(resources.uniformGrainSeed, grainSeedToUniform(this.grainSeed));
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.bindVertexArray(null);
   }
@@ -704,6 +758,7 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
           );
           this.resources.texture = texture;
           this.imageDimensions = prepared.dimensions;
+          this.imageAspect = prepared.dimensions.height / prepared.dimensions.width;
         } catch (error) {
           this.gl.deleteTexture(texture);
           throw error;
@@ -818,6 +873,20 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
       this.gl.uniform1f(this.resources.uniformTint, shaderAdjustments.tint);
       this.gl.uniform1f(this.resources.uniformSaturation, shaderAdjustments.saturation);
       this.gl.uniform1f(this.resources.uniformFade, shaderAdjustments.fade);
+      this.gl.uniform1f(this.resources.uniformVignetteAmount, shaderAdjustments.vignetteAmount);
+      this.gl.uniform1f(this.resources.uniformVignetteSoftness, shaderAdjustments.vignetteSoftness);
+      this.gl.uniform1f(this.resources.uniformGrainAmount, shaderAdjustments.grainAmount);
+      this.gl.uniform1f(this.resources.uniformGrainSize, shaderAdjustments.grainSize);
+      this.redraw();
+    }
+  }
+
+  setGrainSeed(seed: GrainSeed): void {
+    this.grainSeed = normalizeGrainSeed(seed);
+
+    if (!this.contextLost && !this.disposed) {
+      this.gl.useProgram(this.resources.program);
+      this.gl.uniform1f(this.resources.uniformGrainSeed, grainSeedToUniform(this.grainSeed));
       this.redraw();
     }
   }

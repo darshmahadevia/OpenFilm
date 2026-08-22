@@ -468,6 +468,29 @@ strong {
   justify-self: end;
 }
 
+.adjustment-group {
+  border-top: 1px solid var(--color-line);
+  display: grid;
+  gap: var(--space-4);
+  padding-top: var(--space-5);
+}
+
+.adjustment-group__header h3 {
+  font-size: var(--type-md);
+  margin: 0;
+}
+
+.adjustment-group__header p {
+  color: var(--color-ink-soft);
+  font-size: var(--type-xs);
+  line-height: 1.45;
+  margin-top: var(--space-1);
+}
+
+.adjustment-group > .button {
+  justify-self: start;
+}
+
 .tone-curve-control {
   display: grid;
   gap: var(--space-3);

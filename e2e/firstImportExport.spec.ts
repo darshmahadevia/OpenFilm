@@ -120,7 +120,18 @@ test('keeps the adjustment controls labeled and usable at a phone width', async 
   await page.getByRole('button', { name: 'Try bundled sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
 
-  for (const label of ['Exposure', 'Contrast', 'Temperature', 'Tint', 'Saturation', 'Fade']) {
+  for (const label of [
+    'Exposure',
+    'Contrast',
+    'Temperature',
+    'Tint',
+    'Saturation',
+    'Fade',
+    'Vignette amount',
+    'Vignette softness',
+    'Grain amount',
+    'Grain size',
+  ]) {
     await expect(page.getByRole('slider', { name: label })).toBeVisible();
     await expect(page.getByRole('spinbutton', { name: `${label} value` })).toBeVisible();
   }
@@ -189,4 +200,38 @@ test('edits the bounded RGB tone curve with numeric and keyboard controls', asyn
 
   await page.getByRole('button', { name: 'Remove selected tone curve point' }).click();
   await expect(page.getByText('2 / 8 points')).toBeVisible();
+});
+
+test('edits deterministic vignette and grain effects with group reset history', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+
+  const values = {
+    'Vignette amount': '65',
+    'Vignette softness': '80',
+    'Grain amount': '35',
+    'Grain size': '22',
+  } as const;
+
+  for (const [label, value] of Object.entries(values)) {
+    const numericInput = page.getByRole('spinbutton', { name: `${label} value` });
+    await numericInput.fill(value);
+    await expect(page.getByRole('slider', { name: label })).toHaveValue(value);
+  }
+
+  await page.getByRole('button', { name: 'Reset Vignette', exact: true }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Vignette amount value' })).toHaveValue('0');
+  await expect(page.getByRole('spinbutton', { name: 'Vignette softness value' })).toHaveValue('50');
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Vignette amount value' })).toHaveValue('65');
+
+  await page.getByRole('button', { name: 'Reset Grain', exact: true }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Grain amount value' })).toHaveValue('0');
+  await expect(page.getByRole('spinbutton', { name: 'Grain size value' })).toHaveValue('50');
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Grain amount value' })).toHaveValue('35');
+  await expect(page.getByRole('spinbutton', { name: 'Grain size value' })).toHaveValue('22');
 });

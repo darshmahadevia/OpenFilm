@@ -10,6 +10,7 @@ import {
   TONE_CURVE_LUT_SIZE,
   type RendererStatus,
 } from './renderer';
+import { grainSeedToUniform } from '../editor/grain';
 import { sourcePhotographFixtures } from '../import/sourcePhotographFixtures';
 
 class RendererImage {
@@ -193,11 +194,14 @@ describe('WebGL2 preview renderer', () => {
 
     await renderer.replaceImage({ height: 2, objectUrl: 'blob:landscape.png', width: 3 });
     const drawsBeforeAdjustment = (gl.drawArrays as ReturnType<typeof vi.fn>).mock.calls.length;
+    renderer.setGrainSeed(123456789);
 
     renderer.setAdjustments({
       contrast: 25,
       exposure: 0.5,
       fade: 10,
+      grainAmount: 55,
+      grainSize: 72,
       saturation: 40,
       temperature: 20,
       tint: -15,
@@ -206,6 +210,8 @@ describe('WebGL2 preview renderer', () => {
         { x: 0.5, y: 0.75 },
         { x: 1, y: 1 },
       ],
+      vignetteAmount: 65,
+      vignetteSoftness: 80,
     });
 
     expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_exposure' }, 0.5);
@@ -214,6 +220,10 @@ describe('WebGL2 preview renderer', () => {
     expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_tint' }, -0.15);
     expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_saturation' }, 0.4);
     expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_fade' }, 0.1);
+    expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_vignette_amount' }, 0.65);
+    expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_vignette_softness' }, 0.8);
+    expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_grain_amount' }, 0.55);
+    expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_grain_size' }, 0.72);
     expect(gl.texSubImage2D).toHaveBeenCalledWith(
       gl.TEXTURE_2D,
       0,
@@ -234,12 +244,35 @@ describe('WebGL2 preview renderer', () => {
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_tint');
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_saturation');
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_fade');
+    expect(FRAGMENT_SHADER_SOURCE).toContain('u_vignette_amount');
+    expect(FRAGMENT_SHADER_SOURCE).toContain('u_vignette_softness');
+    expect(FRAGMENT_SHADER_SOURCE).toContain('u_grain_amount');
+    expect(FRAGMENT_SHADER_SOURCE).toContain('u_grain_size');
+    expect(FRAGMENT_SHADER_SOURCE).toContain('u_grain_seed');
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_tone_curve');
     expect(FRAGMENT_SHADER_SOURCE).toContain('texture(u_tone_curve');
     expect(TONE_CURVE_LUT_SIZE).toBe(256);
     expect(neutralRendererAdjustments.toneCurve).toEqual([
       { x: 0, y: 0 },
       { x: 1, y: 1 },
+    ]);
+    expect(neutralRendererAdjustments).toMatchObject({
+      grainAmount: 0,
+      grainSize: 50,
+      vignetteAmount: 0,
+      vignetteSoftness: 50,
+    });
+    expect(gl.uniform1f).toHaveBeenCalledWith(
+      { name: 'u_grain_seed' },
+      grainSeedToUniform(123456789),
+    );
+    await renderer.exportJpeg();
+    const seedUniformCalls = (gl.uniform1f as ReturnType<typeof vi.fn>).mock.calls.filter(
+      ([location]) => (location as { name?: string }).name === 'u_grain_seed',
+    );
+    expect(seedUniformCalls.at(-1)).toEqual([
+      { name: 'u_grain_seed' },
+      grainSeedToUniform(123456789),
     ]);
     renderer.dispose();
   });

@@ -218,6 +218,50 @@ describe('OpenFilm shell', () => {
     }
   });
 
+  it('supports bounded vignette and grain controls with undoable group resets', async () => {
+    const mocks = installImportBrowserMocks();
+    const sourceFile = createSourcePhotographFixtureFile(sourcePhotographFixtures[0]);
+
+    try {
+      render(<App />);
+      fireEvent.change(screen.getByLabelText('Choose source photograph'), {
+        target: { files: [sourceFile] },
+      });
+      expect(
+        await screen.findByRole('heading', { name: 'orientation-6-portrait.jpg' }),
+      ).toBeInTheDocument();
+
+      const values = {
+        'Vignette amount': 65,
+        'Vignette softness': 80,
+        'Grain amount': 35,
+        'Grain size': 22,
+      } as const;
+
+      for (const [label, value] of Object.entries(values)) {
+        const input = screen.getByLabelText(`${label} value`);
+        fireEvent.change(input, { target: { value: value.toString() } });
+        expect(input).toHaveValue(value);
+      }
+
+      fireEvent.click(screen.getByRole('button', { name: 'Reset Vignette' }));
+      expect(screen.getByLabelText('Vignette amount value')).toHaveValue(0);
+      expect(screen.getByLabelText('Vignette softness value')).toHaveValue(50);
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+      expect(screen.getByLabelText('Vignette amount value')).toHaveValue(65);
+      expect(screen.getByLabelText('Vignette softness value')).toHaveValue(80);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Reset Grain' }));
+      expect(screen.getByLabelText('Grain amount value')).toHaveValue(0);
+      expect(screen.getByLabelText('Grain size value')).toHaveValue(50);
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+      expect(screen.getByLabelText('Grain amount value')).toHaveValue(35);
+      expect(screen.getByLabelText('Grain size value')).toHaveValue(22);
+    } finally {
+      mocks.restore();
+    }
+  });
+
   it('supports adding, selecting, numerically editing, keyboard moving, and removing a curve point', async () => {
     const mocks = installImportBrowserMocks();
     const sourceFile = createSourcePhotographFixtureFile(sourcePhotographFixtures[0]);

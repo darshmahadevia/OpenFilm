@@ -3,11 +3,13 @@ import type { ChangeEvent, DragEvent, KeyboardEvent, PointerEvent } from 'react'
 
 import {
   adjustmentDefinitions,
-  adjustmentKeys,
+  adjustmentGroups,
   adjustmentReducer,
+  coreAdjustmentKeys,
   createAdjustmentHistory,
   formatAdjustmentValue,
   hasNonNeutralAdjustments,
+  type AdjustmentGroup,
   type AdjustmentKey,
 } from './editor/adjustments';
 import {
@@ -16,6 +18,7 @@ import {
   initialEditorState,
   type EditorTool,
 } from './editor/editorState';
+import { createGrainSeed, DEFAULT_GRAIN_SEED } from './editor/grain';
 import {
   createBundledSamplePhotographFile,
   describeSourcePhotographImportError,
@@ -126,6 +129,61 @@ function AdjustmentControl({
         Reset
       </Button>
     </div>
+  );
+}
+
+function AdjustmentGroupControl({
+  adjustments,
+  description,
+  group,
+  hasSource,
+  onAdjustmentChange,
+  onReset,
+  onResetGroup,
+  title,
+}: {
+  adjustments: RendererAdjustments;
+  description: string;
+  group: AdjustmentGroup;
+  hasSource: boolean;
+  onAdjustmentChange: (key: AdjustmentKey, value: number) => void;
+  onReset: (key: AdjustmentKey) => void;
+  onResetGroup: (group: AdjustmentGroup) => void;
+  title: string;
+}) {
+  const keys = adjustmentGroups[group];
+  const hasNonNeutralValue = keys.some(
+    (key) => adjustments[key] !== adjustmentDefinitions[key].neutral,
+  );
+
+  return (
+    <section aria-labelledby={`${group}-title`} className="adjustment-group">
+      <div className="adjustment-group__header">
+        <div>
+          <h3 id={`${group}-title`}>{title}</h3>
+          <p>{description}</p>
+        </div>
+      </div>
+      {keys.map((adjustmentKey) => (
+        <AdjustmentControl
+          adjustmentKey={adjustmentKey}
+          adjustments={adjustments}
+          hasSource={hasSource}
+          key={adjustmentKey}
+          onAdjustmentChange={onAdjustmentChange}
+          onReset={onReset}
+        />
+      ))}
+      <Button
+        aria-label={`Reset ${title}`}
+        disabled={!hasSource || !hasNonNeutralValue}
+        onClick={() => onResetGroup(group)}
+        size="small"
+        variant="quiet"
+      >
+        Reset {title}
+      </Button>
+    </section>
   );
 }
 
@@ -388,6 +446,7 @@ function ToolControls({
   onRedo,
   onResetAdjustment,
   onReset,
+  onResetGroup,
   onResetToneCurve,
   onToneCurveChange,
   onUndo,
@@ -401,6 +460,7 @@ function ToolControls({
   onRedo: () => void;
   onResetAdjustment: (key: AdjustmentKey) => void;
   onReset: () => void;
+  onResetGroup: (group: AdjustmentGroup) => void;
   onResetToneCurve: () => void;
   onToneCurveChange: (points: ToneCurvePoint[]) => void;
   onUndo: () => void;
@@ -474,7 +534,7 @@ function ToolControls({
           Redo
         </Button>
       </div>
-      {adjustmentKeys.map((adjustmentKey) => (
+      {coreAdjustmentKeys.map((adjustmentKey) => (
         <AdjustmentControl
           adjustmentKey={adjustmentKey}
           adjustments={adjustments}
@@ -484,6 +544,26 @@ function ToolControls({
           onReset={onResetAdjustment}
         />
       ))}
+      <AdjustmentGroupControl
+        adjustments={adjustments}
+        description="Darken the frame edges with a controlled, image-relative falloff."
+        group="vignette"
+        hasSource={hasSource}
+        onAdjustmentChange={onAdjustmentChange}
+        onReset={onResetAdjustment}
+        onResetGroup={onResetGroup}
+        title="Vignette"
+      />
+      <AdjustmentGroupControl
+        adjustments={adjustments}
+        description="Add a stable texture whose pattern belongs to this Edit."
+        group="grain"
+        hasSource={hasSource}
+        onAdjustmentChange={onAdjustmentChange}
+        onReset={onResetAdjustment}
+        onResetGroup={onResetGroup}
+        title="Grain"
+      />
       <ToneCurveControl
         hasSource={hasSource}
         onChange={onToneCurveChange}
@@ -559,6 +639,7 @@ export default function App() {
 
     renderer.resize();
     renderer.setAdjustments(neutralRendererAdjustments);
+    renderer.setGrainSeed(DEFAULT_GRAIN_SEED);
 
     const resize = () => renderer.resize();
     window.addEventListener('resize', resize);
@@ -578,6 +659,10 @@ export default function App() {
   useEffect(() => {
     rendererRef.current?.setAdjustments(adjustments);
   }, [adjustments]);
+
+  useEffect(() => {
+    rendererRef.current?.setGrainSeed(state.grainSeed ?? DEFAULT_GRAIN_SEED);
+  }, [state.grainSeed]);
 
   useEffect(() => {
     const renderer = rendererRef.current;
@@ -673,7 +758,11 @@ export default function App() {
       setSourcePhotograph(imported);
       dispatchAdjustments({ type: 'replace-source' });
       setExportFeedback(null);
-      dispatch({ type: 'source-selected', fileName: imported.fileName });
+      dispatch({
+        type: 'source-selected',
+        fileName: imported.fileName,
+        grainSeed: createGrainSeed(),
+      });
       setImportFeedback({
         kind: 'success',
         message: `Loaded ${imported.fileName} — ${imported.width.toLocaleString()} × ${imported.height.toLocaleString()} pixels.`,
@@ -719,6 +808,10 @@ export default function App() {
 
   function resetAdjustment(key: AdjustmentKey) {
     dispatchAdjustments({ type: 'reset-one', key });
+  }
+
+  function resetAdjustmentGroup(group: AdjustmentGroup) {
+    dispatchAdjustments({ type: 'reset-group', group });
   }
 
   function handleToneCurveChange(points: ToneCurvePoint[]) {
@@ -963,6 +1056,7 @@ export default function App() {
               onRedo={redoAdjustment}
               onResetAdjustment={resetAdjustment}
               onReset={resetAdjustments}
+              onResetGroup={resetAdjustmentGroup}
               onResetToneCurve={resetToneCurve}
               onToneCurveChange={handleToneCurveChange}
               onUndo={undoAdjustment}
