@@ -19,8 +19,11 @@ sample photograph lets someone try the controls without choosing a file. The Geo
 a free or common-ratio crop, normalized crop fields, 90-degree rotation, horizontal and vertical
 flips, and the same WebGL2 transform for preview and every export format. Geometry stays in the Edit rather
 than a reusable Look. The canvas offers a persistent before-and-after toggle and a deferred
-luminance histogram so histogram sampling does not run on every control event. Replacing a changed
-Edit asks for confirmation before returning its adjustment and geometry state to neutral.
+luminance histogram so histogram sampling does not run on every control event. The Looks tool
+includes seven bundled starting points and lets users save, rename, apply, duplicate, and delete
+custom Looks. IndexedDB stores custom Looks and the latest recoverable Edit, including source bytes
+when the browser permits it. Replacing a changed Edit asks for confirmation before returning its
+adjustment and geometry state to neutral.
 
 ## Core adjustments
 
@@ -111,7 +114,9 @@ The source is intentionally split into a few plain module folders:
   the tone curve lookup texture, image-relative vignette, deterministic grain, deferred luminance
   histogram sampling, format-aware export sizing and encoding, resize handling, and context-loss
   recovery.
-- `src/storage` contains browser-storage capability and product-language boundaries.
+- `src/storage` contains the IndexedDB adapter for custom Looks and the latest recoverable Edit,
+  plus the product-language boundary for storage failures and the non-backup warning. Source bytes
+  stay in the recovery record and never enter a reusable Look.
 - `src/ui` contains design tokens, layout styles, and small reusable controls: buttons, icon
   buttons, fields, sliders, panels, and dialogs.
 
@@ -131,7 +136,11 @@ Import is local-only: it uses a browser object URL and does not upload the sourc
 make a runtime network request. Object URLs and temporary decoder image resources are released
 when an import is replaced or fails.
 
-The application does not yet persist a complete Edit. Export re-encodes the current Edit as JPEG,
+The application stores the latest Edit locally when IndexedDB is available. A recoverable source
+photograph is reopened with its current Look, geometry, history, and grain seed. If
+source bytes are unavailable, OpenFilm restores the settings and asks for the source photograph
+again; attaching a replacement source keeps those recovered settings. Storage failure leaves the
+current in-memory Edit usable, and browser storage is not a durable backup. Export re-encodes the current Edit as JPEG,
 PNG, or WebP, exposes quality for JPEG and WebP, and lets the user keep the rendered source
 dimensions or choose a maximum long edge without upscaling. The estimated dimensions include the
 current crop and rotation. Export re-decodes the local source photograph at the requested render

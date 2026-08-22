@@ -422,3 +422,157 @@ test('shares Edit history across tools, compares before and after, and updates t
     'false',
   );
 });
+
+test('applies bundled Looks and supports custom Look CRUD', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+
+  await page.getByRole('tab', { name: 'Looks' }).click();
+  await expect(page.getByRole('heading', { name: 'Bundled Looks' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Apply Quiet Morning' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Apply Street Dust' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Apply Quiet Morning' }).click();
+  await page.getByRole('tab', { name: 'Adjust' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Exposure value' })).toHaveValue('0.35');
+
+  const exposure = page.getByRole('spinbutton', { name: 'Exposure value' });
+  await exposure.fill('1.5');
+  await page.getByRole('tab', { name: 'Looks' }).click();
+  await page.getByRole('button', { name: 'Save current Look' }).click();
+  await page.getByRole('textbox', { name: 'Name' }).fill('My saved Look');
+  await page.getByRole('textbox', { name: 'Description' }).fill('A look I want to use again.');
+  await page.getByRole('button', { name: 'Save Look' }).click();
+  await expect(page.getByRole('heading', { name: 'My saved Look' })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          new Promise<string[]>((resolve, reject) => {
+            const openRequest = indexedDB.open('openfilm');
+            openRequest.onerror = () => reject(openRequest.error);
+            openRequest.onsuccess = () => {
+              const request = openRequest.result
+                .transaction('custom-looks', 'readonly')
+                .objectStore('custom-looks')
+                .getAll();
+              request.onerror = () => reject(request.error);
+              request.onsuccess = () =>
+                resolve((request.result as Array<{ title: string }>).map((look) => look.title));
+            };
+          }),
+      ),
+    )
+    .toContain('My saved Look');
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Looks' }).click();
+  await expect(page.getByRole('heading', { name: 'My saved Look' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Apply My saved Look' }).click();
+  await page.getByRole('tab', { name: 'Adjust' }).click();
+  await expect(exposure).toHaveValue('1.5');
+  await page.getByRole('tab', { name: 'Looks' }).click();
+
+  await page.getByRole('button', { name: 'Rename My saved Look' }).click();
+  await page.getByRole('textbox', { name: 'Name' }).fill('Renamed Look');
+  await page.getByRole('button', { name: 'Rename Look' }).click();
+  await expect(page.getByRole('heading', { name: 'Renamed Look' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Duplicate Renamed Look' }).click();
+  await expect(page.getByRole('heading', { name: 'Renamed Look copy' })).toBeVisible();
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Delete Renamed Look', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Renamed Look', exact: true })).toHaveCount(0);
+});
+
+test('recovers the latest Edit and its source after a reload', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await expect(page.getByText('Browser recovery available')).toBeVisible();
+
+  const exposure = page.getByRole('spinbutton', { name: 'Exposure value' });
+  await exposure.fill('1.25');
+  await expect(exposure).toHaveValue('1.25');
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('combobox', { name: 'Rotation' }).selectOption('90');
+  await page.getByRole('tab', { name: 'Adjust' }).click();
+  await page.reload();
+
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: 'Exposure value' })).toHaveValue('1.25');
+  await expect(page.getByText(/Recovered openfilm-sample\.png/)).toBeVisible();
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await expect(page.getByRole('combobox', { name: 'Rotation' })).toHaveValue('90');
+});
+
+test('restores settings and requests the source again when source bytes are unavailable', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+
+  const exposure = page.getByRole('spinbutton', { name: 'Exposure value' });
+  await exposure.fill('0.75');
+  await expect(exposure).toHaveValue('0.75');
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve, reject) => {
+      const openRequest = indexedDB.open('openfilm');
+      openRequest.onerror = () => reject(openRequest.error);
+      openRequest.onsuccess = () => {
+        const database = openRequest.result;
+        const transaction = database.transaction('source-photograph', 'readwrite');
+        const deleteRequest = transaction.objectStore('source-photograph').delete('current');
+
+        deleteRequest.onerror = () => reject(deleteRequest.error);
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      };
+    });
+  });
+  await page.reload();
+
+  await expect(
+    page.getByRole('heading', { name: 'Choose the source photograph again.' }),
+  ).toBeVisible();
+  await expect(page.getByText(/Recovered settings for openfilm-sample\.png/)).toBeVisible();
+
+  await page.getByLabel('Choose source photograph').setInputFiles(fixtureFile(previewFixture));
+  await expect(page.getByRole('heading', { name: previewFixture.fileName })).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: 'Exposure value' })).toHaveValue('0.75');
+});
+
+test('keeps bundled and custom Look controls reachable at a phone width', async ({ page }) => {
+  await page.setViewportSize({ height: 844, width: 390 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Looks' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Bundled Looks' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Apply Blue Hour' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save current Look' })).toBeVisible();
+
+  const accessibilitySnapshot = await page.evaluate(() => ({
+    controlsWithoutNames: Array.from(
+      document.querySelectorAll('button, input, select, textarea'),
+    ).filter((element) => {
+      const label = element.getAttribute('aria-label');
+      const labelledBy = element.getAttribute('aria-labelledby');
+      const text = element.textContent?.trim();
+      const associatedLabel = element.id
+        ? document.querySelector(`label[for="${element.id}"]`)?.textContent?.trim()
+        : undefined;
+
+      return !label && !labelledBy && !text && !associatedLabel;
+    }).length,
+    horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
+  }));
+
+  expect(accessibilitySnapshot.controlsWithoutNames).toBe(0);
+  expect(accessibilitySnapshot.horizontalOverflow).toBe(false);
+});

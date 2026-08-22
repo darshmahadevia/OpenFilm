@@ -26,6 +26,7 @@ export class SourcePhotographImportError extends Error {
 }
 
 export interface ImportedSourcePhotograph {
+  file: File;
   fileName: string;
   mimeType: SourcePhotographMimeType;
   objectUrl: string;
@@ -233,6 +234,7 @@ export async function importSourcePhotograph(
     ownershipTransferred = true;
 
     return {
+      file,
       fileName: file.name,
       height: dimensions.height,
       mimeType,

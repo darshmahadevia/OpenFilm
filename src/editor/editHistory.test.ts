@@ -139,4 +139,30 @@ describe('shared Edit history', () => {
 
     expect(state).toEqual(createEditHistory());
   });
+
+  it('applies a Look in one history entry and restores a recoverable history', () => {
+    let state = createEditHistory();
+    const look = {
+      ...neutralAdjustments,
+      exposure: 1.25,
+      grainAmount: 30,
+    };
+
+    state = editHistoryReducer(state, { type: 'apply-look', adjustments: look });
+    expect(state.present.adjustments.exposure).toBe(1.25);
+    expect(state.present.adjustments.grainAmount).toBe(30);
+    expect(state.past).toHaveLength(1);
+
+    const restored = editHistoryReducer(state, {
+      type: 'restore',
+      history: {
+        future: state.future,
+        past: state.past,
+        present: state.present,
+      },
+    });
+
+    expect(restored).toEqual({ ...state, gesture: null });
+    expect(restored.present).not.toBe(state.present);
+  });
 });

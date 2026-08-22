@@ -28,7 +28,12 @@ export type EditorAction =
   | { type: 'select-tool'; tool: EditorTool }
   | { type: 'set-geometry'; geometry: GeometryValues }
   | { type: 'source-selected'; fileName: string; grainSeed: GrainSeed }
-  | { type: 'clear-source' };
+  | { type: 'attach-source'; fileName: string; grainSeed?: GrainSeed }
+  | { type: 'clear-source' }
+  | {
+      type: 'restore';
+      state: Pick<EditorState, 'activeTool' | 'geometry' | 'grainSeed' | 'sourceFileName'>;
+    };
 
 function isEditorTool(value: unknown): value is EditorTool {
   return editorTools.includes(value as EditorTool);
@@ -90,6 +95,20 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         geometry: normalizeGeometry(neutralGeometry),
         grainSeed: action.grainSeed,
         sourceFileName: action.fileName,
+      };
+    case 'attach-source':
+      return {
+        ...state,
+        grainSeed: action.grainSeed ?? state.grainSeed,
+        sourceFileName: action.fileName,
+      };
+    case 'restore':
+      return {
+        ...state,
+        activeTool: action.state.activeTool,
+        geometry: normalizeGeometry(action.state.geometry),
+        grainSeed: action.state.grainSeed,
+        sourceFileName: action.state.sourceFileName,
       };
     case 'clear-source':
       return {

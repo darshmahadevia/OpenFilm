@@ -6,6 +6,7 @@ import {
   adjustmentGroups,
   coreAdjustmentKeys,
   formatAdjustmentValue,
+  neutralAdjustments,
   type AdjustmentGroup,
   type AdjustmentKey,
 } from './editor/adjustments';
@@ -16,6 +17,12 @@ import {
   hasNonNeutralEdit,
   type EditHistoryAction,
 } from './editor/editHistory';
+import {
+  bundledLooks,
+  normalizeLookDescription,
+  normalizeLookTitle,
+  type BundledLook,
+} from './editor/looks';
 import {
   editorReducer,
   editorTools,
@@ -62,7 +69,15 @@ import {
   normalizeMaximumLongEdge,
   type ExportFormat,
 } from './rendering/export';
-import { hasBrowserStorage, storageNotice } from './storage/browserStorage';
+import {
+  createBrowserStorage,
+  describeStorageError,
+  hasBrowserStorage,
+  storageNotice,
+  type BrowserStorage,
+  type StoredEdit,
+  type StoredLook,
+} from './storage/browserStorage';
 import {
   addToneCurvePoint,
   isNeutralToneCurve,
@@ -96,6 +111,67 @@ const toolDetails: Record<EditorTool, { description: string; title: string }> = 
 };
 
 const TONE_CURVE_GESTURE_ID = 'tone-curve-drag';
+
+type LookSource = BundledLook | StoredLook;
+
+function createStoredEdit(
+  state: { grainSeed: number | null; sourceFileName: string | null },
+  editHistory: ReturnType<typeof createEditHistory>,
+  sourcePhotograph: ImportedSourcePhotograph | null,
+  persistSource = true,
+): StoredEdit {
+  return {
+    grainSeed: state.grainSeed,
+    history: {
+      future: editHistory.future,
+      past: editHistory.past,
+      present: editHistory.present,
+    },
+    savedAt: Date.now(),
+    ...(persistSource
+      ? {
+          source: sourcePhotograph
+            ? {
+                blob: sourcePhotograph.file,
+                fileName: sourcePhotograph.fileName,
+                height: sourcePhotograph.height,
+                mimeType: sourcePhotograph.mimeType,
+                width: sourcePhotograph.width,
+              }
+            : null,
+        }
+      : {}),
+    sourceFileName: state.sourceFileName,
+    version: 1,
+  };
+}
+
+function createLookId(): string {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `look-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getDuplicateLookTitle(title: string, existingLooks: readonly StoredLook[]): string {
+  const existingTitles = new Set(existingLooks.map((look) => look.title));
+  const baseTitle = `${title} copy`;
+
+  if (!existingTitles.has(baseTitle)) {
+    return baseTitle;
+  }
+
+  for (let index = 2; index < 1000; index += 1) {
+    const candidate = `${baseTitle} ${index}`;
+
+    if (!existingTitles.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  return `${baseTitle} ${Date.now()}`;
+}
 
 function adjustmentGestureId(key: AdjustmentKey): string {
   return `adjustment-${key}`;
@@ -819,19 +895,210 @@ function CropControl({
   );
 }
 
+function LookCard({
+  isCustom,
+  look,
+  onApply,
+  onDelete,
+  onDuplicate,
+  onRename,
+}: {
+  isCustom: boolean;
+  look: LookSource;
+  onApply: (look: LookSource) => void;
+  onDelete: (look: StoredLook) => void;
+  onDuplicate: (look: LookSource) => void;
+  onRename: (look: StoredLook) => void;
+}) {
+  const customLook = isCustom ? (look as StoredLook) : null;
+
+  return (
+    <article className="look-card">
+      <div className="look-card__copy">
+        <h4>{look.title}</h4>
+        <p>{look.description || 'A reusable set of photographic Adjustments.'}</p>
+      </div>
+      <div className="look-card__actions">
+        <Button
+          aria-label={`Apply ${look.title}`}
+          onClick={() => onApply(look)}
+          size="small"
+          variant="outline"
+        >
+          Apply
+        </Button>
+        {customLook ? (
+          <>
+            <Button
+              aria-label={`Rename ${look.title}`}
+              onClick={() => onRename(customLook)}
+              size="small"
+              variant="quiet"
+            >
+              Rename
+            </Button>
+            <Button
+              aria-label={`Duplicate ${look.title}`}
+              onClick={() => onDuplicate(look)}
+              size="small"
+              variant="quiet"
+            >
+              Duplicate
+            </Button>
+            <Button
+              aria-label={`Delete ${look.title}`}
+              onClick={() => onDelete(customLook)}
+              size="small"
+              variant="quiet"
+            >
+              Delete
+            </Button>
+          </>
+        ) : (
+          <Button
+            aria-label={`Save ${look.title} as a custom Look`}
+            onClick={() => onDuplicate(look)}
+            size="small"
+            variant="quiet"
+          >
+            Save copy
+          </Button>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function LooksControl({
+  bundledLooks: bundledLookOptions,
+  canRedo,
+  canUndo,
+  customLooks,
+  hasSource,
+  onApplyLook,
+  onDeleteLook,
+  onDuplicateLook,
+  onOpenSaveDialog,
+  onOpenRenameDialog,
+  onRedo,
+  onUndo,
+}: {
+  bundledLooks: readonly BundledLook[];
+  canRedo: boolean;
+  canUndo: boolean;
+  customLooks: readonly StoredLook[];
+  hasSource: boolean;
+  onApplyLook: (look: LookSource) => void;
+  onDeleteLook: (look: StoredLook) => void;
+  onDuplicateLook: (look: LookSource) => void;
+  onOpenSaveDialog: () => void;
+  onOpenRenameDialog: (look: StoredLook) => void;
+  onRedo: () => void;
+  onUndo: () => void;
+}) {
+  return (
+    <div className="control-stack looks-control">
+      <EditHistoryActions
+        canRedo={canRedo}
+        canUndo={canUndo}
+        hasSource={hasSource}
+        onRedo={onRedo}
+        onUndo={onUndo}
+      />
+      <section aria-labelledby="bundled-looks-title" className="looks-section">
+        <div className="looks-section__header">
+          <div>
+            <h3 id="bundled-looks-title">Bundled Looks</h3>
+            <p>Seven original starting points for a new Edit.</p>
+          </div>
+          <span className="looks-section__count">{bundledLookOptions.length}</span>
+        </div>
+        <div className="look-list">
+          {bundledLookOptions.map((look) => (
+            <LookCard
+              isCustom={false}
+              key={look.id}
+              look={look}
+              onApply={onApplyLook}
+              onDelete={onDeleteLook}
+              onDuplicate={onDuplicateLook}
+              onRename={onOpenRenameDialog}
+            />
+          ))}
+        </div>
+      </section>
+      <section aria-labelledby="custom-looks-title" className="looks-section">
+        <div className="looks-section__header">
+          <div>
+            <h3 id="custom-looks-title">Your Looks</h3>
+            <p>Save only the reusable Adjustments, not this Edit’s geometry.</p>
+          </div>
+          <Button onClick={onOpenSaveDialog} size="small" variant="primary">
+            Save current Look
+          </Button>
+        </div>
+        {customLooks.length > 0 ? (
+          <div className="look-list">
+            {customLooks.map((look) => (
+              <LookCard
+                isCustom
+                key={look.id}
+                look={look}
+                onApply={onApplyLook}
+                onDelete={onDeleteLook}
+                onDuplicate={onDuplicateLook}
+                onRename={onOpenRenameDialog}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="looks-section__empty">Your saved Looks will appear here.</p>
+        )}
+      </section>
+      <Button
+        aria-label="Use Neutral Look"
+        disabled={!hasSource}
+        onClick={() =>
+          onApplyLook({
+            id: 'neutral',
+            title: 'Neutral Look',
+            description: '',
+            adjustments: neutralAdjustments,
+          })
+        }
+        size="small"
+        variant="outline"
+      >
+        Use Neutral Look
+      </Button>
+      <p className="field__hint">
+        A Look changes photographic Adjustments only. Crop, rotation, flips, and grain seed stay
+        with this Edit.
+      </p>
+    </div>
+  );
+}
+
 function ToolControls({
   activeTool,
   adjustments,
+  bundledLookOptions,
   canRedo,
   canUndo,
+  customLooks,
   geometry,
   hasSource,
   hasNonNeutralGeometryValue,
   onAdjustmentChange,
   onAdjustmentGestureEnd,
   onAdjustmentGestureStart,
+  onApplyLook,
   onCropChange,
+  onDeleteLook,
+  onDuplicateLook,
   onGeometryReset,
+  onOpenRenameDialog,
+  onOpenSaveDialog,
   onRedo,
   onResetAdjustment,
   onReset,
@@ -848,16 +1115,23 @@ function ToolControls({
 }: {
   activeTool: EditorTool;
   adjustments: RendererAdjustments;
+  bundledLookOptions: readonly BundledLook[];
   canRedo: boolean;
   canUndo: boolean;
+  customLooks: readonly StoredLook[];
   geometry: GeometryValues;
   hasSource: boolean;
   hasNonNeutralGeometryValue: boolean;
   onAdjustmentChange: (key: AdjustmentKey, value: number, gestureId: string) => void;
   onAdjustmentGestureEnd: (key: AdjustmentKey) => void;
   onAdjustmentGestureStart: (key: AdjustmentKey) => void;
+  onApplyLook: (look: LookSource) => void;
   onCropChange: (crop: NormalizedCrop) => void;
+  onDeleteLook: (look: StoredLook) => void;
+  onDuplicateLook: (look: LookSource) => void;
   onGeometryReset: () => void;
+  onOpenRenameDialog: (look: StoredLook) => void;
+  onOpenSaveDialog: () => void;
   onRedo: () => void;
   onResetAdjustment: (key: AdjustmentKey) => void;
   onReset: () => void;
@@ -950,32 +1224,20 @@ function ToolControls({
 
   if (activeTool === 'looks') {
     return (
-      <div className="control-stack">
-        <EditHistoryActions
-          canRedo={canRedo}
-          canUndo={canUndo}
-          hasSource={hasSource}
-          onRedo={onRedo}
-          onUndo={onUndo}
-        />
-        <div className="look-row look-row--selected">
-          <div>
-            <strong>Neutral Look</strong>
-            <span>No intentional visible change</span>
-          </div>
-          <span className="look-row__state">Active</span>
-        </div>
-        <div className="look-row look-row--muted">
-          <div>
-            <strong>Bundled Looks</strong>
-            <span>Ready for the first film-inspired collection</span>
-          </div>
-          <span className="look-row__state">Soon</span>
-        </div>
-        <Button disabled={!hasSource} variant="outline">
-          Import a Look file
-        </Button>
-      </div>
+      <LooksControl
+        bundledLooks={bundledLookOptions}
+        canRedo={canRedo}
+        canUndo={canUndo}
+        customLooks={customLooks}
+        hasSource={hasSource}
+        onApplyLook={onApplyLook}
+        onDeleteLook={onDeleteLook}
+        onDuplicateLook={onDuplicateLook}
+        onOpenRenameDialog={onOpenRenameDialog}
+        onOpenSaveDialog={onOpenSaveDialog}
+        onRedo={onRedo}
+        onUndo={onUndo}
+      />
     );
   }
 
@@ -1040,6 +1302,15 @@ function ToolControls({
 }
 
 type ExportSizeMode = 'maximum' | 'source';
+
+type StorageStatus = 'checking' | 'available' | 'unavailable' | 'failed';
+
+interface LookDialogState {
+  description: string;
+  lookId: string | null;
+  mode: 'rename' | 'save';
+  title: string;
+}
 
 function ExportControls({
   estimatedOutputDimensions,
@@ -1189,6 +1460,20 @@ export default function App() {
   const [rendererStatus, setRendererStatus] = useState<RendererStatus>('unsupported');
   const [rendererError, setRendererError] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [customLooks, setCustomLooks] = useState<StoredLook[]>([]);
+  const browserStorageAvailable = hasBrowserStorage();
+  const [storageStatus, setStorageStatus] = useState<StorageStatus>(
+    browserStorageAvailable ? 'checking' : 'unavailable',
+  );
+  const [storageReady, setStorageReady] = useState(!browserStorageAvailable);
+  const [storageFeedback, setStorageFeedback] = useState<string | null>(
+    browserStorageAvailable ? null : describeStorageError(),
+  );
+  const [recoveryFeedback, setRecoveryFeedback] = useState<string | null>(null);
+  const [recoveryNeedsSource, setRecoveryNeedsSource] = useState(false);
+  const [lookDialog, setLookDialog] = useState<LookDialogState | null>(null);
+  const [lookDialogError, setLookDialogError] = useState<string | null>(null);
+  const [lookActionPending, setLookActionPending] = useState(false);
   const [importFeedback, setImportFeedback] = useState<{
     kind: 'error' | 'success';
     message: string;
@@ -1212,7 +1497,10 @@ export default function App() {
   const rendererRef = useRef<PreviewRenderer | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importRequestRef = useRef(0);
-  const storageAvailable = hasBrowserStorage();
+  const storageRef = useRef<BrowserStorage | null>(null);
+  const pendingEditRef = useRef<{ edit: StoredEdit; storage: BrowserStorage } | null>(null);
+  const storageWriteInFlightRef = useRef(false);
+  const persistedSourceRef = useRef<File | null | undefined>(undefined);
   const activeTool = toolDetails[state.activeTool];
   const adjustments = editHistory.present.adjustments;
   const geometry = editHistory.present.geometry;
@@ -1274,6 +1562,157 @@ export default function App() {
       rendererRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!hasBrowserStorage()) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const storage = createBrowserStorage();
+
+    if (!storage) {
+      void Promise.resolve().then(() => {
+        if (!cancelled) {
+          setStorageStatus('unavailable');
+          setStorageFeedback(describeStorageError());
+          setStorageReady(true);
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    storageRef.current = storage;
+    const availableStorage = storage;
+
+    async function recover() {
+      try {
+        const [savedLooks, savedEdit] = await Promise.all([
+          availableStorage.listCustomLooks(),
+          availableStorage.loadLatestEdit(),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        setCustomLooks(savedLooks);
+
+        if (savedEdit) {
+          dispatch({
+            type: 'restore',
+            state: {
+              activeTool: 'adjustments',
+              geometry: savedEdit.history.present.geometry,
+              grainSeed: savedEdit.grainSeed,
+              sourceFileName: savedEdit.sourceFileName,
+            },
+          });
+          dispatchEditHistory({ type: 'restore', history: savedEdit.history });
+
+          if (savedEdit.source) {
+            const file = new File([savedEdit.source.blob], savedEdit.source.fileName, {
+              type: savedEdit.source.mimeType,
+            });
+
+            try {
+              const imported = await importSourcePhotograph(file);
+
+              if (!cancelled) {
+                setSourcePhotograph(imported);
+                setRecoveryFeedback(
+                  `Recovered ${imported.fileName} and the latest Edit from this browser.`,
+                );
+              } else {
+                releaseSourcePhotographObjectUrl(imported.objectUrl);
+              }
+            } catch {
+              if (!cancelled) {
+                setRecoveryNeedsSource(true);
+                setRecoveryFeedback(
+                  `Recovered settings for ${savedEdit.sourceFileName ?? savedEdit.source.fileName}. Choose the source photograph again to continue.`,
+                );
+              }
+            }
+          } else if (savedEdit.sourceFileName) {
+            setRecoveryNeedsSource(true);
+            setRecoveryFeedback(
+              `Recovered settings for ${savedEdit.sourceFileName}. Choose that source photograph again to continue.`,
+            );
+          }
+        }
+
+        setStorageStatus('available');
+      } catch {
+        if (!cancelled) {
+          setStorageStatus('failed');
+          setStorageFeedback(describeStorageError());
+        }
+      } finally {
+        if (!cancelled) {
+          setStorageReady(true);
+        }
+      }
+    }
+
+    void recover();
+
+    return () => {
+      cancelled = true;
+      storageRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const storage = storageRef.current;
+
+    if (!storageReady || !storage) {
+      return;
+    }
+
+    const sourceFile = sourcePhotograph?.file ?? null;
+    const persistSource = persistedSourceRef.current !== sourceFile;
+
+    pendingEditRef.current = {
+      edit: createStoredEdit(state, editHistory, sourcePhotograph, persistSource),
+      storage,
+    };
+
+    if (persistSource) {
+      persistedSourceRef.current = sourceFile;
+    }
+
+    if (storageWriteInFlightRef.current) {
+      return;
+    }
+
+    storageWriteInFlightRef.current = true;
+    void (async () => {
+      try {
+        while (pendingEditRef.current) {
+          const pendingEdit = pendingEditRef.current;
+          pendingEditRef.current = null;
+
+          if (storageRef.current === pendingEdit.storage) {
+            await pendingEdit.storage.saveLatestEdit(pendingEdit.edit);
+          }
+        }
+      } catch {
+        pendingEditRef.current = null;
+
+        if (storageRef.current === storage) {
+          handleStorageFailure();
+        }
+      } finally {
+        storageWriteInFlightRef.current = false;
+      }
+    })();
+  }, [editHistory, sourcePhotograph, state, storageReady]);
 
   useEffect(() => {
     rendererRef.current?.setAdjustments(showBefore ? neutralRendererAdjustments : adjustments);
@@ -1432,7 +1871,9 @@ export default function App() {
         return;
       }
 
+      const attachingRecoveredSource = recoveryNeedsSource && !sourcePhotograph;
       const replacementConfirmed =
+        attachingRecoveredSource ||
         !sourcePhotograph ||
         !editHasChanges ||
         typeof window === 'undefined' ||
@@ -1450,14 +1891,24 @@ export default function App() {
       }
 
       setSourcePhotograph(imported);
-      dispatchEditHistory({ type: 'replace-source' });
       setShowBefore(false);
       setExportFeedback(null);
-      dispatch({
-        type: 'source-selected',
-        fileName: imported.fileName,
-        grainSeed: createGrainSeed(),
-      });
+      if (attachingRecoveredSource) {
+        setRecoveryNeedsSource(false);
+        setRecoveryFeedback(null);
+        dispatch({
+          type: 'attach-source',
+          fileName: imported.fileName,
+          grainSeed: state.grainSeed ?? createGrainSeed(),
+        });
+      } else {
+        dispatchEditHistory({ type: 'replace-source' });
+        dispatch({
+          type: 'source-selected',
+          fileName: imported.fileName,
+          grainSeed: createGrainSeed(),
+        });
+      }
       setImportFeedback({
         kind: 'success',
         message: `Loaded ${imported.fileName} — ${imported.width.toLocaleString()} × ${imported.height.toLocaleString()} pixels.`,
@@ -1569,6 +2020,141 @@ export default function App() {
     void importSelectedSource(createBundledSamplePhotographFile());
   }
 
+  function applyLook(look: LookSource) {
+    dispatchEditHistory({ type: 'apply-look', adjustments: look.adjustments });
+    setShowBefore(false);
+    setImportFeedback({ kind: 'success', message: `Applied ${look.title}.` });
+  }
+
+  function openSaveLookDialog() {
+    setLookDialogError(null);
+    setLookDialog({
+      description: '',
+      lookId: null,
+      mode: 'save',
+      title: 'My Look',
+    });
+  }
+
+  function openRenameLookDialog(look: StoredLook) {
+    setLookDialogError(null);
+    setLookDialog({
+      description: look.description,
+      lookId: look.id,
+      mode: 'rename',
+      title: look.title,
+    });
+  }
+
+  function handleStorageFailure() {
+    storageRef.current = null;
+    setStorageStatus('failed');
+    setStorageFeedback(describeStorageError());
+  }
+
+  function rememberCustomLook(look: StoredLook) {
+    setCustomLooks((current) =>
+      [...current.filter((item) => item.id !== look.id), look].sort(
+        (first, second) => second.updatedAt - first.updatedAt,
+      ),
+    );
+
+    const storage = storageRef.current;
+
+    if (storage) {
+      void storage.saveCustomLook(look).catch(() => {
+        if (storageRef.current === storage) {
+          handleStorageFailure();
+        }
+      });
+    }
+  }
+
+  function duplicateLook(look: LookSource) {
+    const now = Date.now();
+    const duplicate: StoredLook = {
+      adjustments: look.adjustments,
+      createdAt: now,
+      description: look.description,
+      id: createLookId(),
+      title: getDuplicateLookTitle(look.title, customLooks),
+      updatedAt: now,
+    };
+
+    rememberCustomLook(duplicate);
+    setImportFeedback({ kind: 'success', message: `Saved ${duplicate.title}.` });
+  }
+
+  function deleteLook(look: StoredLook) {
+    if (
+      typeof window !== 'undefined' &&
+      !window.confirm(`Delete “${look.title}”? This saved Look cannot be recovered.`)
+    ) {
+      return;
+    }
+
+    setCustomLooks((current) => current.filter((item) => item.id !== look.id));
+    const storage = storageRef.current;
+
+    if (storage) {
+      void storage.deleteCustomLook(look.id).catch(() => {
+        if (storageRef.current === storage) {
+          handleStorageFailure();
+        }
+      });
+    }
+    setImportFeedback({ kind: 'success', message: `Deleted ${look.title}.` });
+  }
+
+  async function submitLookDialog() {
+    if (!lookDialog || lookActionPending) {
+      return;
+    }
+
+    const title = normalizeLookTitle(lookDialog.title);
+
+    if (!title) {
+      setLookDialogError('Enter a name for this Look.');
+      return;
+    }
+
+    if (lookDialog.mode === 'rename' && lookDialog.lookId) {
+      const existing = customLooks.find((look) => look.id === lookDialog.lookId);
+
+      if (!existing) {
+        setLookDialog(null);
+        return;
+      }
+
+      const renamed: StoredLook = {
+        ...existing,
+        title,
+        updatedAt: Date.now(),
+      };
+
+      rememberCustomLook(renamed);
+      setLookDialog(null);
+      setImportFeedback({ kind: 'success', message: `Renamed Look to ${title}.` });
+      return;
+    }
+
+    const now = Date.now();
+    const saved: StoredLook = {
+      adjustments: editHistory.present.adjustments,
+      createdAt: now,
+      description: normalizeLookDescription(lookDialog.description),
+      id: createLookId(),
+      title,
+      updatedAt: now,
+    };
+
+    setLookActionPending(true);
+    rememberCustomLook(saved);
+    setLookActionPending(false);
+    setLookDialog(null);
+    setImportFeedback({ kind: 'success', message: `Saved ${saved.title}.` });
+  }
+
   async function handleDownload() {
     const renderer = rendererRef.current;
     const source = sourcePhotograph;
@@ -1638,6 +2224,12 @@ export default function App() {
   }
 
   const rendererMessage = rendererError ?? describeRendererStatus(rendererStatus);
+  const storageStatusLabel =
+    storageStatus === 'available'
+      ? 'Browser recovery available'
+      : storageStatus === 'checking'
+        ? 'Checking browser recovery'
+        : 'Browser recovery unavailable';
 
   return (
     <div className="app-shell">
@@ -1707,8 +2299,16 @@ export default function App() {
                 </>
               ) : (
                 <>
-                  <h2>Bring a photograph into focus.</h2>
-                  <p>Choose or drop one JPEG, PNG, or WebP source photograph.</p>
+                  <h2>
+                    {recoveryNeedsSource
+                      ? 'Choose the source photograph again.'
+                      : 'Bring a photograph into focus.'}
+                  </h2>
+                  <p>
+                    {recoveryNeedsSource
+                      ? `OpenFilm recovered the settings for ${state.sourceFileName ?? 'the latest Edit'}.`
+                      : 'Choose or drop one JPEG, PNG, or WebP source photograph.'}
+                  </p>
                   <div className="canvas-stage__actions">
                     <Button disabled={isImporting} onClick={openFilePicker} variant="primary">
                       Import photograph
@@ -1747,9 +2347,7 @@ export default function App() {
 
           <div className="canvas-column__footer">
             <RendererStatusLabel status={rendererStatus} />
-            <span className="storage-status">
-              {storageAvailable ? 'Browser recovery available' : 'Browser recovery unavailable'}
-            </span>
+            <span className="storage-status">{storageStatusLabel}</span>
           </div>
           <HistogramPanel histogram={histogram} pending={histogramPending} />
           {isImporting ? (
@@ -1777,6 +2375,16 @@ export default function App() {
               role={rendererError ? 'alert' : 'status'}
             >
               {rendererMessage}
+            </p>
+          ) : null}
+          {recoveryFeedback ? (
+            <p aria-live="polite" className="storage-feedback" role="status">
+              {recoveryFeedback}
+            </p>
+          ) : null}
+          {storageFeedback ? (
+            <p aria-live="polite" className="storage-feedback" role="status">
+              {storageFeedback}
             </p>
           ) : null}
           <p className="storage-note">{storageNotice}</p>
@@ -1824,16 +2432,23 @@ export default function App() {
             <ToolControls
               activeTool={state.activeTool}
               adjustments={adjustments}
+              bundledLookOptions={bundledLooks}
               canRedo={editHistory.future.length > 0}
               canUndo={editHistory.past.length > 0}
+              customLooks={customLooks}
               geometry={geometry}
               hasSource={Boolean(sourcePhotograph)}
               hasNonNeutralGeometryValue={hasNonNeutralGeometry(geometry)}
               onAdjustmentChange={handleAdjustmentChange}
               onAdjustmentGestureEnd={endAdjustmentGesture}
               onAdjustmentGestureStart={beginAdjustmentGesture}
+              onApplyLook={applyLook}
               onCropChange={handleCropChange}
+              onDeleteLook={deleteLook}
+              onDuplicateLook={duplicateLook}
               onGeometryReset={resetGeometry}
+              onOpenRenameDialog={openRenameLookDialog}
+              onOpenSaveDialog={openSaveLookDialog}
               onRedo={redoEdit}
               onResetAdjustment={resetAdjustment}
               onReset={resetAdjustments}
@@ -1896,6 +2511,71 @@ export default function App() {
           </div>
         </aside>
       </main>
+
+      {lookDialog ? (
+        <Dialog
+          actions={
+            <>
+              <Button
+                disabled={lookActionPending}
+                onClick={() => setLookDialog(null)}
+                variant="quiet"
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={lookActionPending}
+                onClick={() => void submitLookDialog()}
+                variant="primary"
+              >
+                {lookDialog.mode === 'rename' ? 'Rename Look' : 'Save Look'}
+              </Button>
+            </>
+          }
+          onClose={() => setLookDialog(null)}
+          open
+          title={lookDialog.mode === 'rename' ? 'Rename Look' : 'Save current Look'}
+        >
+          <Field hint="Use a short name you will recognize later." id="look-title" label="Name">
+            <input
+              aria-describedby="look-title-hint"
+              autoFocus
+              id="look-title"
+              maxLength={80}
+              onChange={(event) => {
+                const title = event.currentTarget.value;
+                setLookDialog((current) => (current ? { ...current, title } : current));
+              }}
+              type="text"
+              value={lookDialog.title}
+            />
+          </Field>
+          {lookDialog.mode === 'save' ? (
+            <Field
+              hint="Optional. Keep it under 240 characters."
+              id="look-description"
+              label="Description"
+            >
+              <textarea
+                aria-describedby="look-description-hint"
+                id="look-description"
+                maxLength={240}
+                onChange={(event) => {
+                  const description = event.currentTarget.value;
+                  setLookDialog((current) => (current ? { ...current, description } : current));
+                }}
+                rows={3}
+                value={lookDialog.description}
+              />
+            </Field>
+          ) : null}
+          {lookDialogError ? (
+            <p aria-live="assertive" className="looks-dialog__error" role="alert">
+              {lookDialogError}
+            </p>
+          ) : null}
+        </Dialog>
+      ) : null}
 
       <Dialog
         actions={

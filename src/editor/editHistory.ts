@@ -39,6 +39,12 @@ export interface EditHistoryState {
   gesture: EditGesture | null;
 }
 
+export interface PersistedEditHistory {
+  future: EditSnapshot[];
+  past: EditSnapshot[];
+  present: EditSnapshot;
+}
+
 export interface InitialEditValues {
   adjustments?: Partial<AdjustmentValues>;
   geometry?: Partial<GeometryValues>;
@@ -51,6 +57,7 @@ export type EditHistoryAction =
   | { type: 'reset-group'; group: AdjustmentGroup }
   | { type: 'reset-tone-curve' }
   | { type: 'reset-adjustments' }
+  | { type: 'apply-look'; adjustments: AdjustmentValues }
   | { type: 'set-crop'; crop: Partial<NormalizedCrop> }
   | { type: 'set-geometry'; geometry: GeometryValues }
   | { type: 'set-rotation'; rotation: GeometryRotation }
@@ -61,7 +68,8 @@ export type EditHistoryAction =
   | { type: 'end-gesture'; id: string }
   | { type: 'undo' }
   | { type: 'redo' }
-  | { type: 'replace-source' };
+  | { type: 'replace-source' }
+  | { type: 'restore'; history: PersistedEditHistory };
 
 function cloneSnapshot(snapshot: EditSnapshot): EditSnapshot {
   return {
@@ -154,6 +162,15 @@ export function createEditHistory(values: InitialEditValues = {}): EditHistorySt
   };
 }
 
+export function restoreEditHistory(history: PersistedEditHistory): EditHistoryState {
+  return {
+    future: history.future.map(cloneSnapshot).slice(0, EDIT_HISTORY_LIMIT),
+    gesture: null,
+    past: history.past.map(cloneSnapshot).slice(-EDIT_HISTORY_LIMIT),
+    present: cloneSnapshot(history.present),
+  };
+}
+
 export function hasNonNeutralEdit(snapshot: EditSnapshot): boolean {
   return hasNonNeutralAdjustments(snapshot.adjustments) || hasNonNeutralGeometry(snapshot.geometry);
 }
@@ -219,6 +236,11 @@ export function editHistoryReducer(
       return recordSnapshot(state, {
         ...state.present,
         adjustments: normalizeAdjustments({}),
+      });
+    case 'apply-look':
+      return recordSnapshot(state, {
+        ...state.present,
+        adjustments: normalizeAdjustments(action.adjustments),
       });
     case 'set-crop':
       return recordSnapshot(state, {
@@ -301,6 +323,8 @@ export function editHistoryReducer(
     }
     case 'replace-source':
       return createEditHistory();
+    case 'restore':
+      return restoreEditHistory(action.history);
     default:
       return state;
   }

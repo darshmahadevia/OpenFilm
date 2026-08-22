@@ -99,6 +99,56 @@ describe('OpenFilm shell', () => {
     expect(screen.getByRole('dialog', { name: 'A quiet place to edit' })).toBeInTheDocument();
   });
 
+  it('explains unavailable recovery and supports bundled and custom Look CRUD', async () => {
+    const mocks = installImportBrowserMocks();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    try {
+      render(<App />);
+      expect(screen.getByText(/remain in memory until this tab closes/)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Try bundled sample' }));
+      expect(
+        await screen.findByRole('heading', { name: 'openfilm-sample.png' }),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Looks' }));
+      expect(screen.getByRole('heading', { name: 'Bundled Looks' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Apply Quiet Morning' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Apply Street Dust' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Quiet Morning' }));
+      fireEvent.click(screen.getByRole('tab', { name: 'Adjust' }));
+      expect(screen.getByLabelText('Exposure')).toHaveValue('0.35');
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Looks' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save current Look' }));
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My saved Look' } });
+      fireEvent.change(screen.getByLabelText('Description'), {
+        target: { value: 'A look I want to use again.' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Look' }));
+      expect(screen.getByRole('heading', { name: 'My saved Look' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Rename My saved Look' }));
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Renamed Look' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Rename Look' }));
+      expect(screen.getByRole('heading', { name: 'Renamed Look' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Duplicate Renamed Look' }));
+      expect(screen.getByRole('heading', { name: 'Renamed Look copy' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Delete Renamed Look' }));
+      expect(screen.queryByRole('heading', { name: 'Renamed Look' })).not.toBeInTheDocument();
+      expect(confirm).toHaveBeenCalledWith(
+        'Delete “Renamed Look”? This saved Look cannot be recovered.',
+      );
+    } finally {
+      confirm.mockRestore();
+      mocks.restore();
+    }
+  });
+
   it('imports a supported source photograph from the picker and releases the prior preview', async () => {
     const mocks = installImportBrowserMocks();
     const firstFile = createSourcePhotographFixtureFile(sourcePhotographFixtures[0]);
