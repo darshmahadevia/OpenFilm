@@ -1255,9 +1255,9 @@ export function getRendererStatus(canvas: HTMLCanvasElement | null): RendererSta
 export function describeRendererStatus(status: RendererStatus): string | null {
   switch (status) {
     case 'context-lost':
-      return 'The WebGL2 preview lost its graphics context. Reload this page or restore hardware acceleration to recover.';
+      return 'The preview stopped. Reload this page to continue.';
     case 'unsupported':
-      return 'OpenFilm needs WebGL2 to preview a source photograph. Try a current browser with hardware acceleration enabled.';
+      return 'OpenFilm needs WebGL2 to show a preview. Try a current browser with hardware acceleration enabled.';
     case 'available':
       return null;
   }

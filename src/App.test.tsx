@@ -90,7 +90,98 @@ describe('OpenFilm shell', () => {
     expect(screen.getByRole('tab', { name: 'Adjust', selected: true })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Adjustments' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Import photograph' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try bundled sample' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reload page' })).toBeInTheDocument();
     expect(screen.getByText(/OpenFilm needs WebGL2/)).toBeInTheDocument();
+  });
+
+  it('keeps the empty state focused and introduces controls after a source is ready', async () => {
+    const mocks = installImportBrowserMocks();
+
+    try {
+      render(<App />);
+
+      expect(screen.getByRole('heading', { name: 'Start with a photograph.' })).toBeInTheDocument();
+      expect(screen.queryByRole('slider', { name: 'Exposure' })).not.toBeInTheDocument();
+      expect(
+        screen.getByText('Import a source photograph to change its light, color, and texture.'),
+      ).toBeInTheDocument();
+      expect(document.querySelector('.stage-art')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Try bundled sample' }));
+      expect(
+        await screen.findByRole('heading', { name: 'openfilm-sample.png' }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('slider', { name: 'Exposure' })).toBeInTheDocument();
+    } finally {
+      mocks.restore();
+    }
+  });
+
+  it('keeps navigation available and prevents a second source import while loading', async () => {
+    const mocks = installImportBrowserMocks();
+    const sourceFile = createSourcePhotographFixtureFile(sourcePhotographFixtures[0]);
+    const ignoredSecondFile = createSourcePhotographFixtureFile(sourcePhotographFixtures[1]);
+    let resolveDecode: (() => void) | undefined;
+    class DelayedImage extends TestImage {
+      override decode = vi.fn(
+        (): Promise<undefined> =>
+          new Promise<undefined>((resolve) => {
+            resolveDecode = () => resolve(undefined);
+          }),
+      );
+    }
+    vi.stubGlobal('Image', DelayedImage);
+
+    try {
+      render(<App />);
+      fireEvent.change(screen.getByLabelText('Choose source photograph'), {
+        target: { files: [sourceFile] },
+      });
+      await waitFor(() => expect(resolveDecode).toEqual(expect.any(Function)));
+
+      expect(screen.queryByRole('button', { name: 'Try bundled sample' })).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Opening your photograph…' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('tab', { name: 'Geometry' }));
+      expect(screen.getByRole('heading', { name: 'Geometry' })).toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText('Choose source photograph'), {
+        target: { files: [ignoredSecondFile] },
+      });
+
+      resolveDecode?.();
+      expect(await screen.findByRole('heading', { name: sourceFile.name })).toBeInTheDocument();
+      expect(mocks.createObjectUrl).toHaveBeenCalledTimes(1);
+    } finally {
+      mocks.restore();
+    }
+  });
+
+  it('shows a recovery action when browser storage fails', async () => {
+    const originalIndexedDb = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB');
+    const indexedDb = {
+      open: vi.fn(() => {
+        throw new Error('IndexedDB is blocked');
+      }),
+    } as unknown as IDBFactory;
+
+    Object.defineProperty(globalThis, 'indexedDB', {
+      configurable: true,
+      value: indexedDb,
+    });
+
+    try {
+      render(<App />);
+
+      expect(await screen.findByText(/Local recovery is unavailable here/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    } finally {
+      if (originalIndexedDb) {
+        Object.defineProperty(globalThis, 'indexedDB', originalIndexedDb);
+      } else {
+        Reflect.deleteProperty(globalThis, 'indexedDB');
+      }
+    }
   });
 
   it('switches tools and opens the help dialog', () => {
@@ -146,7 +237,7 @@ describe('OpenFilm shell', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Delete Renamed Look' }));
       expect(screen.queryByRole('heading', { name: 'Renamed Look' })).not.toBeInTheDocument();
       expect(confirm).toHaveBeenCalledWith(
-        'Delete “Renamed Look”? This saved Look cannot be recovered.',
+        'Delete "Renamed Look"? This saved Look cannot be recovered.',
       );
     } finally {
       confirm.mockRestore();
@@ -502,7 +593,7 @@ describe('OpenFilm shell', () => {
         await screen.findByText('The current source photograph is still open.'),
       ).toBeInTheDocument();
       expect(confirm).toHaveBeenCalledWith(
-        'Replace the current source photograph? The current adjustment state will be reset. Geometry will reset with it.',
+        'Replace the current source photograph? The current Edit will be reset.',
       );
       expect(
         screen.getByRole('heading', { name: 'orientation-6-portrait.jpg' }),

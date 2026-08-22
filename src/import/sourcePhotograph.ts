@@ -132,25 +132,25 @@ export function formatSourcePhotographFileSizeLimit(): string {
 }
 
 export function describeSourcePhotographImportError(error: unknown, fileName: string): string {
-  const name = `“${fileName}”`;
+  const name = `"${fileName}"`;
 
   if (!(error instanceof SourcePhotographImportError)) {
-    return `OpenFilm could not read ${name}. The file may be damaged or not a real JPEG, PNG, or WebP.`;
+    return `OpenFilm could not read ${name}. Choose a JPEG, PNG, or WebP file.`;
   }
 
   switch (error.code) {
     case 'unsupported-type':
-      return `${name} is not a supported source photograph. Choose a JPEG, PNG, or WebP file.`;
+      return `${name} is not supported. Choose a JPEG, PNG, or WebP file.`;
     case 'file-too-large':
-      return `${name} is too large. Choose a source photograph at most ${formatSourcePhotographFileSizeLimit()}.`;
+      return `${name} is too large. Choose a file under ${formatSourcePhotographFileSizeLimit()}.`;
     case 'invalid-dimensions':
-      return `${name} does not have usable dimensions. Choose a non-empty source photograph.`;
+      return `${name} has no usable dimensions. Choose another photograph.`;
     case 'dimensions-too-large':
-      return `${name} is too large to preview reliably. Choose a source photograph no larger than ${MAX_SOURCE_PHOTOGRAPH_DIMENSION.toLocaleString()} pixels on either side and ${MAX_SOURCE_PHOTOGRAPH_PIXELS.toLocaleString()} total pixels.`;
+      return `${name} is too large to preview. Choose an image no larger than ${MAX_SOURCE_PHOTOGRAPH_DIMENSION.toLocaleString()} pixels on either side and ${MAX_SOURCE_PHOTOGRAPH_PIXELS.toLocaleString()} total pixels.`;
     case 'browser-unavailable':
-      return `This browser could not create a local preview for ${name}. Try a current browser with image support.`;
+      return `This browser could not make a local preview for ${name}. Try a current browser.`;
     case 'decode-failed':
-      return `OpenFilm could not read ${name}. The file may be damaged or not a real JPEG, PNG, or WebP.`;
+      return `OpenFilm could not read ${name}. Choose another JPEG, PNG, or WebP file.`;
   }
 }
 

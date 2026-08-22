@@ -24,6 +24,57 @@ async function openExport(page: Page) {
   await page.getByRole('button', { name: 'Export' }).click();
 }
 
+test('keeps the empty state concise and reveals controls in context', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.getByRole('heading', { name: 'Start with a photograph.' })).toBeVisible();
+  await expect(page.locator('.stage-art')).toHaveCount(0);
+  await expect(page.getByRole('slider', { name: 'Exposure' })).toHaveCount(0);
+
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await expect(
+    page.getByText('Import a source photograph to crop, rotate, or flip it.'),
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Adjust' }).click();
+  await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
+});
+
+test('reports an unsupported file with one recovery action', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByLabel('Choose source photograph').setInputFiles({
+    buffer: Buffer.from('not an image'),
+    mimeType: 'image/gif',
+    name: 'notes.gif',
+  });
+
+  await expect(page.getByRole('heading', { name: 'That file could not be opened.' })).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('not supported');
+  await expect(page.getByRole('button', { name: 'Try another file' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Try bundled sample' })).toHaveCount(0);
+});
+
+test('explains missing WebGL2 and offers reload', async ({ page }) => {
+  await page.addInitScript(() => {
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+
+    HTMLCanvasElement.prototype.getContext = function (contextId, ...args) {
+      if (contextId === 'webgl2') {
+        return null;
+      }
+
+      return originalGetContext.call(this, contextId, ...args);
+    };
+  });
+  await page.goto('/');
+
+  await expect(page.getByText(/OpenFilm needs WebGL2 to show a preview/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reload page' })).toBeVisible();
+});
+
 test('imports, previews, resets, replaces, and downloads a JPEG', async ({ page }) => {
   await page.goto('/');
 
@@ -50,7 +101,7 @@ test('imports, previews, resets, replaces, and downloads a JPEG', async ({ page 
   const replacementPromise = sourceInput.setInputFiles(fixtureFile(replacementFixture));
   const dialog = await dialogPromise;
   expect(dialog.type()).toBe('confirm');
-  expect(dialog.message()).toContain('adjustment state will be reset');
+  expect(dialog.message()).toContain('current Edit will be reset');
   await dialog.accept();
   await replacementPromise;
 
@@ -79,6 +130,7 @@ test('selects PNG, reports bounded dimensions, and downloads a fresh export', as
   await page.goto('/');
   await page.getByRole('button', { name: 'Try bundled sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
   await openExport(page);
 
   const format = page.getByRole('combobox', { name: 'Format' });
@@ -109,6 +161,70 @@ test('selects PNG, reports bounded dimensions, and downloads a fresh export', as
   expect(bytes.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   expect(bytes.readUInt32BE(16)).toBe(200);
   expect(bytes.readUInt32BE(20)).toBe(150);
+});
+
+test('shows a recovery action when export encoding fails', async ({ page }) => {
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.toBlob = function (callback) {
+      callback(null);
+    };
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
+  await openExport(page);
+
+  await page.getByRole('button', { name: 'Download JPEG' }).click();
+  await expect(page.getByRole('alert')).toContainText('could not encode the JPEG export');
+  await expect(page.getByRole('button', { name: 'Try export again' })).toBeVisible();
+});
+
+test('prevents duplicate exports without blocking tool navigation', async ({ page }) => {
+  await page.addInitScript(() => {
+    const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+    const state = window as typeof window & {
+      openFilmExportCalls: number;
+      releaseOpenFilmExport: () => void;
+    };
+    let releaseExport: (() => void) | null = null;
+
+    state.openFilmExportCalls = 0;
+    state.releaseOpenFilmExport = () => {
+      releaseExport?.();
+    };
+
+    HTMLCanvasElement.prototype.toBlob = function (callback, type, quality) {
+      state.openFilmExportCalls += 1;
+      releaseExport = () => originalToBlob.call(this, callback, type, quality);
+    };
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
+  await openExport(page);
+
+  const downloadButton = page.locator('.export-controls__actions .button');
+  const downloadPromise = page.waitForEvent('download');
+  await downloadButton.dispatchEvent('click');
+  await expect(downloadButton).toBeDisabled();
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await expect(page.getByRole('heading', { name: 'Geometry' })).toBeVisible();
+  await downloadButton.evaluate((element) =>
+    element.dispatchEvent(new MouseEvent('click', { bubbles: true })),
+  );
+
+  await page.evaluate(() => {
+    const state = window as typeof window & { releaseOpenFilmExport: () => void };
+    state.releaseOpenFilmExport();
+  });
+  await downloadPromise;
+  expect(
+    await page.evaluate(
+      () => (window as typeof window & { openFilmExportCalls: number }).openFilmExportCalls,
+    ),
+  ).toBe(1);
 });
 
 test('tries the bundled sample and edits the core adjustments', async ({ page }) => {
@@ -627,6 +743,10 @@ test('restores settings and requests the source again when source bytes are unav
     page.getByRole('heading', { name: 'Choose the source photograph again.' }),
   ).toBeVisible();
   await expect(page.getByText(/Recovered settings for openfilm-sample\.png/)).toBeVisible();
+  await expect(
+    page.locator('.canvas-stage__state').getByRole('button', { name: 'Choose source photograph' }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Try bundled sample' })).toHaveCount(0);
 
   await page.getByLabel('Choose source photograph').setInputFiles(fixtureFile(previewFixture));
   await expect(page.getByRole('heading', { name: previewFixture.fileName })).toBeVisible();

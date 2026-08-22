@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
-import type { ChangeEvent, DragEvent, KeyboardEvent, PointerEvent } from 'react';
+import type { ChangeEvent, DragEvent, KeyboardEvent, PointerEvent, ReactNode } from 'react';
 
 import {
   adjustmentDefinitions,
@@ -106,16 +106,22 @@ const toolLabels: Record<EditorTool, string> = {
 const toolDetails: Record<EditorTool, { description: string; title: string }> = {
   adjustments: {
     title: 'Adjustments',
-    description: 'Tune the Look with a small set of familiar photographic controls.',
+    description: 'Change light, color, and texture.',
   },
   geometry: {
     title: 'Geometry',
-    description: 'Crop, rotate, and flip the current Edit without changing its Look.',
+    description: 'Crop, rotate, or flip this Edit.',
   },
   looks: {
     title: 'Looks',
-    description: 'Start from a bundled Look or return to a neutral starting point.',
+    description: 'Apply or save a reusable Look.',
   },
+};
+
+const toolContextMessages: Record<EditorTool, string> = {
+  adjustments: 'Import a source photograph to change its light, color, and texture.',
+  geometry: 'Import a source photograph to crop, rotate, or flip it.',
+  looks: 'Import a source photograph to apply or save a Look.',
 };
 
 const TONE_CURVE_GESTURE_ID = 'tone-curve-drag';
@@ -216,6 +222,68 @@ function RendererStatusLabel({ status }: { status: RendererStatus }) {
       <span aria-hidden="true" className="renderer-status__dot" />
       {label}
     </span>
+  );
+}
+
+function CanvasStateMessage({
+  actionLabel,
+  actions,
+  children,
+  kind = 'neutral',
+  onAction,
+  title,
+}: {
+  actionLabel?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+  kind?: 'error' | 'loading' | 'neutral' | 'warning';
+  onAction?: () => void;
+  title: string;
+}) {
+  return (
+    <div
+      aria-live={kind === 'error' ? 'assertive' : 'polite'}
+      className={`canvas-stage__state canvas-stage__state--${kind}`}
+      role={kind === 'error' ? 'alert' : 'status'}
+    >
+      <h2>{title}</h2>
+      <p>{children}</p>
+      {actions ??
+        (actionLabel && onAction ? (
+          <div className="canvas-stage__actions">
+            <Button onClick={onAction} variant="primary">
+              {actionLabel}
+            </Button>
+          </div>
+        ) : null)}
+    </div>
+  );
+}
+
+function FeedbackNotice({
+  actionLabel,
+  disabled = false,
+  kind,
+  message,
+  onAction,
+}: {
+  actionLabel: string;
+  disabled?: boolean;
+  kind: 'error' | 'warning';
+  message: string;
+  onAction: () => void;
+}) {
+  return (
+    <div
+      aria-live={kind === 'error' ? 'assertive' : 'polite'}
+      className={`feedback-notice feedback-notice--${kind}`}
+      role={kind === 'error' ? 'alert' : 'status'}
+    >
+      <p>{message}</p>
+      <Button disabled={disabled} onClick={onAction} size="small" variant="outline">
+        {actionLabel}
+      </Button>
+    </div>
   );
 }
 
@@ -1029,6 +1097,7 @@ function LooksControl({
   bundledLooks: bundledLookOptions,
   customLooks,
   hasSource,
+  isPresetImporting,
   onApplyLook,
   onDeleteLook,
   onDuplicateLook,
@@ -1041,6 +1110,7 @@ function LooksControl({
   bundledLooks: readonly BundledLook[];
   customLooks: readonly StoredLook[];
   hasSource: boolean;
+  isPresetImporting: boolean;
   onApplyLook: (look: LookSource) => void;
   onDeleteLook: (look: StoredLook) => void;
   onDuplicateLook: (look: LookSource) => void;
@@ -1120,8 +1190,13 @@ function LooksControl({
         Use Neutral Look
       </Button>
       <div className="looks-file-actions">
-        <Button onClick={onImportPreset} size="small" variant="outline">
-          Import Look preset
+        <Button
+          disabled={isPresetImporting}
+          onClick={onImportPreset}
+          size="small"
+          variant="outline"
+        >
+          {isPresetImporting ? 'Reading preset…' : 'Import Look preset'}
         </Button>
         <Button onClick={onExportCurrentLook} size="small" variant="outline">
           Export current Look
@@ -1147,6 +1222,8 @@ function ToolControls({
   geometry,
   hasSource,
   hasNonNeutralGeometryValue,
+  showDisabledControls,
+  isPresetImporting,
   onAdjustmentChange,
   onAdjustmentGestureEnd,
   onAdjustmentGestureStart,
@@ -1179,6 +1256,8 @@ function ToolControls({
   geometry: GeometryValues;
   hasSource: boolean;
   hasNonNeutralGeometryValue: boolean;
+  showDisabledControls: boolean;
+  isPresetImporting: boolean;
   onAdjustmentChange: (key: AdjustmentKey, value: number, gestureId: string) => void;
   onAdjustmentGestureEnd: (key: AdjustmentKey) => void;
   onAdjustmentGestureStart: (key: AdjustmentKey) => void;
@@ -1204,6 +1283,14 @@ function ToolControls({
   onToggleFlipVertical: () => void;
   sourceDimensions: { height: number; width: number } | null;
 }) {
+  if (!hasSource && activeTool !== 'looks' && !showDisabledControls) {
+    return (
+      <div className="tool-context">
+        <p>{toolContextMessages[activeTool]}</p>
+      </div>
+    );
+  }
+
   if (activeTool === 'geometry') {
     return (
       <div className="control-stack">
@@ -1279,6 +1366,7 @@ function ToolControls({
         bundledLooks={bundledLookOptions}
         customLooks={customLooks}
         hasSource={hasSource}
+        isPresetImporting={isPresetImporting}
         onApplyLook={onApplyLook}
         onDeleteLook={onDeleteLook}
         onDuplicateLook={onDuplicateLook}
@@ -1356,6 +1444,7 @@ interface LookDialogState {
 }
 
 function ExportControls({
+  canExport,
   estimatedOutputDimensions,
   exportFormat,
   exportMaximumLongEdge,
@@ -1371,6 +1460,7 @@ function ExportControls({
   onExportQualityChange,
   onExportSizeModeChange,
 }: {
+  canExport: boolean;
   estimatedOutputDimensions: { height: number; width: number } | null;
   exportFormat: ExportFormat;
   exportMaximumLongEdge: number | null;
@@ -1386,6 +1476,20 @@ function ExportControls({
   onExportQualityChange: (value: number) => void;
   onExportSizeModeChange: (mode: ExportSizeMode) => void;
 }) {
+  if (!hasSource) {
+    return (
+      <Disclosure
+        description="Choose a format and save a rendered image."
+        id="export"
+        title="Export"
+      >
+        <div className="tool-context">
+          <p>Import a source photograph to export the finished Edit.</p>
+        </div>
+      </Disclosure>
+    );
+  }
+
   const formatOption = exportFormatOptions.find((option) => option.value === exportFormat);
 
   return (
@@ -1497,7 +1601,7 @@ function ExportControls({
         ) : null}
         <div className="export-controls__actions">
           <Button
-            disabled={!hasSource || !maximumLongEdgeIsValid || isExporting}
+            disabled={!canExport || !maximumLongEdgeIsValid || isExporting}
             onClick={onDownload}
             variant="primary"
           >
@@ -1558,11 +1662,14 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const presetFileInputRef = useRef<HTMLInputElement>(null);
   const importRequestRef = useRef(0);
+  const importInFlightRef = useRef(false);
   const presetImportRequestRef = useRef(0);
+  const presetImportInFlightRef = useRef(false);
   const storageRef = useRef<BrowserStorage | null>(null);
   const pendingEditRef = useRef<{ edit: StoredEdit; storage: BrowserStorage } | null>(null);
   const storageWriteInFlightRef = useRef(false);
   const persistedSourceRef = useRef<File | null | undefined>(undefined);
+  const exportInFlightRef = useRef(false);
   const activeTool = toolDetails[state.activeTool];
   const adjustments = editHistory.present.adjustments;
   const geometry = editHistory.present.geometry;
@@ -1712,6 +1819,7 @@ export default function App() {
         setStorageStatus('available');
       } catch {
         if (!cancelled) {
+          storageRef.current = null;
           setStorageStatus('failed');
           setStorageFeedback(describeStorageError());
         }
@@ -1908,7 +2016,7 @@ export default function App() {
   }, [sourcePhotograph?.objectUrl]);
 
   function openFilePicker() {
-    if (isImporting) {
+    if (isImporting || importInFlightRef.current) {
       return;
     }
 
@@ -1916,7 +2024,7 @@ export default function App() {
   }
 
   function openPresetFilePicker() {
-    if (isPresetImporting) {
+    if (isPresetImporting || presetImportInFlightRef.current) {
       return;
     }
 
@@ -1924,10 +2032,11 @@ export default function App() {
   }
 
   async function importSelectedSource(file: File | undefined) {
-    if (!file) {
+    if (!file || importInFlightRef.current) {
       return;
     }
 
+    importInFlightRef.current = true;
     const requestId = importRequestRef.current + 1;
     importRequestRef.current = requestId;
     setImportFeedback(null);
@@ -1947,9 +2056,7 @@ export default function App() {
         !sourcePhotograph ||
         !editHasChanges ||
         typeof window === 'undefined' ||
-        window.confirm(
-          'Replace the current source photograph? The current adjustment state will be reset. Geometry will reset with it.',
-        );
+        window.confirm('Replace the current source photograph? The current Edit will be reset.');
 
       if (!replacementConfirmed) {
         releaseSourcePhotographObjectUrl(imported.objectUrl);
@@ -1981,7 +2088,7 @@ export default function App() {
       }
       setImportFeedback({
         kind: 'success',
-        message: `Loaded ${imported.fileName} — ${imported.width.toLocaleString()} × ${imported.height.toLocaleString()} pixels.`,
+        message: `Loaded ${imported.fileName}. ${imported.width.toLocaleString()} × ${imported.height.toLocaleString()} pixels.`,
       });
     } catch (error) {
       if (requestId === importRequestRef.current) {
@@ -1994,6 +2101,7 @@ export default function App() {
       if (requestId === importRequestRef.current) {
         setIsImporting(false);
       }
+      importInFlightRef.current = false;
     }
   }
 
@@ -2022,14 +2130,20 @@ export default function App() {
   function handleSourceDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setIsDropActive(false);
+
+    if (importInFlightRef.current) {
+      return;
+    }
+
     void importSelectedSource(event.dataTransfer.files?.[0]);
   }
 
   async function importSelectedPreset(file: File | undefined) {
-    if (!file) {
+    if (!file || presetImportInFlightRef.current) {
       return;
     }
 
+    presetImportInFlightRef.current = true;
     const requestId = presetImportRequestRef.current + 1;
     presetImportRequestRef.current = requestId;
     setImportFeedback(null);
@@ -2055,6 +2169,7 @@ export default function App() {
       if (requestId === presetImportRequestRef.current) {
         setIsPresetImporting(false);
       }
+      presetImportInFlightRef.current = false;
     }
   }
 
@@ -2203,8 +2318,45 @@ export default function App() {
 
   function handleStorageFailure() {
     storageRef.current = null;
+    pendingEditRef.current = null;
     setStorageStatus('failed');
     setStorageFeedback(describeStorageError());
+  }
+
+  function continueWithoutStorage() {
+    setStorageFeedback(null);
+  }
+
+  function retryStorage() {
+    const storage = createBrowserStorage();
+
+    if (!storage) {
+      setStorageStatus('unavailable');
+      setStorageFeedback(describeStorageError());
+      return;
+    }
+
+    storageRef.current = storage;
+    setStorageStatus('checking');
+    setStorageFeedback(null);
+
+    const currentEdit = createStoredEdit(state, editHistory, sourcePhotograph, true);
+
+    void (async () => {
+      try {
+        await storage.saveLatestEdit(currentEdit);
+        await Promise.all(customLooks.map((look) => storage.saveCustomLook(look)));
+
+        if (storageRef.current === storage) {
+          persistedSourceRef.current = sourcePhotograph?.file ?? null;
+          setStorageStatus('available');
+        }
+      } catch {
+        if (storageRef.current === storage) {
+          handleStorageFailure();
+        }
+      }
+    })();
   }
 
   function rememberCustomLook(look: StoredLook) {
@@ -2261,7 +2413,7 @@ export default function App() {
   function deleteLook(look: StoredLook) {
     if (
       typeof window !== 'undefined' &&
-      !window.confirm(`Delete “${look.title}”? This saved Look cannot be recovered.`)
+      !window.confirm(`Delete "${look.title}"? This saved Look cannot be recovered.`)
     ) {
       return;
     }
@@ -2343,21 +2495,23 @@ export default function App() {
       !isPreviewReady ||
       !maximumLongEdgeIsValid ||
       !outputDimensions ||
-      isExporting
+      isExporting ||
+      exportInFlightRef.current
     ) {
       return;
     }
 
+    exportInFlightRef.current = true;
     setExportFeedback(null);
     setIsExporting(true);
     const restoreBeforeState = showBefore;
 
-    if (restoreBeforeState) {
-      renderer.setAdjustments(adjustments);
-      renderer.setGeometry(geometry);
-    }
-
     try {
+      if (restoreBeforeState) {
+        renderer.setAdjustments(adjustments);
+        renderer.setGeometry(geometry);
+      }
+
       const blob = await renderer.exportImage({
         format: selectedFormat,
         maximumLongEdge: exportMaximumLongEdge,
@@ -2388,15 +2542,28 @@ export default function App() {
             : `OpenFilm could not create the ${formatLabel} download.`,
       });
     } finally {
-      if (restoreBeforeState) {
-        renderer.setAdjustments(neutralRendererAdjustments);
-        renderer.setGeometry(neutralGeometry);
+      try {
+        if (restoreBeforeState) {
+          renderer.setAdjustments(neutralRendererAdjustments);
+          renderer.setGeometry(neutralGeometry);
+        }
+      } finally {
+        setIsExporting(false);
+        exportInFlightRef.current = false;
       }
-      setIsExporting(false);
     }
   }
 
   const rendererMessage = rendererError ?? describeRendererStatus(rendererStatus);
+  const hasSource = Boolean(sourcePhotograph);
+  const sourcePreviewUnavailable =
+    hasSource && (rendererStatus !== 'available' || Boolean(rendererError));
+  const sourceRecoveryLabel =
+    rendererStatus === 'available' && rendererError ? 'Choose another source' : 'Reload page';
+  const sourceRecoveryAction =
+    rendererStatus === 'available' && rendererError
+      ? openFilePicker
+      : () => window.location.reload();
   const storageStatusLabel =
     storageStatus === 'available'
       ? 'Browser recovery available'
@@ -2439,7 +2606,7 @@ export default function App() {
           <div
             aria-busy={isImporting}
             aria-label="Source photograph import area"
-            className={`canvas-stage ${sourcePhotograph ? 'canvas-stage--ready' : ''} ${isDropActive ? 'canvas-stage--drop-active' : ''}`}
+            className={`canvas-stage ${sourcePhotograph && !sourcePreviewUnavailable ? 'canvas-stage--ready' : ''} ${isDropActive ? 'canvas-stage--drop-active' : ''}`}
             onDragEnter={(event) => {
               event.preventDefault();
               setIsDropActive(true);
@@ -2454,48 +2621,73 @@ export default function App() {
               className={`render-canvas ${sourcePhotograph && isPreviewReady && !rendererMessage ? 'render-canvas--visible' : ''}`}
               ref={canvasRef}
             />
-            <div aria-hidden="true" className="stage-art">
-              <div className="stage-art__frame">
-                <div className="stage-art__sun" />
-                <div className="stage-art__horizon" />
-                <div className="stage-art__shadow" />
-              </div>
-            </div>
             <div className="canvas-stage__content">
-              {sourcePhotograph ? (
+              {isImporting ? (
+                <CanvasStateMessage kind="loading" title="Opening your photograph…">
+                  Reading it in this tab. You can keep using the other controls.
+                </CanvasStateMessage>
+              ) : sourcePhotograph && sourcePreviewUnavailable ? (
+                <div className="canvas-stage__source-error">
+                  <h2>{sourcePhotograph.fileName}</h2>
+                  <CanvasStateMessage
+                    actionLabel={sourceRecoveryLabel}
+                    kind={rendererError ? 'error' : 'warning'}
+                    onAction={sourceRecoveryAction}
+                    title={
+                      rendererStatus === 'context-lost'
+                        ? 'Preview stopped.'
+                        : 'Preview unavailable.'
+                    }
+                  >
+                    {rendererMessage ?? 'OpenFilm could not prepare this preview.'}
+                  </CanvasStateMessage>
+                </div>
+              ) : sourcePhotograph ? (
                 <>
                   <h2>{sourcePhotograph.fileName}</h2>
                   <p>
                     {sourcePhotograph.width.toLocaleString()} ×{' '}
-                    {sourcePhotograph.height.toLocaleString()} pixels. Ready for the active Look.
+                    {sourcePhotograph.height.toLocaleString()} pixels. Ready to edit.
                   </p>
                 </>
+              ) : recoveryNeedsSource ? (
+                <CanvasStateMessage
+                  actionLabel="Choose source photograph"
+                  onAction={openFilePicker}
+                  title="Choose the source photograph again."
+                >
+                  {recoveryFeedback ?? 'Your latest Edit is ready when you choose that file again.'}
+                </CanvasStateMessage>
+              ) : importFeedback?.kind === 'error' ? (
+                <CanvasStateMessage
+                  actionLabel="Try another file"
+                  kind="error"
+                  onAction={openFilePicker}
+                  title="That file could not be opened."
+                >
+                  {importFeedback.message}
+                </CanvasStateMessage>
               ) : (
-                <>
-                  <h2>
-                    {recoveryNeedsSource
-                      ? 'Choose the source photograph again.'
-                      : 'Bring a photograph into focus.'}
-                  </h2>
-                  <p>
-                    {recoveryNeedsSource
-                      ? `OpenFilm recovered the settings for ${state.sourceFileName ?? 'the latest Edit'}.`
-                      : 'Choose or drop one JPEG, PNG, or WebP source photograph.'}
-                  </p>
-                  <div className="canvas-stage__actions">
-                    <Button disabled={isImporting} onClick={openFilePicker} variant="primary">
-                      Import photograph
-                    </Button>
-                    <Button
-                      disabled={isImporting}
-                      onClick={importBundledSample}
-                      size="small"
-                      variant="quiet"
-                    >
-                      Try bundled sample
-                    </Button>
-                  </div>
-                </>
+                <CanvasStateMessage
+                  actions={
+                    <div className="canvas-stage__actions">
+                      <Button disabled={isImporting} onClick={openFilePicker} variant="primary">
+                        Import photograph
+                      </Button>
+                      <Button
+                        disabled={isImporting}
+                        onClick={importBundledSample}
+                        size="small"
+                        variant="quiet"
+                      >
+                        Try bundled sample
+                      </Button>
+                    </div>
+                  }
+                  title="Start with a photograph."
+                >
+                  Edit a JPEG, PNG, or WebP in your browser.
+                </CanvasStateMessage>
               )}
             </div>
           </div>
@@ -2523,52 +2715,62 @@ export default function App() {
             <span className="storage-status">{storageStatusLabel}</span>
           </div>
           <HistogramPanel histogram={histogram} pending={histogramPending} />
-          {isImporting ? (
+          {importFeedback?.kind === 'success' ? (
             <p
               aria-live="polite"
-              className="import-feedback import-feedback--loading"
+              className="import-feedback import-feedback--success"
               role="status"
-            >
-              Reading source photograph locally…
-            </p>
-          ) : null}
-          {importFeedback ? (
-            <p
-              aria-live={importFeedback.kind === 'error' ? 'assertive' : 'polite'}
-              className={`import-feedback import-feedback--${importFeedback.kind}`}
-              role={importFeedback.kind === 'error' ? 'alert' : 'status'}
             >
               {importFeedback.message}
             </p>
           ) : null}
-          {rendererMessage ? (
-            <p
-              aria-live="polite"
-              className="renderer-feedback"
-              role={rendererError ? 'alert' : 'status'}
-            >
-              {rendererMessage}
-            </p>
+          {importFeedback?.kind === 'error' && hasSource ? (
+            <FeedbackNotice
+              actionLabel="Choose another source"
+              kind="error"
+              message={importFeedback.message}
+              onAction={openFilePicker}
+            />
           ) : null}
-          {recoveryFeedback ? (
+          {rendererMessage && !sourcePreviewUnavailable ? (
+            <FeedbackNotice
+              actionLabel="Reload page"
+              kind="warning"
+              message={rendererMessage}
+              onAction={() => window.location.reload()}
+            />
+          ) : null}
+          {recoveryFeedback && hasSource ? (
             <p aria-live="polite" className="storage-feedback" role="status">
               {recoveryFeedback}
             </p>
           ) : null}
           {storageFeedback ? (
-            <p aria-live="polite" className="storage-feedback" role="status">
-              {storageFeedback}
-            </p>
+            <FeedbackNotice
+              actionLabel={storageStatus === 'failed' ? 'Try again' : 'Continue without recovery'}
+              kind="warning"
+              message={storageFeedback}
+              onAction={storageStatus === 'failed' ? retryStorage : continueWithoutStorage}
+            />
           ) : null}
           <p className="storage-note">{storageNotice}</p>
-          {exportFeedback ? (
+          {exportFeedback?.kind === 'success' ? (
             <p
-              aria-live={exportFeedback.kind === 'error' ? 'assertive' : 'polite'}
-              className={`export-feedback export-feedback--${exportFeedback.kind}`}
-              role={exportFeedback.kind === 'error' ? 'alert' : 'status'}
+              aria-live="polite"
+              className="export-feedback export-feedback--success"
+              role="status"
             >
               {exportFeedback.message}
             </p>
+          ) : null}
+          {exportFeedback?.kind === 'error' ? (
+            <FeedbackNotice
+              actionLabel="Try export again"
+              disabled={isExporting}
+              kind="error"
+              message={exportFeedback.message}
+              onAction={() => void handleDownload()}
+            />
           ) : null}
           <input
             accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
@@ -2628,6 +2830,8 @@ export default function App() {
               geometry={geometry}
               hasSource={Boolean(sourcePhotograph)}
               hasNonNeutralGeometryValue={hasNonNeutralGeometry(geometry)}
+              isPresetImporting={isPresetImporting}
+              showDisabledControls={editHasChanges}
               onAdjustmentChange={handleAdjustmentChange}
               onAdjustmentGestureEnd={endAdjustmentGesture}
               onAdjustmentGestureStart={beginAdjustmentGesture}
@@ -2656,6 +2860,9 @@ export default function App() {
           </Panel>
 
           <ExportControls
+            canExport={
+              hasSource && isPreviewReady && rendererStatus === 'available' && !rendererError
+            }
             estimatedOutputDimensions={estimatedOutputDimensions}
             exportFormat={exportFormat}
             exportMaximumLongEdge={exportMaximumLongEdge}
@@ -2674,16 +2881,18 @@ export default function App() {
 
           <div className="control-area__footer">
             <p>{sourcePhotograph?.fileName ?? 'No source photograph yet'}</p>
-            <div className="control-area__actions">
-              <Button
-                disabled={isImporting}
-                onClick={openFilePicker}
-                size="small"
-                variant={sourcePhotograph ? 'outline' : 'primary'}
-              >
-                {sourcePhotograph ? 'Choose another source' : 'Choose a source'}
-              </Button>
-            </div>
+            {sourcePhotograph ? (
+              <div className="control-area__actions">
+                <Button
+                  disabled={isImporting}
+                  onClick={openFilePicker}
+                  size="small"
+                  variant="outline"
+                >
+                  Choose another source
+                </Button>
+              </div>
+            ) : null}
           </div>
         </aside>
       </main>
