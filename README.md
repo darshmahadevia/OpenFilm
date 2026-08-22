@@ -24,6 +24,9 @@ includes seven bundled starting points and lets users save, rename, apply, dupli
 custom Looks. IndexedDB stores custom Looks and the latest recoverable Edit, including source bytes
 when the browser permits it. Replacing a changed Edit asks for confirmation before returning its
 adjustment and geometry state to neutral.
+The Looks tool exports one Look as a readable, versioned JSON preset and previews imported presets
+before applying them or saving a custom copy. Presets contain the Look title, optional description,
+and supported adjustment values only.
 
 ## Core adjustments
 
@@ -106,8 +109,9 @@ The source is intentionally split into a few plain module folders:
 - `src/editor` contains editor state, the shared adjustment values, normalized Edit geometry, the
   Edit-specific grain seed, and the shared 50-entry Edit history independent of React components.
   The tone curve model owns bounded points, interpolation, lookup generation, ordering rules, and
-  JSON serialization. Editor-state serialization preserves geometry and the seed for local recovery
-  without making either part of a Look.
+  JSON serialization. The preset model owns the versioned JSON format and strict runtime checks.
+  Editor-state serialization preserves geometry and the seed for local recovery without making
+  either part of a Look.
 - `src/import` validates common source-photograph files, decodes them through browser APIs, and
   owns local object-URL cleanup.
 - `src/rendering` contains the bounded WebGL2 preview renderer, geometry uniforms and output sizing,
@@ -151,7 +155,9 @@ or canvas allocation limit; OpenFilm reports that failure and suggests a smaller
 The preview texture and canvas drawing buffer are bounded to 4,096 pixels on their longest side.
 The tone curve is intentionally limited to eight ordered points and one shared RGB mapping. WebGL2
 is required; the interface explains how to recover when the capability is missing or its context is
-lost.
+lost. Preset files use OpenFilm format version 1.1 and accept the previous 1.0 minor version. The
+format rejects unknown major versions, unsupported adjustment values, oversized metadata, and Edit
+state such as geometry, source bytes, history, or the Grain seed.
 
 Browser storage is intended for recovery and is not a backup. WebGL2 is the rendering path; the
 interface reports when the capability is unavailable.

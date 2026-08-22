@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 
 import { expect, test } from '@playwright/test';
 
+import { validPresetFixture } from '../src/editor/presets.fixtures';
 import { sourcePhotographFixtures } from '../src/import/sourcePhotographFixtures';
 
 const previewFixture = sourcePhotographFixtures[1];
@@ -486,6 +487,76 @@ test('applies bundled Looks and supports custom Look CRUD', async ({ page }) => 
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Delete Renamed Look', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Renamed Look', exact: true })).toHaveCount(0);
+});
+
+test('previews, applies, saves, and exports a versioned Look preset', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Looks' }).click();
+
+  const presetInput = page.getByLabel('Choose Look preset');
+  await presetInput.setInputFiles({
+    buffer: Buffer.from(validPresetFixture),
+    mimeType: 'application/json',
+    name: 'fixture-look.json',
+  });
+
+  const preview = page.getByRole('dialog', { name: 'Review Look preset' });
+  await expect(preview).toContainText('Fixture Look');
+  await expect(preview).toContainText('OpenFilm preset 1.1');
+  await preview.getByRole('button', { name: 'Apply preset' }).click();
+
+  await page.getByRole('tab', { name: 'Adjust' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Exposure value' })).toHaveValue('0.75');
+
+  await page.getByRole('tab', { name: 'Looks' }).click();
+  await presetInput.setInputFiles({
+    buffer: Buffer.from(validPresetFixture),
+    mimeType: 'application/json',
+    name: 'fixture-look.json',
+  });
+  await page
+    .getByRole('dialog', { name: 'Review Look preset' })
+    .getByRole('button', { name: 'Save as custom Look' })
+    .click();
+  await expect(page.getByRole('heading', { name: 'Fixture Look copy' })).toBeVisible();
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export Fixture Look copy preset' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('openfilm-fixture-look-copy.json');
+  const downloadPath = await download.path();
+  expect(downloadPath).not.toBeNull();
+
+  const exported = JSON.parse(await readFile(downloadPath as string, 'utf8')) as Record<
+    string,
+    unknown
+  >;
+  expect(exported).toMatchObject({
+    formatVersion: '1.1',
+    title: 'Fixture Look copy',
+  });
+  expect(exported).not.toHaveProperty('geometry');
+  expect(exported).not.toHaveProperty('source');
+  expect(exported).not.toHaveProperty('history');
+  expect(exported).not.toHaveProperty('grainSeed');
+  expect((exported.adjustments as { exposure: number }).exposure).toBe(0.75);
+});
+
+test('rejects an invalid Look preset without opening the preview dialog', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await page.getByRole('tab', { name: 'Looks' }).click();
+
+  await page.getByLabel('Choose Look preset').setInputFiles({
+    buffer: Buffer.from('{"formatVersion":"2.0","title":"Wrong","adjustments":{}}'),
+    mimeType: 'application/json',
+    name: 'invalid-look.json',
+  });
+
+  await expect(page.getByRole('alert')).toContainText('could not read this preset');
+  await expect(page.getByRole('dialog', { name: 'Review Look preset' })).toHaveCount(0);
 });
 
 test('recovers the latest Edit and its source after a reload', async ({ page }) => {

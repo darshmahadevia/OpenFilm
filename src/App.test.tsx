@@ -5,6 +5,7 @@ import {
   createSourcePhotographFixtureFile,
   sourcePhotographFixtures,
 } from './import/sourcePhotographFixtures';
+import { validPresetFixture } from './editor/presets.fixtures';
 
 class TestImage {
   naturalHeight = 4;
@@ -145,6 +146,38 @@ describe('OpenFilm shell', () => {
       );
     } finally {
       confirm.mockRestore();
+      mocks.restore();
+    }
+  });
+
+  it('previews imported presets and lets the user save or apply the Look', async () => {
+    const mocks = installImportBrowserMocks();
+    const presetFile = new File([validPresetFixture], 'fixture-look.json', {
+      type: 'application/json',
+    });
+
+    try {
+      render(<App />);
+      fireEvent.click(screen.getByRole('tab', { name: 'Looks' }));
+      fireEvent.change(screen.getByLabelText('Choose Look preset'), {
+        target: { files: [presetFile] },
+      });
+
+      const preview = await screen.findByRole('dialog', { name: 'Review Look preset' });
+      expect(preview).toHaveTextContent('Fixture Look');
+      expect(preview).toHaveTextContent('A small fixture for a reusable OpenFilm Look.');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save as custom Look' }));
+      expect(screen.getByRole('heading', { name: 'Fixture Look copy' })).toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText('Choose Look preset'), {
+        target: { files: [presetFile] },
+      });
+      await screen.findByRole('dialog', { name: 'Review Look preset' });
+      fireEvent.click(screen.getByRole('button', { name: 'Apply preset' }));
+      fireEvent.click(screen.getByRole('tab', { name: 'Adjust' }));
+      expect(screen.getByLabelText('Exposure value')).toHaveValue(0.75);
+    } finally {
       mocks.restore();
     }
   });

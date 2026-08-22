@@ -9,6 +9,7 @@ import {
   neutralAdjustments,
   type AdjustmentGroup,
   type AdjustmentKey,
+  type AdjustmentValues,
 } from './editor/adjustments';
 import {
   createEditHistory,
@@ -23,6 +24,13 @@ import {
   normalizeLookTitle,
   type BundledLook,
 } from './editor/looks';
+import {
+  createPreset,
+  getPresetFileName,
+  readPresetFile,
+  serializePreset,
+  type Preset,
+} from './editor/presets';
 import {
   editorReducer,
   editorTools,
@@ -112,7 +120,11 @@ const toolDetails: Record<EditorTool, { description: string; title: string }> = 
 
 const TONE_CURVE_GESTURE_ID = 'tone-curve-drag';
 
-type LookSource = BundledLook | StoredLook;
+type LookSource = {
+  adjustments: AdjustmentValues;
+  description?: string;
+  title: string;
+};
 
 function createStoredEdit(
   state: { grainSeed: number | null; sourceFileName: string | null },
@@ -901,6 +913,7 @@ function LookCard({
   onApply,
   onDelete,
   onDuplicate,
+  onExport,
   onRename,
 }: {
   isCustom: boolean;
@@ -908,6 +921,7 @@ function LookCard({
   onApply: (look: LookSource) => void;
   onDelete: (look: StoredLook) => void;
   onDuplicate: (look: LookSource) => void;
+  onExport: (look: LookSource) => void;
   onRename: (look: StoredLook) => void;
 }) {
   const customLook = isCustom ? (look as StoredLook) : null;
@@ -964,6 +978,14 @@ function LookCard({
             Save copy
           </Button>
         )}
+        <Button
+          aria-label={`Export ${look.title} preset`}
+          onClick={() => onExport(look)}
+          size="small"
+          variant="quiet"
+        >
+          Export
+        </Button>
       </div>
     </article>
   );
@@ -978,6 +1000,9 @@ function LooksControl({
   onApplyLook,
   onDeleteLook,
   onDuplicateLook,
+  onExportLook,
+  onExportCurrentLook,
+  onImportPreset,
   onOpenSaveDialog,
   onOpenRenameDialog,
   onRedo,
@@ -991,6 +1016,9 @@ function LooksControl({
   onApplyLook: (look: LookSource) => void;
   onDeleteLook: (look: StoredLook) => void;
   onDuplicateLook: (look: LookSource) => void;
+  onExportCurrentLook: () => void;
+  onExportLook: (look: LookSource) => void;
+  onImportPreset: () => void;
   onOpenSaveDialog: () => void;
   onOpenRenameDialog: (look: StoredLook) => void;
   onRedo: () => void;
@@ -1022,6 +1050,7 @@ function LooksControl({
               onApply={onApplyLook}
               onDelete={onDeleteLook}
               onDuplicate={onDuplicateLook}
+              onExport={onExportLook}
               onRename={onOpenRenameDialog}
             />
           ))}
@@ -1047,6 +1076,7 @@ function LooksControl({
                 onApply={onApplyLook}
                 onDelete={onDeleteLook}
                 onDuplicate={onDuplicateLook}
+                onExport={onExportLook}
                 onRename={onOpenRenameDialog}
               />
             ))}
@@ -1060,7 +1090,6 @@ function LooksControl({
         disabled={!hasSource}
         onClick={() =>
           onApplyLook({
-            id: 'neutral',
             title: 'Neutral Look',
             description: '',
             adjustments: neutralAdjustments,
@@ -1071,6 +1100,18 @@ function LooksControl({
       >
         Use Neutral Look
       </Button>
+      <div className="looks-file-actions">
+        <Button onClick={onImportPreset} size="small" variant="outline">
+          Import Look preset
+        </Button>
+        <Button onClick={onExportCurrentLook} size="small" variant="outline">
+          Export current Look
+        </Button>
+      </div>
+      <p className="field__hint">
+        Presets are readable JSON files with one Look. They never include this Edit’s source,
+        geometry, history, or Grain seed.
+      </p>
       <p className="field__hint">
         A Look changes photographic Adjustments only. Crop, rotation, flips, and grain seed stay
         with this Edit.
@@ -1096,7 +1137,10 @@ function ToolControls({
   onCropChange,
   onDeleteLook,
   onDuplicateLook,
+  onExportCurrentLook,
+  onExportLook,
   onGeometryReset,
+  onImportPreset,
   onOpenRenameDialog,
   onOpenSaveDialog,
   onRedo,
@@ -1129,7 +1173,10 @@ function ToolControls({
   onCropChange: (crop: NormalizedCrop) => void;
   onDeleteLook: (look: StoredLook) => void;
   onDuplicateLook: (look: LookSource) => void;
+  onExportCurrentLook: () => void;
+  onExportLook: (look: LookSource) => void;
   onGeometryReset: () => void;
+  onImportPreset: () => void;
   onOpenRenameDialog: (look: StoredLook) => void;
   onOpenSaveDialog: () => void;
   onRedo: () => void;
@@ -1233,6 +1280,9 @@ function ToolControls({
         onApplyLook={onApplyLook}
         onDeleteLook={onDeleteLook}
         onDuplicateLook={onDuplicateLook}
+        onExportCurrentLook={onExportCurrentLook}
+        onExportLook={onExportLook}
+        onImportPreset={onImportPreset}
         onOpenRenameDialog={onOpenRenameDialog}
         onOpenSaveDialog={onOpenSaveDialog}
         onRedo={onRedo}
@@ -1474,6 +1524,8 @@ export default function App() {
   const [lookDialog, setLookDialog] = useState<LookDialogState | null>(null);
   const [lookDialogError, setLookDialogError] = useState<string | null>(null);
   const [lookActionPending, setLookActionPending] = useState(false);
+  const [presetPreview, setPresetPreview] = useState<Preset | null>(null);
+  const [isPresetImporting, setIsPresetImporting] = useState(false);
   const [importFeedback, setImportFeedback] = useState<{
     kind: 'error' | 'success';
     message: string;
@@ -1496,7 +1548,9 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<PreviewRenderer | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const presetFileInputRef = useRef<HTMLInputElement>(null);
   const importRequestRef = useRef(0);
+  const presetImportRequestRef = useRef(0);
   const storageRef = useRef<BrowserStorage | null>(null);
   const pendingEditRef = useRef<{ edit: StoredEdit; storage: BrowserStorage } | null>(null);
   const storageWriteInFlightRef = useRef(false);
@@ -1853,6 +1907,14 @@ export default function App() {
     fileInputRef.current?.click();
   }
 
+  function openPresetFilePicker() {
+    if (isPresetImporting) {
+      return;
+    }
+
+    presetFileInputRef.current?.click();
+  }
+
   async function importSelectedSource(file: File | undefined) {
     if (!file) {
       return;
@@ -1938,10 +2000,54 @@ export default function App() {
     void importSelectedSource(file);
   }
 
+  function handlePresetFileSelected(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    void importSelectedPreset(file);
+  }
+
   function handleSourceDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setIsDropActive(false);
     void importSelectedSource(event.dataTransfer.files?.[0]);
+  }
+
+  async function importSelectedPreset(file: File | undefined) {
+    if (!file) {
+      return;
+    }
+
+    const requestId = presetImportRequestRef.current + 1;
+    presetImportRequestRef.current = requestId;
+    setImportFeedback(null);
+    setIsPresetImporting(true);
+
+    try {
+      const preset = await readPresetFile(file);
+
+      if (requestId === presetImportRequestRef.current) {
+        setPresetPreview(preset);
+      }
+    } catch (error) {
+      if (requestId === presetImportRequestRef.current) {
+        setImportFeedback({
+          kind: 'error',
+          message:
+            error instanceof Error
+              ? error.message
+              : 'OpenFilm could not read this preset. Choose a valid JSON file.',
+        });
+      }
+    } finally {
+      if (requestId === presetImportRequestRef.current) {
+        setIsPresetImporting(false);
+      }
+    }
   }
 
   function handleAdjustmentChange(key: AdjustmentKey, value: number, gestureId: string) {
@@ -2026,6 +2132,47 @@ export default function App() {
     setImportFeedback({ kind: 'success', message: `Applied ${look.title}.` });
   }
 
+  function exportLook(look: LookSource) {
+    try {
+      const preset = createPreset({
+        adjustments: look.adjustments,
+        description: look.description,
+        title: look.title,
+      });
+      const blob = new Blob([serializePreset(preset)], { type: 'application/json' });
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const downloadFileName = getPresetFileName(preset.title);
+
+      link.download = downloadFileName;
+      link.href = objectUrl;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+
+      setImportFeedback({
+        kind: 'success',
+        message: `Exported ${preset.title} as ${downloadFileName}.`,
+      });
+    } catch (error) {
+      setImportFeedback({
+        kind: 'error',
+        message:
+          error instanceof Error ? error.message : 'OpenFilm could not create the preset download.',
+      });
+    }
+  }
+
+  function exportCurrentLook() {
+    exportLook({
+      adjustments,
+      description: 'A reusable Look exported from the current Edit.',
+      title: 'Current Look',
+    });
+  }
+
   function openSaveLookDialog() {
     setLookDialogError(null);
     setLookDialog({
@@ -2075,7 +2222,7 @@ export default function App() {
     const duplicate: StoredLook = {
       adjustments: look.adjustments,
       createdAt: now,
-      description: look.description,
+      description: look.description ?? '',
       id: createLookId(),
       title: getDuplicateLookTitle(look.title, customLooks),
       updatedAt: now,
@@ -2083,6 +2230,24 @@ export default function App() {
 
     rememberCustomLook(duplicate);
     setImportFeedback({ kind: 'success', message: `Saved ${duplicate.title}.` });
+  }
+
+  function savePresetAsCustomLook() {
+    if (!presetPreview) {
+      return;
+    }
+
+    duplicateLook(presetPreview);
+    setPresetPreview(null);
+  }
+
+  function applyPreset() {
+    if (!presetPreview) {
+      return;
+    }
+
+    applyLook(presetPreview);
+    setPresetPreview(null);
   }
 
   function deleteLook(look: StoredLook) {
@@ -2405,6 +2570,14 @@ export default function App() {
             ref={fileInputRef}
             type="file"
           />
+          <input
+            accept="application/json,.json"
+            aria-label="Choose Look preset"
+            className="visually-hidden"
+            onChange={handlePresetFileSelected}
+            ref={presetFileInputRef}
+            type="file"
+          />
         </section>
 
         <aside aria-labelledby="controls-title" className="control-area">
@@ -2446,7 +2619,10 @@ export default function App() {
               onCropChange={handleCropChange}
               onDeleteLook={deleteLook}
               onDuplicateLook={duplicateLook}
+              onExportCurrentLook={exportCurrentLook}
+              onExportLook={exportLook}
               onGeometryReset={resetGeometry}
+              onImportPreset={openPresetFilePicker}
               onOpenRenameDialog={openRenameLookDialog}
               onOpenSaveDialog={openSaveLookDialog}
               onRedo={redoEdit}
@@ -2511,6 +2687,47 @@ export default function App() {
           </div>
         </aside>
       </main>
+
+      {presetPreview ? (
+        <Dialog
+          actions={
+            <>
+              <Button onClick={() => setPresetPreview(null)} variant="quiet">
+                Cancel
+              </Button>
+              <Button onClick={savePresetAsCustomLook} variant="outline">
+                Save as custom Look
+              </Button>
+              <Button onClick={applyPreset} variant="primary">
+                Apply preset
+              </Button>
+            </>
+          }
+          onClose={() => setPresetPreview(null)}
+          open
+          title="Review Look preset"
+        >
+          <p>Review this Look before choosing where it goes.</p>
+          <dl className="preset-preview">
+            <div>
+              <dt>Name</dt>
+              <dd>{presetPreview.title}</dd>
+            </div>
+            <div>
+              <dt>Description</dt>
+              <dd>{presetPreview.description || 'No description provided.'}</dd>
+            </div>
+            <div>
+              <dt>Format</dt>
+              <dd>OpenFilm preset {presetPreview.formatVersion}</dd>
+            </div>
+          </dl>
+          <p className="field__hint">
+            Applying this preset changes the current Look adjustments only. Geometry and source
+            photograph data stay with the Edit.
+          </p>
+        </Dialog>
+      ) : null}
 
       {lookDialog ? (
         <Dialog
