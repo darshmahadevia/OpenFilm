@@ -13,7 +13,15 @@ import {
   releaseSourcePhotographObjectUrl,
   type ImportedSourcePhotograph,
 } from './import';
-import { getRendererStatus, type RendererStatus } from './rendering/renderer';
+import {
+  createRenderer,
+  describeRendererStatus,
+  neutralRendererAdjustments,
+  RendererError,
+  type PreviewRenderer,
+  type RendererAdjustments,
+  type RendererStatus,
+} from './rendering/renderer';
 import { hasBrowserStorage, storageNotice } from './storage/browserStorage';
 import { Button, Dialog, Field, IconButton, Panel, Slider } from './ui/components';
 
@@ -40,16 +48,31 @@ const toolDetails: Record<EditorTool, { description: string; title: string }> = 
 
 function RendererStatusLabel({ status }: { status: RendererStatus }) {
   const isAvailable = status === 'available';
+  const label = isAvailable
+    ? 'WebGL2 ready'
+    : status === 'context-lost'
+      ? 'WebGL2 context lost'
+      : 'WebGL2 unavailable';
 
   return (
     <span className={`renderer-status renderer-status--${status}`}>
       <span aria-hidden="true" className="renderer-status__dot" />
-      WebGL2 {isAvailable ? 'ready' : 'unavailable'}
+      {label}
     </span>
   );
 }
 
-function ToolControls({ activeTool, hasSource }: { activeTool: EditorTool; hasSource: boolean }) {
+function ToolControls({
+  activeTool,
+  adjustments,
+  hasSource,
+  onAdjustmentChange,
+}: {
+  activeTool: EditorTool;
+  adjustments: RendererAdjustments;
+  hasSource: boolean;
+  onAdjustmentChange: (key: keyof RendererAdjustments, value: number) => void;
+}) {
   if (activeTool === 'geometry') {
     return (
       <div className="control-stack">
@@ -113,24 +136,28 @@ function ToolControls({ activeTool, hasSource }: { activeTool: EditorTool; hasSo
     <div className="control-stack">
       <Slider
         disabled={!hasSource}
-        displayValue="0.00"
+        displayValue={adjustments.exposure.toFixed(2)}
         hint="Import a photograph to activate the controls."
         id="exposure"
         label="Exposure"
         max={1}
         min={-1}
+        onChange={(event) => onAdjustmentChange('exposure', Number(event.currentTarget.value))}
         step={0.01}
-        value={0}
+        value={adjustments.exposure}
       />
       <Slider
         disabled={!hasSource}
-        displayValue="0"
+        displayValue={adjustments.contrast.toFixed(2)}
         id="contrast"
         label="Contrast"
         max={100}
         min={-100}
+        onChange={(event) =>
+          onAdjustmentChange('contrast', Number(event.currentTarget.value) / 100)
+        }
         step={1}
-        value={0}
+        value={Math.round(adjustments.contrast * 100)}
       />
       <Field
         hint="More adjustment controls will join this focused set."
@@ -153,7 +180,11 @@ function ToolControls({ activeTool, hasSource }: { activeTool: EditorTool; hasSo
 export default function App() {
   const [state, dispatch] = useReducer(editorReducer, initialEditorState);
   const [sourcePhotograph, setSourcePhotograph] = useState<ImportedSourcePhotograph | null>(null);
+  const [adjustments, setAdjustments] = useState<RendererAdjustments>({
+    ...neutralRendererAdjustments,
+  });
   const [rendererStatus, setRendererStatus] = useState<RendererStatus>('unsupported');
+  const [rendererError, setRendererError] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [importFeedback, setImportFeedback] = useState<{
     kind: 'error' | 'success';
@@ -162,14 +193,90 @@ export default function App() {
   const [isDropActive, setIsDropActive] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rendererRef = useRef<PreviewRenderer | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importRequestRef = useRef(0);
   const storageAvailable = hasBrowserStorage();
   const activeTool = toolDetails[state.activeTool];
 
   useEffect(() => {
-    setRendererStatus(getRendererStatus(canvasRef.current));
+    const canvas = canvasRef.current;
+
+    if (!canvas) {
+      setRendererStatus('unsupported');
+      return;
+    }
+
+    const renderer = createRenderer(canvas, {
+      onError: (error) => setRendererError(error.message),
+      onStatusChange: (status) => {
+        setRendererStatus(status);
+        if (status === 'available') {
+          setRendererError(null);
+        }
+      },
+    });
+
+    rendererRef.current = renderer;
+
+    if (!renderer) {
+      return () => {
+        rendererRef.current = null;
+      };
+    }
+
+    renderer.resize();
+    renderer.setAdjustments(neutralRendererAdjustments);
+
+    const resize = () => renderer.resize();
+    window.addEventListener('resize', resize);
+
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resize);
+    resizeObserver?.observe(canvas);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', resize);
+      renderer.dispose();
+      rendererRef.current = null;
+    };
   }, []);
+
+  useEffect(() => {
+    rendererRef.current?.setAdjustments(adjustments);
+  }, [adjustments]);
+
+  useEffect(() => {
+    const renderer = rendererRef.current;
+
+    if (!renderer || !sourcePhotograph) {
+      return;
+    }
+
+    let cancelled = false;
+    setRendererError(null);
+
+    void renderer
+      .replaceImage({
+        height: sourcePhotograph.height,
+        objectUrl: sourcePhotograph.objectUrl,
+        width: sourcePhotograph.width,
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setRendererError(
+            error instanceof RendererError
+              ? error.message
+              : 'OpenFilm could not prepare the source photograph for WebGL2.',
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sourcePhotograph]);
 
   useEffect(() => {
     const objectUrl = sourcePhotograph?.objectUrl;
@@ -244,6 +351,12 @@ export default function App() {
     void importSelectedSource(event.dataTransfer.files?.[0]);
   }
 
+  function handleAdjustmentChange(key: keyof RendererAdjustments, value: number) {
+    setAdjustments((current) => ({ ...current, [key]: value }));
+  }
+
+  const rendererMessage = rendererError ?? describeRendererStatus(rendererStatus);
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -289,16 +402,11 @@ export default function App() {
             onDrop={handleSourceDrop}
             role="group"
           >
-            <canvas aria-label="Image preview canvas" className="render-canvas" ref={canvasRef} />
-            {sourcePhotograph ? (
-              <img
-                alt={`Preview of ${sourcePhotograph.fileName}`}
-                className="source-preview"
-                draggable="false"
-                key={sourcePhotograph.objectUrl}
-                src={sourcePhotograph.objectUrl}
-              />
-            ) : null}
+            <canvas
+              aria-label="Image preview canvas"
+              className={`render-canvas ${sourcePhotograph && !rendererMessage ? 'render-canvas--visible' : ''}`}
+              ref={canvasRef}
+            />
             <div aria-hidden="true" className="stage-art">
               <div className="stage-art__frame">
                 <div className="stage-art__sun" />
@@ -351,6 +459,15 @@ export default function App() {
               {importFeedback.message}
             </p>
           ) : null}
+          {rendererMessage ? (
+            <p
+              aria-live="polite"
+              className="renderer-feedback"
+              role={rendererError ? 'alert' : 'status'}
+            >
+              {rendererMessage}
+            </p>
+          ) : null}
           <p className="storage-note">{storageNotice}</p>
           <input
             accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
@@ -384,7 +501,12 @@ export default function App() {
           </div>
 
           <Panel description={activeTool.description} id="active-tool" title={activeTool.title}>
-            <ToolControls activeTool={state.activeTool} hasSource={Boolean(sourcePhotograph)} />
+            <ToolControls
+              activeTool={state.activeTool}
+              adjustments={adjustments}
+              hasSource={Boolean(sourcePhotograph)}
+              onAdjustmentChange={handleAdjustmentChange}
+            />
           </Panel>
 
           <div className="control-area__footer">

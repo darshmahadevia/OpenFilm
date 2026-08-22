@@ -4,11 +4,11 @@ OpenFilm is a quiet, browser-based photo editor for reusable film-inspired Looks
 photographs locally and is designed to deploy as static files without accounts, a backend, or paid
 services.
 
-The current application is the editor shell: a canvas-first workspace, one active control area,
-local UI primitives, and seams for source-photograph import, editor state, rendering, and browser
-storage. It can validate and preview a JPEG, PNG, or WebP selected by picker or drag and drop.
-Image processing and the full adjustment workflow will land in the tickets that follow this
-scaffold.
+The current application is a canvas-first editor workspace with one active control area, local UI
+primitives, source-photograph import, and a single WebGL2 preview path. It validates JPEG, PNG, and
+WebP files selected by picker or drag and drop, prepares a bounded preview texture, and sends the
+current exposure and contrast Adjustments through the fragment shader. The rest of the editing
+workflow will land in the tickets that follow this increment.
 
 ## Requirements
 
@@ -55,7 +55,8 @@ The source is intentionally split into a few plain module folders:
 - `src/editor` contains editor state and reducer actions independent of React components.
 - `src/import` validates common source-photograph files, decodes them through browser APIs, and
   owns local object-URL cleanup.
-- `src/rendering` contains the WebGL2 capability seam used by the preview shell.
+- `src/rendering` contains the bounded WebGL2 preview renderer, shader uniforms, resize handling,
+  and context-loss recovery.
 - `src/storage` contains browser-storage capability and product-language boundaries.
 - `src/ui` contains design tokens, layout styles, and small reusable controls: buttons, icon
   buttons, fields, sliders, panels, and dialogs.
@@ -76,11 +77,13 @@ Import is local-only: it uses a browser object URL and does not upload the sourc
 make a runtime network request. Object URLs and temporary decoder image resources are released
 when an import is replaced or fails.
 
-The application does not yet persist an Edit, apply a Look, or export an image. The WebGL2 canvas
-and controls establish the interaction shell for those later increments.
+The application does not yet persist an Edit, apply the complete Look adjustment set, or export an
+image. The preview texture is bounded to 4,096 pixels on its longest side and the canvas drawing
+buffer is bounded to the same dimension. WebGL2 is required; the interface explains how to recover
+when the capability is missing or its context is lost.
 
-Browser storage is intended for recovery and is not a backup. WebGL2 is the planned rendering path;
-the shell reports when the capability is unavailable.
+Browser storage is intended for recovery and is not a backup. WebGL2 is the rendering path; the
+interface reports when the capability is unavailable.
 
 ## Deployment
 

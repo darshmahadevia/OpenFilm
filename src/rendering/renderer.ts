@@ -1,4 +1,692 @@
-export type RendererStatus = 'available' | 'unsupported';
+export type RendererStatus = 'available' | 'context-lost' | 'unsupported';
+
+export interface RendererAdjustments {
+  contrast: number;
+  exposure: number;
+}
+
+export const neutralRendererAdjustments: RendererAdjustments = Object.freeze({
+  contrast: 0,
+  exposure: 0,
+});
+
+export interface RendererSourcePhotograph {
+  height: number;
+  objectUrl: string;
+  width: number;
+}
+
+export const MAX_PREVIEW_DIMENSION = 4096;
+
+export interface PreviewDimensions {
+  height: number;
+  width: number;
+}
+
+export interface RendererDependencies {
+  createCanvas?: () => HTMLCanvasElement;
+  createImage?: () => HTMLImageElement;
+  createImageBitmap?: (
+    image: ImageBitmapSource,
+    options?: ImageBitmapOptions,
+  ) => Promise<ImageBitmap>;
+}
+
+export interface RendererOptions extends RendererDependencies {
+  onError?: (error: RendererError) => void;
+  onStatusChange?: (status: RendererStatus) => void;
+}
+
+export interface PreviewRenderer {
+  dispose(): void;
+  redraw(): void;
+  replaceImage(source: RendererSourcePhotograph): Promise<void>;
+  resize(displayWidth?: number, displayHeight?: number, devicePixelRatio?: number): void;
+  setAdjustments(adjustments: RendererAdjustments): void;
+}
+
+export class RendererError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RendererError';
+  }
+}
+
+export const VERTEX_SHADER_SOURCE = `#version 300 es
+in vec2 a_position;
+in vec2 a_tex_coord;
+
+uniform vec2 u_image_scale;
+
+out vec2 v_tex_coord;
+
+void main() {
+  gl_Position = vec4(a_position * u_image_scale, 0.0, 1.0);
+  v_tex_coord = a_tex_coord;
+}`;
+
+export const FRAGMENT_SHADER_SOURCE = `#version 300 es
+precision highp float;
+
+uniform sampler2D u_source;
+uniform float u_exposure;
+uniform float u_contrast;
+
+in vec2 v_tex_coord;
+
+out vec4 out_color;
+
+void main() {
+  vec4 source = texture(u_source, v_tex_coord);
+  vec3 color = source.rgb * exp2(u_exposure);
+  color = (color - 0.5) * (1.0 + u_contrast) + 0.5;
+  out_color = vec4(clamp(color, 0.0, 1.0), source.a);
+}`;
+
+interface GpuResources {
+  imageScale: WebGLUniformLocation;
+  positionAttribute: number;
+  program: WebGLProgram;
+  source: WebGLUniformLocation;
+  texture: WebGLTexture | null;
+  texCoordAttribute: number;
+  uniformContrast: WebGLUniformLocation;
+  uniformExposure: WebGLUniformLocation;
+  vertexArray: WebGLVertexArrayObject;
+  vertexBuffer: WebGLBuffer;
+}
+
+interface PreparedImageSource {
+  dimensions: PreviewDimensions;
+  release: () => void;
+  source: ImageBitmap | HTMLCanvasElement;
+}
+
+const QUAD_VERTICES = new Float32Array([
+  -1, -1, 0, 0, 1, -1, 1, 0, -1, 1, 0, 1, -1, 1, 0, 1, 1, -1, 1, 0, 1, 1, 1, 1,
+]);
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function finiteOrDefault(value: number, fallback: number): number {
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function requireShader(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
+  const shader = gl.createShader(type);
+
+  if (!shader) {
+    throw new RendererError('OpenFilm could not create a WebGL2 shader.');
+  }
+
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    const details = gl.getShaderInfoLog(shader)?.trim();
+    gl.deleteShader(shader);
+    throw new RendererError(
+      details
+        ? `OpenFilm could not compile its WebGL2 shader: ${details}`
+        : 'OpenFilm could not compile its WebGL2 shader.',
+    );
+  }
+
+  return shader;
+}
+
+function requireAttribute(gl: WebGL2RenderingContext, program: WebGLProgram, name: string): number {
+  const location = gl.getAttribLocation(program, name);
+
+  if (location < 0) {
+    throw new RendererError(`OpenFilm could not find the WebGL2 attribute ${name}.`);
+  }
+
+  return location;
+}
+
+function requireUniform(
+  gl: WebGL2RenderingContext,
+  program: WebGLProgram,
+  name: string,
+): WebGLUniformLocation {
+  const location = gl.getUniformLocation(program, name);
+
+  if (!location) {
+    throw new RendererError(`OpenFilm could not find the WebGL2 uniform ${name}.`);
+  }
+
+  return location;
+}
+
+function createGpuResources(gl: WebGL2RenderingContext): GpuResources {
+  let vertexShader: WebGLShader | null = null;
+  let fragmentShader: WebGLShader | null = null;
+  let program: WebGLProgram | null = null;
+  let vertexArray: WebGLVertexArrayObject | null = null;
+  let vertexBuffer: WebGLBuffer | null = null;
+
+  try {
+    vertexShader = requireShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER_SOURCE);
+    fragmentShader = requireShader(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER_SOURCE);
+    program = gl.createProgram();
+
+    if (!program) {
+      throw new RendererError('OpenFilm could not create its WebGL2 program.');
+    }
+
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      const details = gl.getProgramInfoLog(program)?.trim();
+      throw new RendererError(
+        details
+          ? `OpenFilm could not link its WebGL2 program: ${details}`
+          : 'OpenFilm could not link its WebGL2 program.',
+      );
+    }
+
+    vertexArray = gl.createVertexArray();
+    vertexBuffer = gl.createBuffer();
+
+    if (!vertexArray || !vertexBuffer) {
+      throw new RendererError('OpenFilm could not create its WebGL2 geometry.');
+    }
+
+    const positionAttribute = requireAttribute(gl, program, 'a_position');
+    const texCoordAttribute = requireAttribute(gl, program, 'a_tex_coord');
+
+    gl.bindVertexArray(vertexArray);
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, QUAD_VERTICES, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(positionAttribute);
+    gl.vertexAttribPointer(positionAttribute, 2, gl.FLOAT, false, 16, 0);
+    gl.enableVertexAttribArray(texCoordAttribute);
+    gl.vertexAttribPointer(texCoordAttribute, 2, gl.FLOAT, false, 16, 8);
+    gl.bindVertexArray(null);
+
+    gl.useProgram(program);
+
+    const source = requireUniform(gl, program, 'u_source');
+    gl.uniform1i(source, 0);
+
+    return {
+      imageScale: requireUniform(gl, program, 'u_image_scale'),
+      positionAttribute,
+      program,
+      source,
+      texture: null,
+      texCoordAttribute,
+      uniformContrast: requireUniform(gl, program, 'u_contrast'),
+      uniformExposure: requireUniform(gl, program, 'u_exposure'),
+      vertexArray,
+      vertexBuffer,
+    };
+  } catch (error) {
+    if (vertexArray) {
+      gl.deleteVertexArray(vertexArray);
+    }
+    if (vertexBuffer) {
+      gl.deleteBuffer(vertexBuffer);
+    }
+    if (program) {
+      gl.deleteProgram(program);
+    }
+
+    throw error;
+  } finally {
+    if (vertexShader) {
+      gl.deleteShader(vertexShader);
+    }
+    if (fragmentShader) {
+      gl.deleteShader(fragmentShader);
+    }
+  }
+}
+
+function deleteTexture(gl: WebGL2RenderingContext, resources: GpuResources): void {
+  if (resources.texture) {
+    gl.deleteTexture(resources.texture);
+    resources.texture = null;
+  }
+}
+
+function deleteGpuResources(gl: WebGL2RenderingContext, resources: GpuResources): void {
+  deleteTexture(gl, resources);
+  gl.deleteBuffer(resources.vertexBuffer);
+  gl.deleteVertexArray(resources.vertexArray);
+  gl.deleteProgram(resources.program);
+}
+
+function createBrowserImage(): HTMLImageElement {
+  if (typeof Image === 'undefined') {
+    throw new RendererError('This browser cannot decode a source photograph for WebGL2.');
+  }
+
+  return new Image();
+}
+
+function getBrowserImageBitmap(): RendererDependencies['createImageBitmap'] | undefined {
+  if (typeof globalThis.createImageBitmap !== 'function') {
+    return undefined;
+  }
+
+  return globalThis.createImageBitmap.bind(globalThis);
+}
+
+function createBrowserCanvas(): HTMLCanvasElement {
+  if (typeof document === 'undefined') {
+    throw new RendererError('This browser cannot prepare a bounded WebGL2 preview.');
+  }
+
+  return document.createElement('canvas');
+}
+
+function loadSourceImage(
+  source: RendererSourcePhotograph,
+  createImage: () => HTMLImageElement,
+): Promise<HTMLImageElement> {
+  let image: HTMLImageElement;
+
+  try {
+    image = createImage();
+  } catch (error) {
+    throw error instanceof RendererError
+      ? error
+      : new RendererError('This browser could not create a source photograph decoder.');
+  }
+
+  if (!image) {
+    throw new RendererError('This browser could not create a source photograph decoder.');
+  }
+
+  image.decoding = 'async';
+  image.style.setProperty('image-orientation', 'from-image');
+  let loaded = false;
+
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    image.onload = () => {
+      const decoded = typeof image.decode === 'function' ? image.decode() : Promise.resolve();
+
+      void decoded
+        .then(() => {
+          loaded = true;
+          resolve(image);
+        })
+        .catch(() => {
+          reject(
+            new RendererError('The browser could not decode the source photograph for WebGL2.'),
+          );
+        });
+    };
+    image.onerror = () => {
+      reject(new RendererError('The browser could not decode the source photograph for WebGL2.'));
+    };
+    image.src = source.objectUrl;
+  }).finally(() => {
+    image.onload = null;
+    image.onerror = null;
+    if (!loaded) {
+      image.removeAttribute('src');
+    }
+  });
+}
+
+export function getPreviewDimensions(
+  width: number,
+  height: number,
+  maximumDimension = MAX_PREVIEW_DIMENSION,
+): PreviewDimensions {
+  if (
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width < 1 ||
+    height < 1 ||
+    !Number.isFinite(maximumDimension) ||
+    maximumDimension < 1
+  ) {
+    throw new RendererError('The source photograph does not have usable preview dimensions.');
+  }
+
+  const scale = Math.min(1, maximumDimension / Math.max(width, height));
+
+  return {
+    height: Math.max(1, Math.round(height * scale)),
+    width: Math.max(1, Math.round(width * scale)),
+  };
+}
+
+export function calculateImageScale(
+  canvasWidth: number,
+  canvasHeight: number,
+  imageWidth: number,
+  imageHeight: number,
+): { x: number; y: number } {
+  const safeCanvasWidth = Math.max(1, canvasWidth);
+  const safeCanvasHeight = Math.max(1, canvasHeight);
+  const safeImageWidth = Math.max(1, imageWidth);
+  const safeImageHeight = Math.max(1, imageHeight);
+  const canvasAspect = safeCanvasWidth / safeCanvasHeight;
+  const imageAspect = safeImageWidth / safeImageHeight;
+
+  if (imageAspect >= canvasAspect) {
+    return { x: 1, y: canvasAspect / imageAspect };
+  }
+
+  return { x: imageAspect / canvasAspect, y: 1 };
+}
+
+async function prepareImageSource(
+  image: HTMLImageElement,
+  source: RendererSourcePhotograph,
+  dependencies: RendererDependencies,
+): Promise<PreparedImageSource> {
+  const dimensions = getPreviewDimensions(source.width, source.height);
+  const createImageBitmap = dependencies.createImageBitmap ?? getBrowserImageBitmap();
+
+  if (createImageBitmap) {
+    try {
+      const bitmap = await createImageBitmap(image, {
+        imageOrientation: 'from-image',
+        resizeHeight: dimensions.height,
+        resizeQuality: 'high',
+        resizeWidth: dimensions.width,
+      });
+
+      return {
+        dimensions,
+        release: () => bitmap.close(),
+        source: bitmap,
+      };
+    } catch {
+      // The 2D canvas path only prepares the source texture. The adjustment pass remains WebGL2.
+    }
+  }
+
+  const canvas = dependencies.createCanvas?.() ?? createBrowserCanvas();
+  canvas.width = dimensions.width;
+  canvas.height = dimensions.height;
+  const context = canvas.getContext('2d');
+
+  if (!context) {
+    throw new RendererError('This browser could not prepare a bounded WebGL2 preview.');
+  }
+
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(image, 0, 0, dimensions.width, dimensions.height);
+
+  return {
+    dimensions,
+    release: () => undefined,
+    source: canvas,
+  };
+}
+
+function getCanvasDisplaySize(canvas: HTMLCanvasElement): { height: number; width: number } {
+  const bounds = canvas.getBoundingClientRect();
+  const width = bounds.width || canvas.clientWidth || canvas.width || 300;
+  const height = bounds.height || canvas.clientHeight || canvas.height || 150;
+
+  return {
+    height: Math.max(1, height),
+    width: Math.max(1, width),
+  };
+}
+
+function describeRendererFailure(error: unknown): RendererError {
+  if (error instanceof RendererError) {
+    return error;
+  }
+
+  return new RendererError('OpenFilm could not prepare the source photograph for WebGL2.');
+}
+
+class WebGL2PreviewRenderer implements PreviewRenderer {
+  private adjustments: RendererAdjustments = { ...neutralRendererAdjustments };
+  private contextLost = false;
+  private disposed = false;
+  private imageDimensions: PreviewDimensions | null = null;
+  private resources: GpuResources;
+  private sourceRequest = 0;
+  private source: RendererSourcePhotograph | null = null;
+
+  private readonly handleContextLost = (event: Event) => {
+    event.preventDefault();
+    this.contextLost = true;
+    this.sourceRequest += 1;
+    this.imageDimensions = null;
+    this.resources.texture = null;
+    this.options.onStatusChange?.('context-lost');
+  };
+
+  private readonly handleContextRestored = () => {
+    if (this.disposed) {
+      return;
+    }
+
+    try {
+      this.resources = createGpuResources(this.gl);
+      this.contextLost = false;
+      this.options.onStatusChange?.('available');
+      this.resize();
+
+      if (this.source) {
+        void this.replaceImage(this.source).catch((error: unknown) => {
+          this.options.onError?.(describeRendererFailure(error));
+        });
+      } else {
+        this.redraw();
+      }
+    } catch (error) {
+      this.options.onError?.(describeRendererFailure(error));
+      this.options.onStatusChange?.('unsupported');
+    }
+  };
+
+  constructor(
+    private readonly canvas: HTMLCanvasElement,
+    private readonly gl: WebGL2RenderingContext,
+    private readonly options: RendererOptions,
+  ) {
+    this.resources = createGpuResources(gl);
+    gl.clearColor(0.87, 0.866, 0.831, 1);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+    canvas.addEventListener('webglcontextlost', this.handleContextLost, false);
+    canvas.addEventListener('webglcontextrestored', this.handleContextRestored, false);
+  }
+
+  dispose(): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    this.sourceRequest += 1;
+    this.source = null;
+    this.canvas.removeEventListener('webglcontextlost', this.handleContextLost);
+    this.canvas.removeEventListener('webglcontextrestored', this.handleContextRestored);
+
+    if (!this.contextLost) {
+      deleteGpuResources(this.gl, this.resources);
+    }
+  }
+
+  redraw(): void {
+    if (this.disposed || this.contextLost) {
+      return;
+    }
+
+    const { gl, resources } = this;
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    if (!resources.texture || !this.imageDimensions) {
+      return;
+    }
+
+    const scale = calculateImageScale(
+      this.canvas.width,
+      this.canvas.height,
+      this.imageDimensions.width,
+      this.imageDimensions.height,
+    );
+
+    gl.useProgram(resources.program);
+    gl.bindVertexArray(resources.vertexArray);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, resources.texture);
+    gl.uniform2f(resources.imageScale, scale.x, scale.y);
+    gl.uniform1f(resources.uniformExposure, this.adjustments.exposure);
+    gl.uniform1f(resources.uniformContrast, this.adjustments.contrast);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.bindVertexArray(null);
+  }
+
+  async replaceImage(source: RendererSourcePhotograph): Promise<void> {
+    if (this.disposed) {
+      return;
+    }
+
+    const request = this.sourceRequest + 1;
+    this.sourceRequest = request;
+    this.source = source;
+    this.imageDimensions = null;
+
+    if (this.contextLost) {
+      return;
+    }
+
+    deleteTexture(this.gl, this.resources);
+    this.redraw();
+
+    const image = await loadSourceImage(source, this.options.createImage ?? createBrowserImage);
+
+    try {
+      const prepared = await prepareImageSource(image, source, this.options);
+
+      try {
+        if (this.disposed || this.contextLost || request !== this.sourceRequest) {
+          return;
+        }
+
+        const texture = this.gl.createTexture();
+
+        if (!texture) {
+          throw new RendererError('OpenFilm could not create a WebGL2 source texture.');
+        }
+
+        try {
+          this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+          this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+          this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+          this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+          this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+          this.gl.texImage2D(
+            this.gl.TEXTURE_2D,
+            0,
+            this.gl.RGBA,
+            this.gl.RGBA,
+            this.gl.UNSIGNED_BYTE,
+            prepared.source,
+          );
+          this.resources.texture = texture;
+          this.imageDimensions = prepared.dimensions;
+        } catch (error) {
+          this.gl.deleteTexture(texture);
+          throw error;
+        }
+
+        this.redraw();
+      } finally {
+        prepared.release();
+      }
+    } finally {
+      image.removeAttribute('src');
+    }
+  }
+
+  resize(
+    displayWidth?: number,
+    displayHeight?: number,
+    devicePixelRatio = typeof window === 'undefined' ? 1 : window.devicePixelRatio,
+  ): void {
+    const displaySize =
+      displayWidth === undefined || displayHeight === undefined
+        ? getCanvasDisplaySize(this.canvas)
+        : { height: displayHeight, width: displayWidth };
+    const ratio = clamp(finiteOrDefault(devicePixelRatio, 1), 1, 2);
+    const requestedWidth = Math.max(1, Math.round(displaySize.width * ratio));
+    const requestedHeight = Math.max(1, Math.round(displaySize.height * ratio));
+    const scale = Math.min(1, MAX_PREVIEW_DIMENSION / Math.max(requestedWidth, requestedHeight));
+    const width = Math.max(1, Math.round(requestedWidth * scale));
+    const height = Math.max(1, Math.round(requestedHeight * scale));
+
+    if (this.canvas.width !== width || this.canvas.height !== height) {
+      this.canvas.width = width;
+      this.canvas.height = height;
+    }
+
+    if (!this.contextLost && !this.disposed) {
+      this.gl.viewport(0, 0, width, height);
+      this.redraw();
+    }
+  }
+
+  setAdjustments(adjustments: RendererAdjustments): void {
+    this.adjustments = {
+      contrast: clamp(finiteOrDefault(adjustments.contrast, 0), -1, 1),
+      exposure: clamp(finiteOrDefault(adjustments.exposure, 0), -4, 4),
+    };
+
+    if (!this.contextLost && !this.disposed) {
+      this.gl.useProgram(this.resources.program);
+      this.gl.uniform1f(this.resources.uniformExposure, this.adjustments.exposure);
+      this.gl.uniform1f(this.resources.uniformContrast, this.adjustments.contrast);
+      this.redraw();
+    }
+  }
+}
+
+export function createRenderer(
+  canvas: HTMLCanvasElement | null,
+  options: RendererOptions = {},
+): PreviewRenderer | null {
+  if (!canvas) {
+    options.onStatusChange?.('unsupported');
+    return null;
+  }
+
+  let gl: WebGL2RenderingContext | null;
+
+  try {
+    gl = canvas.getContext('webgl2', {
+      alpha: false,
+      antialias: false,
+      preserveDrawingBuffer: false,
+    });
+  } catch {
+    gl = null;
+  }
+
+  if (!gl) {
+    options.onStatusChange?.('unsupported');
+    return null;
+  }
+
+  try {
+    const renderer = new WebGL2PreviewRenderer(canvas, gl, options);
+    options.onStatusChange?.('available');
+    return renderer;
+  } catch (error) {
+    options.onError?.(describeRendererFailure(error));
+    options.onStatusChange?.('unsupported');
+    return null;
+  }
+}
 
 export function getRendererStatus(canvas: HTMLCanvasElement | null): RendererStatus {
   if (!canvas) {
@@ -9,5 +697,16 @@ export function getRendererStatus(canvas: HTMLCanvasElement | null): RendererSta
     return canvas.getContext('webgl2') ? 'available' : 'unsupported';
   } catch {
     return 'unsupported';
+  }
+}
+
+export function describeRendererStatus(status: RendererStatus): string | null {
+  switch (status) {
+    case 'context-lost':
+      return 'The WebGL2 preview lost its graphics context. Reload this page or restore hardware acceleration to recover.';
+    case 'unsupported':
+      return 'OpenFilm needs WebGL2 to preview a source photograph. Try a current browser with hardware acceleration enabled.';
+    case 'available':
+      return null;
   }
 }

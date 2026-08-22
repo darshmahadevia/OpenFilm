@@ -85,6 +85,7 @@ describe('OpenFilm shell', () => {
     expect(screen.getByRole('tab', { name: 'Adjust', selected: true })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Adjustments' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Import photograph' })).toBeInTheDocument();
+    expect(screen.getByText(/OpenFilm needs WebGL2/)).toBeInTheDocument();
   });
 
   it('switches tools and opens the help dialog', () => {
@@ -110,7 +111,9 @@ describe('OpenFilm shell', () => {
       fireEvent.change(input, { target: { files: [firstFile] } });
 
       expect(await screen.findByText(/Loaded orientation-6-portrait\.jpg/)).toBeInTheDocument();
-      expect(screen.getByAltText('Preview of orientation-6-portrait.jpg')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'orientation-6-portrait.jpg' }),
+      ).toBeInTheDocument();
       expect(mocks.createObjectUrl).toHaveBeenCalledWith(firstFile);
 
       fireEvent.change(input, { target: { files: [secondFile] } });
@@ -120,9 +123,9 @@ describe('OpenFilm shell', () => {
         expect(mocks.revokeObjectUrl).toHaveBeenCalledWith('blob:orientation-6-portrait.jpg'),
       );
       expect(
-        screen.queryByAltText('Preview of orientation-6-portrait.jpg'),
+        screen.queryByRole('heading', { name: 'orientation-6-portrait.jpg' }),
       ).not.toBeInTheDocument();
-      expect(screen.getByAltText('Preview of landscape.png')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'landscape.png' })).toBeInTheDocument();
     } finally {
       mocks.restore();
     }
@@ -141,7 +144,7 @@ describe('OpenFilm shell', () => {
         target: { files: [supportedFile] },
       });
       expect(
-        await screen.findByAltText('Preview of orientation-6-portrait.jpg'),
+        await screen.findByRole('heading', { name: 'orientation-6-portrait.jpg' }),
       ).toBeInTheDocument();
 
       fireEvent.drop(importArea, { dataTransfer: { files: [unsupportedFile] } });
@@ -149,7 +152,9 @@ describe('OpenFilm shell', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'Choose a JPEG, PNG, or WebP file',
       );
-      expect(screen.getByAltText('Preview of orientation-6-portrait.jpg')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'orientation-6-portrait.jpg' }),
+      ).toBeInTheDocument();
       expect(mocks.createObjectUrl).toHaveBeenCalledTimes(1);
     } finally {
       mocks.restore();
