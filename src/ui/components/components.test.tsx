@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import { Button, Dialog, Field, IconButton, Panel, Slider } from './index';
+import { Button, Dialog, Disclosure, Field, IconButton, Panel, Slider } from './index';
 
 describe('base UI components', () => {
   it('renders a button with its selected visual variant', () => {
@@ -68,5 +68,20 @@ describe('base UI components', () => {
     expect(screen.getByRole('dialog', { name: 'Help' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('provides an accessible native disclosure for secondary controls', () => {
+    render(
+      <Disclosure description="Open the saved changes." id="history" title="Edit history">
+        <button type="button">Undo</button>
+      </Disclosure>,
+    );
+
+    const details = screen.getByText('Edit history').closest('details');
+
+    expect(details).not.toHaveAttribute('open');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit history' }));
+    expect(details).toHaveAttribute('open');
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
   });
 });

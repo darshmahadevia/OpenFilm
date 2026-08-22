@@ -70,6 +70,10 @@ function installImportBrowserMocks() {
   };
 }
 
+function openEditHistory() {
+  fireEvent.click(screen.getByRole('button', { name: 'Edit history' }));
+}
+
 describe('OpenFilm shell', () => {
   beforeEach(() => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);
@@ -274,6 +278,7 @@ describe('OpenFilm shell', () => {
       expect(
         await screen.findByRole('heading', { name: 'orientation-6-portrait.jpg' }),
       ).toBeInTheDocument();
+      openEditHistory();
 
       const temperatureValue = screen.getByLabelText('Temperature value');
       fireEvent.change(temperatureValue, { target: { value: '35' } });
@@ -313,6 +318,7 @@ describe('OpenFilm shell', () => {
       expect(
         await screen.findByRole('heading', { name: 'orientation-6-portrait.jpg' }),
       ).toBeInTheDocument();
+      openEditHistory();
 
       const exposure = screen.getByLabelText('Exposure');
       fireEvent.pointerDown(exposure);
@@ -340,6 +346,7 @@ describe('OpenFilm shell', () => {
       expect(
         await screen.findByRole('heading', { name: 'orientation-6-portrait.jpg' }),
       ).toBeInTheDocument();
+      openEditHistory();
 
       const values = {
         'Vignette amount': 65,
@@ -420,6 +427,7 @@ describe('OpenFilm shell', () => {
         target: { files: [sourceFile] },
       });
       expect(await screen.findByRole('heading', { name: 'landscape.png' })).toBeInTheDocument();
+      openEditHistory();
 
       fireEvent.click(screen.getByRole('tab', { name: 'Geometry' }));
       expect(screen.getByRole('group', { name: 'Crop preview' })).toBeInTheDocument();

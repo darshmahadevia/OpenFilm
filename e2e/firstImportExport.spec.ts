@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { validPresetFixture } from '../src/editor/presets.fixtures';
 import { sourcePhotographFixtures } from '../src/import/sourcePhotographFixtures';
@@ -16,6 +16,14 @@ function fixtureFile(fixture: (typeof sourcePhotographFixtures)[number]) {
   };
 }
 
+async function openEditHistory(page: Page) {
+  await page.getByRole('button', { name: 'Edit history' }).click();
+}
+
+async function openExport(page: Page) {
+  await page.getByRole('button', { name: 'Export' }).click();
+}
+
 test('imports, previews, resets, replaces, and downloads a JPEG', async ({ page }) => {
   await page.goto('/');
 
@@ -26,6 +34,7 @@ test('imports, previews, resets, replaces, and downloads a JPEG', async ({ page 
 
   await expect(page.getByRole('heading', { name: previewFixture.fileName })).toBeVisible();
   await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
+  await openExport(page);
 
   const exposure = page.getByRole('slider', { name: 'Exposure' });
   await expect(exposure).toBeEnabled();
@@ -70,6 +79,7 @@ test('selects PNG, reports bounded dimensions, and downloads a fresh export', as
   await page.goto('/');
   await page.getByRole('button', { name: 'Try bundled sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await openExport(page);
 
   const format = page.getByRole('combobox', { name: 'Format' });
   const quality = page.getByRole('slider', { name: 'Quality' });
@@ -106,6 +116,7 @@ test('tries the bundled sample and edits the core adjustments', async ({ page })
 
   await page.getByRole('button', { name: 'Try bundled sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await openEditHistory(page);
 
   const values = {
     Contrast: '30',
@@ -151,10 +162,11 @@ test('keeps the adjustment controls labeled and usable at a phone width', async 
     }
   });
 
-  await page.setViewportSize({ height: 844, width: 390 });
+  await page.setViewportSize({ height: 844, width: 360 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Try bundled sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await openEditHistory(page);
 
   for (const label of [
     'Exposure',
@@ -244,6 +256,7 @@ test('edits deterministic vignette and grain effects with group reset history', 
   await page.goto('/');
   await page.getByRole('button', { name: 'Try bundled sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await openEditHistory(page);
 
   const values = {
     'Vignette amount': '65',
@@ -278,6 +291,7 @@ test('crops, rotates, flips, and resets geometry with accessible alternatives to
   await page.goto('/');
   await page.getByRole('button', { name: 'Try bundled sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await openEditHistory(page);
 
   await page.getByRole('tab', { name: 'Geometry' }).click();
   await expect(page.getByRole('group', { name: 'Crop preview' })).toBeVisible();
@@ -334,10 +348,11 @@ test('keeps geometry controls named and usable at a phone width', async ({ page 
     }
   });
 
-  await page.setViewportSize({ height: 844, width: 390 });
+  await page.setViewportSize({ height: 844, width: 360 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Try bundled sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await openEditHistory(page);
   await page.getByRole('tab', { name: 'Geometry' }).click();
 
   for (const label of [
@@ -381,6 +396,7 @@ test('shares Edit history across tools, compares before and after, and updates t
   await page.goto('/');
   await page.getByRole('button', { name: 'Try bundled sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await openEditHistory(page);
 
   const histogram = page.getByRole('img', { name: /Luminance histogram/ });
   await expect(histogram).toBeVisible();
@@ -618,7 +634,7 @@ test('restores settings and requests the source again when source bytes are unav
 });
 
 test('keeps bundled and custom Look controls reachable at a phone width', async ({ page }) => {
-  await page.setViewportSize({ height: 844, width: 390 });
+  await page.setViewportSize({ height: 844, width: 360 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Try bundled sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
@@ -646,4 +662,67 @@ test('keeps bundled and custom Look controls reachable at a phone width', async 
 
   expect(accessibilitySnapshot.controlsWithoutNames).toBe(0);
   expect(accessibilitySnapshot.horizontalOverflow).toBe(false);
+});
+
+test('keeps one canvas-first control area across desktop, phone, and landscape', async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 900, width: 1440 });
+  await page.goto('/');
+
+  const desktopColumns = await page
+    .locator('.workspace')
+    .evaluate(
+      (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length,
+    );
+  expect(desktopColumns).toBe(2);
+  await expect(page.getByRole('button', { name: 'Edit history' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeHidden();
+  await expect(page.getByRole('combobox', { name: 'Format' })).toBeHidden();
+
+  await page.setViewportSize({ height: 800, width: 360 });
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+
+  const phoneColumns = await page
+    .locator('.workspace')
+    .evaluate(
+      (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length,
+    );
+  expect(phoneColumns).toBe(1);
+
+  const exposure = page.getByRole('spinbutton', { name: 'Exposure value' });
+  await exposure.fill('0.75');
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await expect(page.getByRole('group', { name: 'Crop preview' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Looks' }).click();
+  await expect(page.getByRole('heading', { name: 'Bundled Looks' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Adjust' }).click();
+  await openExport(page);
+  await expect(page.getByRole('combobox', { name: 'Format' })).toBeVisible();
+
+  const visibleControlSizes = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('button, input[type="range"], select'))
+      .filter((element) => {
+        const style = getComputedStyle(element);
+        const { height, width } = element.getBoundingClientRect();
+        return style.visibility !== 'hidden' && style.display !== 'none' && height > 0 && width > 0;
+      })
+      .map((element) => {
+        const { height, width } = element.getBoundingClientRect();
+        return Math.min(height, width);
+      }),
+  );
+  expect(Math.min(...visibleControlSizes)).toBeGreaterThanOrEqual(44);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+
+  await page.setViewportSize({ height: 390, width: 844 });
+  await expect(exposure).toHaveValue('0.75');
+  await expect(page.getByRole('combobox', { name: 'Format' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
 });

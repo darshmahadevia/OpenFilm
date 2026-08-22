@@ -95,7 +95,7 @@ import {
   TONE_CURVE_STEP,
   type ToneCurvePoint,
 } from './editor/toneCurve';
-import { Button, Dialog, Field, IconButton, Panel, Slider } from './ui/components';
+import { Button, Dialog, Disclosure, Field, IconButton, Panel, Slider } from './ui/components';
 
 const toolLabels: Record<EditorTool, string> = {
   adjustments: 'Adjust',
@@ -303,6 +303,40 @@ function EditHistoryActions({
         Redo
       </Button>
     </div>
+  );
+}
+
+function EditHistoryDisclosure({
+  canRedo,
+  canUndo,
+  hasSource,
+  onRedo,
+  onUndo,
+}: {
+  canRedo: boolean;
+  canUndo: boolean;
+  hasSource: boolean;
+  onRedo: () => void;
+  onUndo: () => void;
+}) {
+  return (
+    <Disclosure
+      description="Undo or redo the latest committed Edit changes."
+      id="edit-history"
+      title="Edit history"
+    >
+      <EditHistoryActions
+        canRedo={canRedo}
+        canUndo={canUndo}
+        hasSource={hasSource}
+        onRedo={onRedo}
+        onUndo={onUndo}
+      />
+      <p className="field__hint">
+        The shared history keeps the latest {EDIT_HISTORY_LIMIT} committed changes across
+        Adjustments, curve edits, effects, and Geometry.
+      </p>
+    </Disclosure>
   );
 }
 
@@ -993,8 +1027,6 @@ function LookCard({
 
 function LooksControl({
   bundledLooks: bundledLookOptions,
-  canRedo,
-  canUndo,
   customLooks,
   hasSource,
   onApplyLook,
@@ -1005,12 +1037,8 @@ function LooksControl({
   onImportPreset,
   onOpenSaveDialog,
   onOpenRenameDialog,
-  onRedo,
-  onUndo,
 }: {
   bundledLooks: readonly BundledLook[];
-  canRedo: boolean;
-  canUndo: boolean;
   customLooks: readonly StoredLook[];
   hasSource: boolean;
   onApplyLook: (look: LookSource) => void;
@@ -1021,18 +1049,9 @@ function LooksControl({
   onImportPreset: () => void;
   onOpenSaveDialog: () => void;
   onOpenRenameDialog: (look: StoredLook) => void;
-  onRedo: () => void;
-  onUndo: () => void;
 }) {
   return (
     <div className="control-stack looks-control">
-      <EditHistoryActions
-        canRedo={canRedo}
-        canUndo={canUndo}
-        hasSource={hasSource}
-        onRedo={onRedo}
-        onUndo={onUndo}
-      />
       <section aria-labelledby="bundled-looks-title" className="looks-section">
         <div className="looks-section__header">
           <div>
@@ -1124,8 +1143,6 @@ function ToolControls({
   activeTool,
   adjustments,
   bundledLookOptions,
-  canRedo,
-  canUndo,
   customLooks,
   geometry,
   hasSource,
@@ -1143,7 +1160,6 @@ function ToolControls({
   onImportPreset,
   onOpenRenameDialog,
   onOpenSaveDialog,
-  onRedo,
   onResetAdjustment,
   onReset,
   onResetGroup,
@@ -1154,14 +1170,11 @@ function ToolControls({
   onToneCurveChange,
   onToggleFlipHorizontal,
   onToggleFlipVertical,
-  onUndo,
   sourceDimensions,
 }: {
   activeTool: EditorTool;
   adjustments: RendererAdjustments;
   bundledLookOptions: readonly BundledLook[];
-  canRedo: boolean;
-  canUndo: boolean;
   customLooks: readonly StoredLook[];
   geometry: GeometryValues;
   hasSource: boolean;
@@ -1179,7 +1192,6 @@ function ToolControls({
   onImportPreset: () => void;
   onOpenRenameDialog: (look: StoredLook) => void;
   onOpenSaveDialog: () => void;
-  onRedo: () => void;
   onResetAdjustment: (key: AdjustmentKey) => void;
   onReset: () => void;
   onResetGroup: (group: AdjustmentGroup) => void;
@@ -1190,19 +1202,11 @@ function ToolControls({
   onToneCurveChange: (points: ToneCurvePoint[], gestureId: string) => void;
   onToggleFlipHorizontal: () => void;
   onToggleFlipVertical: () => void;
-  onUndo: () => void;
   sourceDimensions: { height: number; width: number } | null;
 }) {
   if (activeTool === 'geometry') {
     return (
       <div className="control-stack">
-        <EditHistoryActions
-          canRedo={canRedo}
-          canUndo={canUndo}
-          hasSource={hasSource}
-          onRedo={onRedo}
-          onUndo={onUndo}
-        />
         <CropControl
           geometry={geometry}
           hasSource={hasSource}
@@ -1273,8 +1277,6 @@ function ToolControls({
     return (
       <LooksControl
         bundledLooks={bundledLookOptions}
-        canRedo={canRedo}
-        canUndo={canUndo}
         customLooks={customLooks}
         hasSource={hasSource}
         onApplyLook={onApplyLook}
@@ -1285,21 +1287,12 @@ function ToolControls({
         onImportPreset={onImportPreset}
         onOpenRenameDialog={onOpenRenameDialog}
         onOpenSaveDialog={onOpenSaveDialog}
-        onRedo={onRedo}
-        onUndo={onUndo}
       />
     );
   }
 
   return (
     <div className="control-stack">
-      <EditHistoryActions
-        canRedo={canRedo}
-        canUndo={canUndo}
-        hasSource={hasSource}
-        onRedo={onRedo}
-        onUndo={onUndo}
-      />
       {coreAdjustmentKeys.map((adjustmentKey) => (
         <AdjustmentControl
           adjustmentKey={adjustmentKey}
@@ -1370,7 +1363,9 @@ function ExportControls({
   exportQuality,
   exportSizeMode,
   hasSource,
+  isExporting,
   maximumLongEdgeIsValid,
+  onDownload,
   onExportFormatChange,
   onExportMaximumLongEdgeChange,
   onExportQualityChange,
@@ -1383,7 +1378,9 @@ function ExportControls({
   exportQuality: number;
   exportSizeMode: ExportSizeMode;
   hasSource: boolean;
+  isExporting: boolean;
   maximumLongEdgeIsValid: boolean;
+  onDownload: () => void;
   onExportFormatChange: (format: ExportFormat) => void;
   onExportMaximumLongEdgeChange: (value: string) => void;
   onExportQualityChange: (value: number) => void;
@@ -1392,7 +1389,7 @@ function ExportControls({
   const formatOption = exportFormatOptions.find((option) => option.value === exportFormat);
 
   return (
-    <Panel
+    <Disclosure
       description="Re-encode the current Edit without changing the source photograph."
       id="export"
       title="Export"
@@ -1498,8 +1495,19 @@ function ExportControls({
             untouched.
           </p>
         ) : null}
+        <div className="export-controls__actions">
+          <Button
+            disabled={!hasSource || !maximumLongEdgeIsValid || isExporting}
+            onClick={onDownload}
+            variant="primary"
+          >
+            {isExporting
+              ? `Preparing ${formatOption?.label ?? 'export'}…`
+              : `Download ${formatOption?.label ?? 'export'}`}
+          </Button>
+        </div>
       </div>
-    </Panel>
+    </Disclosure>
   );
 }
 
@@ -2589,8 +2597,10 @@ export default function App() {
           <div aria-label="Editor tools" className="tool-tabs" role="tablist">
             {editorTools.map((tool) => (
               <button
+                aria-controls="active-tool"
                 aria-selected={state.activeTool === tool}
                 className={`tool-tab ${state.activeTool === tool ? 'tool-tab--active' : ''}`}
+                id={`tool-tab-${tool}`}
                 key={tool}
                 onClick={() => dispatch({ type: 'select-tool', tool })}
                 role="tab"
@@ -2601,13 +2611,19 @@ export default function App() {
             ))}
           </div>
 
+          <EditHistoryDisclosure
+            canRedo={editHistory.future.length > 0}
+            canUndo={editHistory.past.length > 0}
+            hasSource={Boolean(sourcePhotograph)}
+            onRedo={redoEdit}
+            onUndo={undoEdit}
+          />
+
           <Panel description={activeTool.description} id="active-tool" title={activeTool.title}>
             <ToolControls
               activeTool={state.activeTool}
               adjustments={adjustments}
               bundledLookOptions={bundledLooks}
-              canRedo={editHistory.future.length > 0}
-              canUndo={editHistory.past.length > 0}
               customLooks={customLooks}
               geometry={geometry}
               hasSource={Boolean(sourcePhotograph)}
@@ -2625,7 +2641,6 @@ export default function App() {
               onImportPreset={openPresetFilePicker}
               onOpenRenameDialog={openRenameLookDialog}
               onOpenSaveDialog={openSaveLookDialog}
-              onRedo={redoEdit}
               onResetAdjustment={resetAdjustment}
               onReset={resetAdjustments}
               onResetGroup={resetAdjustmentGroup}
@@ -2636,7 +2651,6 @@ export default function App() {
               onToneCurveChange={handleToneCurveChange}
               onToggleFlipHorizontal={toggleFlipHorizontal}
               onToggleFlipVertical={toggleFlipVertical}
-              onUndo={undoEdit}
               sourceDimensions={sourcePhotograph}
             />
           </Panel>
@@ -2649,7 +2663,9 @@ export default function App() {
             exportQuality={exportQuality}
             exportSizeMode={exportSizeMode}
             hasSource={Boolean(sourcePhotograph)}
+            isExporting={isExporting}
             maximumLongEdgeIsValid={maximumLongEdgeIsValid}
+            onDownload={handleDownload}
             onExportFormatChange={setExportFormat}
             onExportMaximumLongEdgeChange={setExportMaximumLongEdgeInput}
             onExportQualityChange={setExportQuality}
@@ -2659,22 +2675,6 @@ export default function App() {
           <div className="control-area__footer">
             <p>{sourcePhotograph?.fileName ?? 'No source photograph yet'}</p>
             <div className="control-area__actions">
-              <Button
-                disabled={
-                  !sourcePhotograph ||
-                  rendererStatus !== 'available' ||
-                  !isPreviewReady ||
-                  !maximumLongEdgeIsValid ||
-                  isExporting
-                }
-                onClick={handleDownload}
-                size="small"
-                variant={sourcePhotograph ? 'primary' : 'outline'}
-              >
-                {isExporting
-                  ? `Preparing ${exportFormatOptions.find((option) => option.value === exportFormat)?.label ?? 'export'}…`
-                  : `Download ${exportFormatOptions.find((option) => option.value === exportFormat)?.label ?? 'export'}`}
-              </Button>
               <Button
                 disabled={isImporting}
                 onClick={openFilePicker}

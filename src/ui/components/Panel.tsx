@@ -12,7 +12,7 @@ export function Panel({ children, className = '', description, id, title }: Pane
   const classes = ['panel', className].filter(Boolean).join(' ');
 
   return (
-    <section aria-labelledby={`${id}-title`} className={classes}>
+    <section aria-labelledby={`${id}-title`} className={classes} id={id}>
       <header className="panel__header">
         <h2 id={`${id}-title`}>{title}</h2>
         {description ? <p>{description}</p> : null}

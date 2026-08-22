@@ -2,6 +2,8 @@ export { Button } from './Button';
 export type { ButtonProps, ButtonSize, ButtonVariant } from './Button';
 export { Dialog } from './Dialog';
 export type { DialogProps } from './Dialog';
+export { Disclosure } from './Disclosure';
+export type { DisclosureProps } from './Disclosure';
 export { Field } from './Field';
 export type { FieldProps } from './Field';
 export { IconButton } from './IconButton';
