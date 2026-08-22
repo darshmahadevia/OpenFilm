@@ -40,6 +40,41 @@ export interface PreviewDimensions {
   width: number;
 }
 
+export const LUMINANCE_HISTOGRAM_BINS = 32;
+const HISTOGRAM_SAMPLE_DIMENSION = 64;
+
+export interface LuminanceHistogram {
+  bins: number[];
+  max: number;
+  sampleCount: number;
+}
+
+export function createLuminanceHistogram(
+  pixels: ArrayLike<number>,
+  binCount = LUMINANCE_HISTOGRAM_BINS,
+): LuminanceHistogram {
+  if (!Number.isInteger(binCount) || binCount < 2) {
+    throw new RendererError('OpenFilm could not create a luminance histogram of that size.');
+  }
+
+  const bins = Array.from({ length: binCount }, () => 0);
+  let sampleCount = 0;
+
+  for (let index = 0; index + 3 < pixels.length; index += 4) {
+    const luminance =
+      (0.2126 * pixels[index] + 0.7152 * pixels[index + 1] + 0.0722 * pixels[index + 2]) / 255;
+    const bucket = Math.min(binCount - 1, Math.floor(Math.max(0, luminance) * binCount));
+    bins[bucket] += 1;
+    sampleCount += 1;
+  }
+
+  return {
+    bins,
+    max: Math.max(...bins, 0),
+    sampleCount,
+  };
+}
+
 export interface RendererDependencies {
   createCanvas?: () => HTMLCanvasElement;
   createImage?: () => HTMLImageElement;
@@ -57,6 +92,7 @@ export interface RendererOptions extends RendererDependencies {
 export interface PreviewRenderer {
   dispose(): void;
   exportJpeg(): Promise<Blob>;
+  getHistogram(): LuminanceHistogram | null;
   redraw(): void;
   replaceImage(source: RendererSourcePhotograph): Promise<void>;
   resize(displayWidth?: number, displayHeight?: number, devicePixelRatio?: number): void;
@@ -640,6 +676,8 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
   private disposed = false;
   private geometry: RendererGeometry = normalizeGeometry(neutralGeometry);
   private grainSeed: GrainSeed = DEFAULT_GRAIN_SEED;
+  private histogramCanvas: HTMLCanvasElement | null = null;
+  private histogramContext: CanvasRenderingContext2D | null = null;
   private imageDimensions: PreviewDimensions | null = null;
   private resources: GpuResources;
   private sourceRequest = 0;
@@ -704,6 +742,9 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     if (!this.contextLost) {
       deleteGpuResources(this.gl, this.resources);
     }
+
+    this.histogramContext = null;
+    this.histogramCanvas = null;
   }
 
   redraw(): void {
@@ -878,6 +919,73 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
         reject(new RendererError('OpenFilm could not encode the JPEG download.'));
       }
     });
+  }
+
+  getHistogram(): LuminanceHistogram | null {
+    if (
+      this.disposed ||
+      this.contextLost ||
+      !this.resources.texture ||
+      !this.imageDimensions ||
+      this.canvas.width < 1 ||
+      this.canvas.height < 1
+    ) {
+      return null;
+    }
+
+    try {
+      if (!this.histogramCanvas) {
+        this.histogramCanvas = this.options.createCanvas?.() ?? createBrowserCanvas();
+        this.histogramCanvas.width = HISTOGRAM_SAMPLE_DIMENSION;
+        this.histogramCanvas.height = HISTOGRAM_SAMPLE_DIMENSION;
+      }
+
+      if (!this.histogramContext) {
+        this.histogramContext = this.histogramCanvas.getContext('2d', {
+          willReadFrequently: true,
+        });
+      }
+
+      if (this.histogramContext) {
+        this.histogramContext.clearRect(
+          0,
+          0,
+          HISTOGRAM_SAMPLE_DIMENSION,
+          HISTOGRAM_SAMPLE_DIMENSION,
+        );
+        this.histogramContext.drawImage(
+          this.canvas,
+          0,
+          0,
+          HISTOGRAM_SAMPLE_DIMENSION,
+          HISTOGRAM_SAMPLE_DIMENSION,
+        );
+        const pixels = this.histogramContext.getImageData(
+          0,
+          0,
+          HISTOGRAM_SAMPLE_DIMENSION,
+          HISTOGRAM_SAMPLE_DIMENSION,
+        ).data;
+
+        return createLuminanceHistogram(pixels);
+      }
+    } catch {
+      // Fall through to the small WebGL readback when a 2D context is unavailable.
+    }
+
+    if (typeof this.gl.readPixels !== 'function') {
+      return null;
+    }
+
+    try {
+      const width = Math.min(HISTOGRAM_SAMPLE_DIMENSION, this.canvas.width);
+      const height = Math.min(HISTOGRAM_SAMPLE_DIMENSION, this.canvas.height);
+      const pixels = new Uint8Array(width * height * 4);
+      this.gl.readPixels(0, 0, width, height, this.gl.RGBA, this.gl.UNSIGNED_BYTE, pixels);
+      return createLuminanceHistogram(pixels);
+    } catch {
+      return null;
+    }
   }
 
   resize(

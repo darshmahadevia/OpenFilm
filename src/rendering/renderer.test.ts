@@ -1,5 +1,6 @@
 import {
   calculateImageScale,
+  createLuminanceHistogram,
   createRenderer,
   describeRendererStatus,
   FRAGMENT_SHADER_SOURCE,
@@ -168,6 +169,18 @@ describe('renderer capability and geometry helpers', () => {
   it('fits a source inside the canvas without stretching it', () => {
     expect(calculateImageScale(1200, 800, 3, 4)).toEqual({ x: 0.5, y: 1 });
     expect(calculateImageScale(1200, 800, 9, 4)).toEqual({ x: 1, y: 0.6666666666666666 });
+  });
+
+  it('groups rendered pixels into a bounded luminance histogram', () => {
+    const histogram = createLuminanceHistogram(
+      new Uint8Array([0, 0, 0, 255, 255, 255, 255, 255, 128, 128, 128, 255]),
+      4,
+    );
+
+    expect(histogram.bins).toHaveLength(4);
+    expect(histogram.sampleCount).toBe(3);
+    expect(histogram.max).toBe(1);
+    expect(histogram.bins).toEqual([1, 0, 1, 1]);
   });
 });
 

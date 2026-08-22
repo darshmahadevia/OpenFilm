@@ -331,6 +331,75 @@ strong {
   margin-top: var(--space-4);
 }
 
+.canvas-column__toolbar {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  margin-top: var(--space-4);
+}
+
+.canvas-column__toolbar > span {
+  color: var(--color-muted);
+  font-size: var(--type-xs);
+}
+
+.histogram-panel {
+  border-top: 1px solid var(--color-line);
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+}
+
+.histogram-panel__header {
+  align-items: start;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.histogram-panel__header h2 {
+  font-size: var(--type-md);
+}
+
+.histogram-panel__header p,
+.histogram-panel__empty {
+  color: var(--color-muted);
+  font-size: var(--type-xs);
+  line-height: 1.45;
+  margin-top: var(--space-1);
+}
+
+.histogram-panel__status {
+  color: var(--color-muted);
+  font-size: var(--type-xs);
+  white-space: nowrap;
+}
+
+.histogram-panel__plot {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  display: block;
+  height: 7.5rem;
+  margin-top: var(--space-3);
+  width: 100%;
+}
+
+.histogram-panel__plot rect {
+  fill: var(--color-accent);
+  opacity: 0.72;
+}
+
+.histogram-panel__plot path {
+  fill: none;
+  stroke: var(--color-line-strong);
+  stroke-width: 1;
+}
+
+.histogram-panel__empty {
+  margin-bottom: 0;
+  margin-top: var(--space-3);
+}
+
 .storage-note {
   color: var(--color-muted);
   font-size: var(--type-xs);

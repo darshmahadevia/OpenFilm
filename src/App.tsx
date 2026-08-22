@@ -4,14 +4,18 @@ import type { ChangeEvent, DragEvent, KeyboardEvent, PointerEvent } from 'react'
 import {
   adjustmentDefinitions,
   adjustmentGroups,
-  adjustmentReducer,
   coreAdjustmentKeys,
-  createAdjustmentHistory,
   formatAdjustmentValue,
-  hasNonNeutralAdjustments,
   type AdjustmentGroup,
   type AdjustmentKey,
 } from './editor/adjustments';
+import {
+  createEditHistory,
+  EDIT_HISTORY_LIMIT,
+  editHistoryReducer,
+  hasNonNeutralEdit,
+  type EditHistoryAction,
+} from './editor/editHistory';
 import {
   editorReducer,
   editorTools,
@@ -21,15 +25,13 @@ import {
 import {
   cropAspectRatioOptions,
   cropForAspectRatio,
-  geometryReducer,
   hasNonNeutralGeometry,
   moveCrop,
   normalizeCrop,
+  neutralGeometry,
   resizeCrop,
-  createGeometryHistory,
   type CropAspectRatio,
   type CropHandle,
-  type GeometryAction,
   type GeometryValues,
   type NormalizedCrop,
 } from './editor/geometry';
@@ -49,6 +51,7 @@ import {
   type PreviewRenderer,
   type RendererAdjustments,
   type RendererStatus,
+  type LuminanceHistogram,
 } from './rendering/renderer';
 import { hasBrowserStorage, storageNotice } from './storage/browserStorage';
 import {
@@ -83,6 +86,26 @@ const toolDetails: Record<EditorTool, { description: string; title: string }> = 
   },
 };
 
+const TONE_CURVE_GESTURE_ID = 'tone-curve-drag';
+
+function adjustmentGestureId(key: AdjustmentKey): string {
+  return `adjustment-${key}`;
+}
+
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (target.isContentEditable || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+    return true;
+  }
+
+  return target instanceof HTMLInputElement
+    ? ['email', 'number', 'password', 'search', 'tel', 'text', 'url'].includes(target.type)
+    : false;
+}
+
 function getJpegDownloadFileName(fileName: string): string {
   const baseName = fileName.replace(/\.[^.]+$/, '') || 'openfilm';
   return `${baseName}-openfilm.jpg`;
@@ -104,17 +127,108 @@ function RendererStatusLabel({ status }: { status: RendererStatus }) {
   );
 }
 
+function HistogramPanel({
+  histogram,
+  pending,
+}: {
+  histogram: LuminanceHistogram | null;
+  pending: boolean;
+}) {
+  const max = histogram?.max ?? 0;
+
+  return (
+    <section aria-busy={pending} aria-labelledby="histogram-title" className="histogram-panel">
+      <div className="histogram-panel__header">
+        <div>
+          <h2 id="histogram-title">Histogram</h2>
+          <p>Luminance distribution for the visible preview.</p>
+        </div>
+        <span className="histogram-panel__status">{pending ? 'Updating…' : 'Luminance'}</span>
+      </div>
+      {histogram && max > 0 ? (
+        <svg
+          aria-label={`Luminance histogram with ${histogram.sampleCount.toLocaleString()} samples`}
+          className="histogram-panel__plot"
+          role="img"
+          viewBox="0 0 320 120"
+        >
+          {histogram.bins.map((count, index) => {
+            const width = 320 / histogram.bins.length;
+            const height = (count / max) * 108;
+
+            return (
+              <rect
+                height={height}
+                key={index}
+                width={Math.max(1, width - 1)}
+                x={index * width}
+                y={112 - height}
+              />
+            );
+          })}
+          <path d="M0 112H320" />
+        </svg>
+      ) : (
+        <p className="histogram-panel__empty">
+          {pending ? 'Reading the rendered image…' : 'Import a source photograph to see its tones.'}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function EditHistoryActions({
+  canRedo,
+  canUndo,
+  hasSource,
+  onRedo,
+  onUndo,
+}: {
+  canRedo: boolean;
+  canUndo: boolean;
+  hasSource: boolean;
+  onRedo: () => void;
+  onUndo: () => void;
+}) {
+  return (
+    <div aria-label="Edit history" className="history-actions">
+      <Button
+        aria-keyshortcuts="Control+Z Meta+Z"
+        disabled={!hasSource || !canUndo}
+        onClick={onUndo}
+        size="small"
+        variant="quiet"
+      >
+        Undo
+      </Button>
+      <Button
+        aria-keyshortcuts="Control+Y Control+Shift+Z Meta+Shift+Z"
+        disabled={!hasSource || !canRedo}
+        onClick={onRedo}
+        size="small"
+        variant="quiet"
+      >
+        Redo
+      </Button>
+    </div>
+  );
+}
+
 function AdjustmentControl({
   adjustments,
   hasSource,
   onAdjustmentChange,
+  onAdjustmentGestureEnd,
+  onAdjustmentGestureStart,
   onReset,
   adjustmentKey,
 }: {
   adjustments: RendererAdjustments;
   adjustmentKey: AdjustmentKey;
   hasSource: boolean;
-  onAdjustmentChange: (key: AdjustmentKey, value: number) => void;
+  onAdjustmentChange: (key: AdjustmentKey, value: number, gestureId: string) => void;
+  onAdjustmentGestureEnd: (key: AdjustmentKey) => void;
+  onAdjustmentGestureStart: (key: AdjustmentKey) => void;
   onReset: (key: AdjustmentKey) => void;
 }) {
   const definition = adjustmentDefinitions[adjustmentKey];
@@ -130,7 +244,15 @@ function AdjustmentControl({
         label={definition.label}
         max={definition.max}
         min={definition.min}
-        onChange={(event) => onAdjustmentChange(adjustmentKey, Number(event.currentTarget.value))}
+        onChange={(event) =>
+          onAdjustmentChange(
+            adjustmentKey,
+            Number(event.currentTarget.value),
+            adjustmentGestureId(adjustmentKey),
+          )
+        }
+        onRangeChangeEnd={() => onAdjustmentGestureEnd(adjustmentKey)}
+        onRangeChangeStart={() => onAdjustmentGestureStart(adjustmentKey)}
         step={definition.step}
         value={value}
       />
@@ -153,6 +275,8 @@ function AdjustmentGroupControl({
   group,
   hasSource,
   onAdjustmentChange,
+  onAdjustmentGestureEnd,
+  onAdjustmentGestureStart,
   onReset,
   onResetGroup,
   title,
@@ -161,7 +285,9 @@ function AdjustmentGroupControl({
   description: string;
   group: AdjustmentGroup;
   hasSource: boolean;
-  onAdjustmentChange: (key: AdjustmentKey, value: number) => void;
+  onAdjustmentChange: (key: AdjustmentKey, value: number, gestureId: string) => void;
+  onAdjustmentGestureEnd: (key: AdjustmentKey) => void;
+  onAdjustmentGestureStart: (key: AdjustmentKey) => void;
   onReset: (key: AdjustmentKey) => void;
   onResetGroup: (group: AdjustmentGroup) => void;
   title: string;
@@ -186,6 +312,8 @@ function AdjustmentGroupControl({
           hasSource={hasSource}
           key={adjustmentKey}
           onAdjustmentChange={onAdjustmentChange}
+          onAdjustmentGestureEnd={onAdjustmentGestureEnd}
+          onAdjustmentGestureStart={onAdjustmentGestureStart}
           onReset={onReset}
         />
       ))}
@@ -204,12 +332,16 @@ function AdjustmentGroupControl({
 
 function ToneCurveControl({
   hasSource,
+  onGestureEnd,
+  onGestureStart,
   onChange,
   onReset,
   points,
 }: {
   hasSource: boolean;
-  onChange: (points: ToneCurvePoint[]) => void;
+  onGestureEnd: () => void;
+  onGestureStart: () => void;
+  onChange: (points: ToneCurvePoint[], gestureId: string) => void;
   onReset: () => void;
   points: ToneCurvePoint[];
 }) {
@@ -231,7 +363,7 @@ function ToneCurveControl({
     const next = moveToneCurvePoint(points, index, { x, y });
 
     if (next) {
-      onChange(next);
+      onChange(next, TONE_CURVE_GESTURE_ID);
     }
   }
 
@@ -243,6 +375,7 @@ function ToneCurveControl({
     event.preventDefault();
     setSelectedIndex(index);
     draggingIndex.current = index;
+    onGestureStart();
     event.currentTarget.setPointerCapture(event.pointerId);
     updatePointFromPointer(index, event);
   }
@@ -259,6 +392,7 @@ function ToneCurveControl({
     }
 
     draggingIndex.current = null;
+    onGestureEnd();
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -294,7 +428,7 @@ function ToneCurveControl({
     const next = moveToneCurvePoint(points, index, position);
 
     if (next) {
-      onChange(next);
+      onChange(next, TONE_CURVE_GESTURE_ID);
     }
   }
 
@@ -308,7 +442,7 @@ function ToneCurveControl({
     const next = moveToneCurvePoint(points, safeSelectedIndex, { [axis]: numericValue });
 
     if (next) {
-      onChange(next);
+      onChange(next, TONE_CURVE_GESTURE_ID);
     }
   }
 
@@ -321,7 +455,7 @@ function ToneCurveControl({
 
     const insertedIndex = next.findIndex((point, index) => point.x !== points[index]?.x);
     setSelectedIndex(insertedIndex < 0 ? next.length - 2 : insertedIndex);
-    onChange(next);
+    onChange(next, TONE_CURVE_GESTURE_ID);
   }
 
   function removeSelectedPoint() {
@@ -332,7 +466,7 @@ function ToneCurveControl({
     }
 
     setSelectedIndex(Math.max(0, safeSelectedIndex - 1));
-    onChange(next);
+    onChange(next, TONE_CURVE_GESTURE_ID);
   }
 
   return (
@@ -685,23 +819,23 @@ function ToolControls({
   activeTool,
   adjustments,
   canRedo,
-  canRedoGeometry,
   canUndo,
-  canUndoGeometry,
   geometry,
   hasSource,
   hasNonNeutralGeometryValue,
   onAdjustmentChange,
+  onAdjustmentGestureEnd,
+  onAdjustmentGestureStart,
   onCropChange,
-  onGeometryRedo,
   onGeometryReset,
-  onGeometryUndo,
   onRedo,
   onResetAdjustment,
   onReset,
   onResetGroup,
   onResetToneCurve,
   onRotationChange,
+  onToneCurveGestureEnd,
+  onToneCurveGestureStart,
   onToneCurveChange,
   onToggleFlipHorizontal,
   onToggleFlipVertical,
@@ -711,24 +845,24 @@ function ToolControls({
   activeTool: EditorTool;
   adjustments: RendererAdjustments;
   canRedo: boolean;
-  canRedoGeometry: boolean;
   canUndo: boolean;
-  canUndoGeometry: boolean;
   geometry: GeometryValues;
   hasSource: boolean;
   hasNonNeutralGeometryValue: boolean;
-  onAdjustmentChange: (key: AdjustmentKey, value: number) => void;
+  onAdjustmentChange: (key: AdjustmentKey, value: number, gestureId: string) => void;
+  onAdjustmentGestureEnd: (key: AdjustmentKey) => void;
+  onAdjustmentGestureStart: (key: AdjustmentKey) => void;
   onCropChange: (crop: NormalizedCrop) => void;
-  onGeometryRedo: () => void;
   onGeometryReset: () => void;
-  onGeometryUndo: () => void;
   onRedo: () => void;
   onResetAdjustment: (key: AdjustmentKey) => void;
   onReset: () => void;
   onResetGroup: (group: AdjustmentGroup) => void;
   onResetToneCurve: () => void;
   onRotationChange: (rotation: GeometryValues['rotation']) => void;
-  onToneCurveChange: (points: ToneCurvePoint[]) => void;
+  onToneCurveGestureEnd: () => void;
+  onToneCurveGestureStart: () => void;
+  onToneCurveChange: (points: ToneCurvePoint[], gestureId: string) => void;
   onToggleFlipHorizontal: () => void;
   onToggleFlipVertical: () => void;
   onUndo: () => void;
@@ -737,24 +871,13 @@ function ToolControls({
   if (activeTool === 'geometry') {
     return (
       <div className="control-stack">
-        <div aria-label="Geometry history" className="history-actions">
-          <Button
-            disabled={!hasSource || !canUndoGeometry}
-            onClick={onGeometryUndo}
-            size="small"
-            variant="quiet"
-          >
-            Undo
-          </Button>
-          <Button
-            disabled={!hasSource || !canRedoGeometry}
-            onClick={onGeometryRedo}
-            size="small"
-            variant="quiet"
-          >
-            Redo
-          </Button>
-        </div>
+        <EditHistoryActions
+          canRedo={canRedo}
+          canUndo={canUndo}
+          hasSource={hasSource}
+          onRedo={onRedo}
+          onUndo={onUndo}
+        />
         <CropControl
           geometry={geometry}
           hasSource={hasSource}
@@ -814,8 +937,8 @@ function ToolControls({
           Reset geometry
         </Button>
         <p className="field__hint">
-          Geometry history is separate from adjustment history. Reusable Looks contain adjustments
-          only.
+          Edit history keeps the latest {EDIT_HISTORY_LIMIT} committed changes. Geometry stays with
+          this Edit and never enters a reusable Look.
         </p>
       </div>
     );
@@ -824,6 +947,13 @@ function ToolControls({
   if (activeTool === 'looks') {
     return (
       <div className="control-stack">
+        <EditHistoryActions
+          canRedo={canRedo}
+          canUndo={canUndo}
+          hasSource={hasSource}
+          onRedo={onRedo}
+          onUndo={onUndo}
+        />
         <div className="look-row look-row--selected">
           <div>
             <strong>Neutral Look</strong>
@@ -847,14 +977,13 @@ function ToolControls({
 
   return (
     <div className="control-stack">
-      <div aria-label="Adjustment history" className="history-actions">
-        <Button disabled={!hasSource || !canUndo} onClick={onUndo} size="small" variant="quiet">
-          Undo
-        </Button>
-        <Button disabled={!hasSource || !canRedo} onClick={onRedo} size="small" variant="quiet">
-          Redo
-        </Button>
-      </div>
+      <EditHistoryActions
+        canRedo={canRedo}
+        canUndo={canUndo}
+        hasSource={hasSource}
+        onRedo={onRedo}
+        onUndo={onUndo}
+      />
       {coreAdjustmentKeys.map((adjustmentKey) => (
         <AdjustmentControl
           adjustmentKey={adjustmentKey}
@@ -862,6 +991,8 @@ function ToolControls({
           hasSource={hasSource}
           key={adjustmentKey}
           onAdjustmentChange={onAdjustmentChange}
+          onAdjustmentGestureEnd={onAdjustmentGestureEnd}
+          onAdjustmentGestureStart={onAdjustmentGestureStart}
           onReset={onResetAdjustment}
         />
       ))}
@@ -870,6 +1001,8 @@ function ToolControls({
         description="Darken the frame edges with a controlled, image-relative falloff."
         group="vignette"
         hasSource={hasSource}
+        onAdjustmentGestureEnd={onAdjustmentGestureEnd}
+        onAdjustmentGestureStart={onAdjustmentGestureStart}
         onAdjustmentChange={onAdjustmentChange}
         onReset={onResetAdjustment}
         onResetGroup={onResetGroup}
@@ -880,6 +1013,8 @@ function ToolControls({
         description="Add a stable texture whose pattern belongs to this Edit."
         group="grain"
         hasSource={hasSource}
+        onAdjustmentGestureEnd={onAdjustmentGestureEnd}
+        onAdjustmentGestureStart={onAdjustmentGestureStart}
         onAdjustmentChange={onAdjustmentChange}
         onReset={onResetAdjustment}
         onResetGroup={onResetGroup}
@@ -887,6 +1022,8 @@ function ToolControls({
       />
       <ToneCurveControl
         hasSource={hasSource}
+        onGestureEnd={onToneCurveGestureEnd}
+        onGestureStart={onToneCurveGestureStart}
         onChange={onToneCurveChange}
         onReset={onResetToneCurve}
         points={adjustments.toneCurve}
@@ -901,14 +1038,7 @@ function ToolControls({
 export default function App() {
   const [state, dispatch] = useReducer(editorReducer, initialEditorState);
   const [sourcePhotograph, setSourcePhotograph] = useState<ImportedSourcePhotograph | null>(null);
-  const [adjustmentHistory, dispatchAdjustments] = useReducer(
-    adjustmentReducer,
-    createAdjustmentHistory(),
-  );
-  const [geometryHistory, dispatchGeometry] = useReducer(
-    geometryReducer,
-    createGeometryHistory(initialEditorState.geometry),
-  );
+  const [editHistory, dispatchEditHistory] = useReducer(editHistoryReducer, createEditHistory());
   const [rendererStatus, setRendererStatus] = useState<RendererStatus>('unsupported');
   const [rendererError, setRendererError] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -924,15 +1054,18 @@ export default function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isPreviewReady, setIsPreviewReady] = useState(false);
+  const [showBefore, setShowBefore] = useState(false);
+  const [histogram, setHistogram] = useState<LuminanceHistogram | null>(null);
+  const [histogramPending, setHistogramPending] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<PreviewRenderer | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importRequestRef = useRef(0);
   const storageAvailable = hasBrowserStorage();
   const activeTool = toolDetails[state.activeTool];
-  const adjustments = adjustmentHistory.present;
-  const geometry = geometryHistory.present;
-  const editHasChanges = hasNonNeutralAdjustments(adjustments) || hasNonNeutralGeometry(geometry);
+  const adjustments = editHistory.present.adjustments;
+  const geometry = editHistory.present.geometry;
+  const editHasChanges = hasNonNeutralEdit(editHistory.present);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -984,12 +1117,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    rendererRef.current?.setAdjustments(adjustments);
-  }, [adjustments]);
+    rendererRef.current?.setAdjustments(showBefore ? neutralRendererAdjustments : adjustments);
+  }, [adjustments, showBefore]);
 
   useEffect(() => {
-    rendererRef.current?.setGeometry(geometry);
-  }, [geometry]);
+    rendererRef.current?.setGeometry(showBefore ? neutralGeometry : geometry);
+  }, [geometry, showBefore]);
 
   useEffect(() => {
     rendererRef.current?.setGrainSeed(state.grainSeed ?? DEFAULT_GRAIN_SEED);
@@ -1031,6 +1164,77 @@ export default function App() {
     return () => {
       cancelled = true;
     };
+  }, [sourcePhotograph]);
+
+  useEffect(() => {
+    const renderer = rendererRef.current;
+
+    if (!renderer || !sourcePhotograph || !isPreviewReady || rendererStatus !== 'available') {
+      setHistogram(null);
+      setHistogramPending(false);
+      return;
+    }
+
+    let cancelled = false;
+    let frame: number | null = null;
+    let timeout: number | null = null;
+    setHistogramPending(true);
+
+    const readHistogram = () => {
+      if (cancelled) {
+        return;
+      }
+
+      setHistogram(renderer.getHistogram());
+      setHistogramPending(false);
+    };
+
+    if (typeof window.requestAnimationFrame === 'function') {
+      frame = window.requestAnimationFrame(readHistogram);
+    } else {
+      timeout = window.setTimeout(readHistogram, 0);
+    }
+
+    return () => {
+      cancelled = true;
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+      if (timeout !== null) {
+        window.clearTimeout(timeout);
+      }
+    };
+  }, [adjustments, geometry, isPreviewReady, rendererStatus, showBefore, sourcePhotograph]);
+
+  useEffect(() => {
+    function handleKeyboardShortcut(event: globalThis.KeyboardEvent) {
+      if (event.defaultPrevented || isTextEntryTarget(event.target)) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      const modifier = event.ctrlKey || event.metaKey;
+
+      if (modifier && !event.altKey && key === 'z') {
+        event.preventDefault();
+        dispatchEditHistory({ type: event.shiftKey ? 'redo' : 'undo' });
+        return;
+      }
+
+      if (modifier && !event.altKey && key === 'y') {
+        event.preventDefault();
+        dispatchEditHistory({ type: 'redo' });
+        return;
+      }
+
+      if (!modifier && !event.altKey && key === 'b' && sourcePhotograph) {
+        event.preventDefault();
+        setShowBefore((current) => !current);
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyboardShortcut);
+    return () => window.removeEventListener('keydown', handleKeyboardShortcut);
   }, [sourcePhotograph]);
 
   useEffect(() => {
@@ -1087,8 +1291,8 @@ export default function App() {
       }
 
       setSourcePhotograph(imported);
-      dispatchAdjustments({ type: 'replace-source' });
-      dispatchGeometry({ type: 'replace-source' });
+      dispatchEditHistory({ type: 'replace-source' });
+      setShowBefore(false);
       setExportFeedback(null);
       dispatch({
         type: 'source-selected',
@@ -1130,47 +1334,56 @@ export default function App() {
     void importSelectedSource(event.dataTransfer.files?.[0]);
   }
 
-  function handleAdjustmentChange(key: AdjustmentKey, value: number) {
-    dispatchAdjustments({ type: 'set', key, value });
+  function handleAdjustmentChange(key: AdjustmentKey, value: number, gestureId: string) {
+    dispatchEditHistory({ type: 'set-adjustment', key, value, gestureId });
+  }
+
+  function beginAdjustmentGesture(key: AdjustmentKey) {
+    dispatchEditHistory({ type: 'begin-gesture', id: adjustmentGestureId(key) });
+  }
+
+  function endAdjustmentGesture(key: AdjustmentKey) {
+    dispatchEditHistory({ type: 'end-gesture', id: adjustmentGestureId(key) });
   }
 
   function resetAdjustments() {
-    dispatchAdjustments({ type: 'reset-all' });
+    dispatchEditHistory({ type: 'reset-adjustments' });
   }
 
   function resetAdjustment(key: AdjustmentKey) {
-    dispatchAdjustments({ type: 'reset-one', key });
+    dispatchEditHistory({ type: 'reset-one', key });
   }
 
   function resetAdjustmentGroup(group: AdjustmentGroup) {
-    dispatchAdjustments({ type: 'reset-group', group });
+    dispatchEditHistory({ type: 'reset-group', group });
   }
 
-  function handleToneCurveChange(points: ToneCurvePoint[]) {
-    dispatchAdjustments({ type: 'set-tone-curve', points });
+  function handleToneCurveChange(points: ToneCurvePoint[], gestureId: string) {
+    dispatchEditHistory({ type: 'set-tone-curve', points, gestureId });
+  }
+
+  function beginToneCurveGesture() {
+    dispatchEditHistory({ type: 'begin-gesture', id: TONE_CURVE_GESTURE_ID });
+  }
+
+  function endToneCurveGesture() {
+    dispatchEditHistory({ type: 'end-gesture', id: TONE_CURVE_GESTURE_ID });
   }
 
   function resetToneCurve() {
-    dispatchAdjustments({ type: 'reset-tone-curve' });
+    dispatchEditHistory({ type: 'reset-tone-curve' });
   }
 
-  function undoAdjustment() {
-    dispatchAdjustments({ type: 'undo' });
+  function undoEdit() {
+    dispatchEditHistory({ type: 'undo' });
   }
 
-  function redoAdjustment() {
-    dispatchAdjustments({ type: 'redo' });
+  function redoEdit() {
+    dispatchEditHistory({ type: 'redo' });
   }
 
-  function applyGeometryAction(action: GeometryAction) {
-    const nextHistory = geometryReducer(geometryHistory, action);
-
-    if (nextHistory === geometryHistory) {
-      return;
-    }
-
-    dispatchGeometry(action);
-    dispatch({ type: 'set-geometry', geometry: nextHistory.present });
+  function applyGeometryAction(action: EditHistoryAction) {
+    dispatchEditHistory(action);
   }
 
   function handleCropChange(crop: NormalizedCrop) {
@@ -1189,16 +1402,8 @@ export default function App() {
     applyGeometryAction({ type: 'toggle-flip-vertical' });
   }
 
-  function undoGeometry() {
-    applyGeometryAction({ type: 'undo' });
-  }
-
-  function redoGeometry() {
-    applyGeometryAction({ type: 'redo' });
-  }
-
   function resetGeometry() {
-    applyGeometryAction({ type: 'reset' });
+    applyGeometryAction({ type: 'reset-geometry' });
   }
 
   function importBundledSample() {
@@ -1342,12 +1547,31 @@ export default function App() {
             </div>
           </div>
 
+          <div
+            aria-label="Before and after comparison"
+            className="canvas-column__toolbar"
+            role="group"
+          >
+            <Button
+              aria-keyshortcuts="B"
+              aria-pressed={showBefore}
+              disabled={!sourcePhotograph || !isPreviewReady}
+              onClick={() => setShowBefore((current) => !current)}
+              size="small"
+              variant={showBefore ? 'primary' : 'outline'}
+            >
+              {showBefore ? 'Show edited result' : 'Show before'}
+            </Button>
+            <span>{showBefore ? 'Neutral image' : 'Current Edit'}</span>
+          </div>
+
           <div className="canvas-column__footer">
             <RendererStatusLabel status={rendererStatus} />
             <span className="storage-status">
               {storageAvailable ? 'Browser recovery available' : 'Browser recovery unavailable'}
             </span>
           </div>
+          <HistogramPanel histogram={histogram} pending={histogramPending} />
           {isImporting ? (
             <p
               aria-live="polite"
@@ -1420,28 +1644,28 @@ export default function App() {
             <ToolControls
               activeTool={state.activeTool}
               adjustments={adjustments}
-              canRedo={adjustmentHistory.future.length > 0}
-              canRedoGeometry={geometryHistory.future.length > 0}
-              canUndo={adjustmentHistory.past.length > 0}
-              canUndoGeometry={geometryHistory.past.length > 0}
+              canRedo={editHistory.future.length > 0}
+              canUndo={editHistory.past.length > 0}
               geometry={geometry}
               hasSource={Boolean(sourcePhotograph)}
               hasNonNeutralGeometryValue={hasNonNeutralGeometry(geometry)}
               onAdjustmentChange={handleAdjustmentChange}
+              onAdjustmentGestureEnd={endAdjustmentGesture}
+              onAdjustmentGestureStart={beginAdjustmentGesture}
               onCropChange={handleCropChange}
-              onGeometryRedo={redoGeometry}
               onGeometryReset={resetGeometry}
-              onGeometryUndo={undoGeometry}
-              onRedo={redoAdjustment}
+              onRedo={redoEdit}
               onResetAdjustment={resetAdjustment}
               onReset={resetAdjustments}
               onResetGroup={resetAdjustmentGroup}
               onResetToneCurve={resetToneCurve}
               onRotationChange={handleRotationChange}
+              onToneCurveGestureEnd={endToneCurveGesture}
+              onToneCurveGestureStart={beginToneCurveGesture}
               onToneCurveChange={handleToneCurveChange}
               onToggleFlipHorizontal={toggleFlipHorizontal}
               onToggleFlipVertical={toggleFlipVertical}
-              onUndo={undoAdjustment}
+              onUndo={undoEdit}
               sourceDimensions={sourcePhotograph}
             />
           </Panel>

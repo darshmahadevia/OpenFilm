@@ -218,6 +218,33 @@ describe('OpenFilm shell', () => {
     }
   });
 
+  it('coalesces a slider gesture into one shared history entry', async () => {
+    const mocks = installImportBrowserMocks();
+    const sourceFile = createSourcePhotographFixtureFile(sourcePhotographFixtures[0]);
+
+    try {
+      render(<App />);
+      fireEvent.change(screen.getByLabelText('Choose source photograph'), {
+        target: { files: [sourceFile] },
+      });
+      expect(
+        await screen.findByRole('heading', { name: 'orientation-6-portrait.jpg' }),
+      ).toBeInTheDocument();
+
+      const exposure = screen.getByLabelText('Exposure');
+      fireEvent.pointerDown(exposure);
+      fireEvent.change(exposure, { target: { value: '0.25' } });
+      fireEvent.change(exposure, { target: { value: '0.5' } });
+      fireEvent.pointerUp(exposure);
+
+      expect(exposure).toHaveValue('0.5');
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+      expect(exposure).toHaveValue('0');
+    } finally {
+      mocks.restore();
+    }
+  });
+
   it('supports bounded vignette and grain controls with undoable group resets', async () => {
     const mocks = installImportBrowserMocks();
     const sourceFile = createSourcePhotographFixtureFile(sourcePhotographFixtures[0]);

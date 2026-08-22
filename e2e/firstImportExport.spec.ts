@@ -338,3 +338,52 @@ test('keeps geometry controls named and usable at a phone width', async ({ page 
   expect(accessibilitySnapshot.horizontalOverflow).toBe(false);
   expect(consoleErrors).toEqual([]);
 });
+
+test('shares Edit history across tools, compares before and after, and updates the histogram', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+
+  const histogram = page.getByRole('img', { name: /Luminance histogram/ });
+  await expect(histogram).toBeVisible();
+  const barsBefore = await page
+    .locator('.histogram-panel__plot rect')
+    .evaluateAll((bars) => bars.map((bar) => bar.getAttribute('height')));
+
+  const exposure = page.getByRole('spinbutton', { name: 'Exposure value' });
+  await exposure.fill('1');
+  await expect(exposure).toHaveValue('1');
+  await expect
+    .poll(() =>
+      page
+        .locator('.histogram-panel__plot rect')
+        .evaluateAll((bars) => bars.map((bar) => bar.getAttribute('height'))),
+    )
+    .not.toEqual(barsBefore);
+
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  const rotation = page.getByRole('combobox', { name: 'Rotation' });
+  await rotation.selectOption('90');
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(rotation).toHaveValue('0');
+
+  await page.getByRole('tab', { name: 'Adjust' }).click();
+  await page.keyboard.press('Control+z');
+  await expect(exposure).toHaveValue('0');
+  await page.keyboard.press('Control+Shift+z');
+  await expect(exposure).toHaveValue('1');
+
+  const beforeButton = page.getByRole('button', { name: 'Show before' });
+  await beforeButton.click();
+  await expect(page.getByRole('button', { name: 'Show edited result' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.keyboard.press('b');
+  await expect(page.getByRole('button', { name: 'Show before' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+});

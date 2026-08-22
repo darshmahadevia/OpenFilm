@@ -8,6 +8,8 @@ export interface SliderProps extends Omit<
   hint?: string;
   id: string;
   label: string;
+  onRangeChangeEnd?: () => void;
+  onRangeChangeStart?: () => void;
   value: number;
 }
 
@@ -21,6 +23,8 @@ export function Slider({
   max,
   min,
   onChange,
+  onRangeChangeEnd,
+  onRangeChangeStart,
   step,
   value,
   ...props
@@ -64,6 +68,10 @@ export function Slider({
         max={max}
         min={min}
         onChange={onChange}
+        onBlur={onRangeChangeEnd}
+        onPointerCancel={onRangeChangeEnd}
+        onPointerDown={onRangeChangeStart}
+        onPointerUp={onRangeChangeEnd}
         step={step}
         type="range"
         value={value}
