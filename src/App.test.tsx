@@ -90,7 +90,7 @@ function openLookActions(title: string) {
 
 async function openBundledSample() {
   fireEvent.click(screen.getByRole('button', { name: 'Open sample' }));
-  await screen.findByRole('heading', { name: 'openfilm-greenhouse.webp' });
+  await screen.findByRole('heading', { name: 'openfilm-alpine-lake.webp' });
 }
 
 describe('OpenFilm shell', () => {
@@ -430,10 +430,10 @@ describe('OpenFilm shell', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Open sample' }));
 
       expect(
-        await screen.findByRole('heading', { name: 'openfilm-greenhouse.webp' }),
+        await screen.findByRole('heading', { name: 'openfilm-alpine-lake.webp' }),
       ).toBeInTheDocument();
       expect(mocks.createObjectUrl).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'openfilm-greenhouse.webp', type: 'image/webp' }),
+        expect.objectContaining({ name: 'openfilm-alpine-lake.webp', type: 'image/webp' }),
       );
     } finally {
       mocks.restore();

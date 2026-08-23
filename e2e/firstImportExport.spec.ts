@@ -86,7 +86,7 @@ test('operates tabs and crop handles from the keyboard', async ({ page }) => {
 test('keeps dialog focus contained and restores it after Escape', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
 
   const helpButton = page.getByRole('button', { name: 'Open editor help' });
   await helpButton.click();
@@ -116,7 +116,7 @@ test('introduces the product before revealing editor controls', async ({ page })
   await expect(page.getByRole('slider', { name: 'Preview before and after' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
   await page.getByRole('tab', { name: 'Adjust' }).click();
   await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
 });
@@ -146,7 +146,7 @@ test('keeps useful state changes while removing nonessential motion', async ({ p
 
   expect(motionStyles).toEqual({ animationDuration: '0s', transition: 'none' });
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
 });
 
 test('reports an unsupported file with one recovery action', async ({ page }) => {
@@ -250,7 +250,7 @@ test('imports, previews, resets, replaces, and downloads a JPEG', async ({ page 
 test('selects PNG, reports bounded dimensions, and downloads a fresh export', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
   await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
   await openExport(page);
 
@@ -267,7 +267,7 @@ test('selects PNG, reports bounded dimensions, and downloads a fresh export', as
   await outputSize.selectOption('maximum');
   const maximumLongEdge = page.getByRole('spinbutton', { name: 'Maximum long edge' });
   await maximumLongEdge.fill('200');
-  await expect(page.getByText('200 × 200 pixels')).toBeVisible();
+  await expect(page.getByText('200 × 133 pixels')).toBeVisible();
 
   await expect(downloadButton).toBeHidden();
   const pngDownloadButton = page.getByRole('button', { name: 'Download PNG' });
@@ -275,13 +275,13 @@ test('selects PNG, reports bounded dimensions, and downloads a fresh export', as
   await pngDownloadButton.click();
   const download = await downloadPromise;
 
-  expect(download.suggestedFilename()).toBe('openfilm-greenhouse-openfilm.png');
+  expect(download.suggestedFilename()).toBe('openfilm-alpine-lake-openfilm.png');
   const downloadPath = await download.path();
   expect(downloadPath).not.toBeNull();
   const bytes = await readFile(downloadPath as string);
   expect(bytes.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   expect(bytes.readUInt32BE(16)).toBe(200);
-  expect(bytes.readUInt32BE(20)).toBe(200);
+  expect(bytes.readUInt32BE(20)).toBe(133);
 });
 
 test('keeps a large source preview bounded and warns before a large export', async ({ page }) => {
@@ -326,7 +326,7 @@ test('shows a recovery action when export encoding fails', async ({ page }) => {
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
   await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
   await openExport(page);
 
@@ -356,7 +356,7 @@ test('prevents duplicate exports without blocking tool navigation', async ({ pag
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
   await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
   await openExport(page);
 
@@ -386,7 +386,7 @@ test('tries the bundled sample and edits the core adjustments', async ({ page })
   await page.goto('/');
 
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
   await openEditHistory(page);
   await expect(page.locator('.topbar .renderer-status')).toHaveCount(0);
 
@@ -437,7 +437,7 @@ test('keeps the adjustment controls labeled and usable at a phone width', async 
   await page.setViewportSize({ height: 844, width: 360 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.locator('.topbar__filename')).toHaveText('openfilm-greenhouse.webp');
+  await expect(page.locator('.topbar__filename')).toHaveText('openfilm-alpine-lake.webp');
   await openEditHistory(page);
   await expect(page.locator('.topbar .renderer-status')).toHaveCount(0);
 
@@ -511,7 +511,7 @@ test('keeps the adjustment controls labeled and usable at a phone width', async 
 test('edits the bounded RGB tone curve with numeric and keyboard controls', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
 
   await expect(page.getByText('2 / 8 points')).toBeVisible();
   await page.getByRole('button', { name: 'Add tone curve point' }).click();
@@ -554,7 +554,7 @@ test('edits deterministic vignette and grain effects with group reset history', 
 }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
   await openEditHistory(page);
 
   const values = {
@@ -589,7 +589,7 @@ test('crops, rotates, flips, and resets geometry with accessible alternatives to
 }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
   await openEditHistory(page);
 
   await page.getByRole('tab', { name: 'Geometry' }).click();
@@ -606,7 +606,7 @@ test('crops, rotates, flips, and resets geometry with accessible alternatives to
 
   await page.getByRole('combobox', { name: 'Aspect ratio' }).selectOption('1:1');
   await expect(cropWidth).toHaveValue('60');
-  await expect(cropHeight).toHaveValue('60');
+  await expect(cropHeight).toHaveValue('90');
 
   const cropSelection = page.locator('.crop-control__selection');
   await cropSelection.scrollIntoViewIfNeeded();
@@ -654,7 +654,7 @@ test('keeps geometry controls named and usable at a phone width', async ({ page 
   await page.setViewportSize({ height: 844, width: 360 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.locator('.topbar__filename')).toHaveText('openfilm-greenhouse.webp');
+  await expect(page.locator('.topbar__filename')).toHaveText('openfilm-alpine-lake.webp');
   await openEditHistory(page);
   await page.getByRole('tab', { name: 'Geometry' }).click();
 
@@ -698,7 +698,7 @@ test('shares Edit history across tools, compares before and after, and updates t
 }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
   await openEditHistory(page);
 
   const histogram = page.getByRole('img', { name: /Luminance histogram/ });
@@ -746,7 +746,7 @@ test('shares Edit history across tools, compares before and after, and updates t
 test('applies bundled Looks and supports custom Look CRUD', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
 
   await page.getByRole('tab', { name: 'Looks' }).click();
   await expect(page.getByRole('heading', { name: 'Starting Looks' })).toBeVisible();
@@ -797,7 +797,7 @@ test('applies bundled Looks and supports custom Look CRUD', async ({ page }) => 
   await page.evaluate(() => window.scrollTo(0, 360));
   await page.getByRole('button', { name: 'Resume latest edit' }).click();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
   await page.getByRole('tab', { name: 'Looks' }).click();
   await expect(page.getByRole('heading', { name: 'My saved Look' })).toBeVisible();
 
@@ -825,7 +825,7 @@ test('applies bundled Looks and supports custom Look CRUD', async ({ page }) => 
 test('previews, applies, saves, and exports a versioned Look preset', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
   await page.getByRole('tab', { name: 'Looks' }).click();
 
   const presetInput = page.getByLabel('Choose Look preset');
@@ -896,9 +896,9 @@ test('rejects an invalid Look preset without opening the preview dialog', async 
 test('recovers the latest Edit and its source after a reload', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
   await expect(
-    page.getByText('Loaded openfilm-greenhouse.webp. 1,024 × 1,024 pixels.'),
+    page.getByText('Loaded openfilm-alpine-lake.webp. 1,536 × 1,024 pixels.'),
   ).toBeVisible();
 
   const exposure = page.getByRole('spinbutton', { name: 'Exposure value' });
@@ -912,13 +912,13 @@ test('recovers the latest Edit and its source after a reload', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'Open a photograph.' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Resume latest edit' })).toBeVisible();
   await page.getByRole('button', { name: 'Resume latest edit' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
   await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
   await expect(
-    page.getByRole('img', { name: 'Edited preview of openfilm-greenhouse.webp' }),
+    page.getByRole('img', { name: 'Edited preview of openfilm-alpine-lake.webp' }),
   ).toBeVisible();
   await expect(page.getByRole('spinbutton', { name: 'Exposure value' })).toHaveValue('1.25');
-  await expect(page.getByText(/Recovered openfilm-greenhouse\.webp/)).toBeVisible();
+  await expect(page.getByText(/Recovered openfilm-alpine-lake\.webp/)).toBeVisible();
   await page.getByRole('tab', { name: 'Geometry' }).click();
   await expect(page.getByRole('combobox', { name: 'Rotation' })).toHaveValue('90');
 });
@@ -928,7 +928,7 @@ test('restores settings and requests the source again when source bytes are unav
 }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
 
   const exposure = page.getByRole('spinbutton', { name: 'Exposure value' });
   await exposure.fill('0.75');
@@ -951,7 +951,7 @@ test('restores settings and requests the source again when source bytes are unav
   await page.reload();
 
   await expect(page.getByText('Your latest Edit is ready.')).toBeVisible();
-  await expect(page.getByText(/Recovered settings for openfilm-greenhouse\.webp/)).toBeVisible();
+  await expect(page.getByText(/Recovered settings for openfilm-alpine-lake\.webp/)).toBeVisible();
   await expect(
     page.locator('.landing-alert').getByRole('button', { name: 'Choose source photograph' }),
   ).toBeVisible();
@@ -965,7 +965,7 @@ test('keeps bundled and custom Look controls reachable at a phone width', async 
   await page.setViewportSize({ height: 844, width: 360 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.locator('.topbar__filename')).toHaveText('openfilm-greenhouse.webp');
+  await expect(page.locator('.topbar__filename')).toHaveText('openfilm-alpine-lake.webp');
   await page.getByRole('tab', { name: 'Looks' }).click();
 
   await expect(page.getByRole('heading', { name: 'Starting Looks' })).toBeVisible();
@@ -1002,7 +1002,7 @@ test('keeps one canvas-first control area across desktop, phone, and landscape',
   await page.setViewportSize({ height: 900, width: 1440 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Open sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-greenhouse.webp' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
 
   const topbarExport = page.getByRole('button', { name: 'Export photograph' });
   await expect(topbarExport).toBeEnabled();

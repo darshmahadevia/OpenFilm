@@ -1,7 +1,7 @@
-import bundledSampleUrl from '../assets/openfilm-demo-greenhouse-square.webp?inline';
+import bundledSampleUrl from '../assets/openfilm-sample-alpine-lake.webp?inline';
 
 const bundledSamplePhotograph = {
-  fileName: 'openfilm-greenhouse.webp',
+  fileName: 'openfilm-alpine-lake.webp',
   mimeType: 'image/webp',
 };
 

@@ -46,7 +46,7 @@ controls scroll internally above a persistent status/source footer.
 - Removed the oversized slogan, six-cell pseudo-feature strip, extra lifestyle image, coastal close,
   repeated actions, and ornamental status chrome.
 - Replaced the broad violet-blue treatment with warm-white actions and a sparse sand interaction cue.
-- Replaced the abstract bundled sample with a natural greenhouse portrait in landscape and square crops.
+- The landing comparison uses a greenhouse portrait. The bundled editor sample is a separate alpine-lake photograph with no people, giving the two entry points distinct imagery.
 - Reduced Looks to one visible Apply action per row; file and management actions use disclosures.
 - Preserved image aspect ratio, all editor tools, recovery, local status, help, and export behavior.
 - Native Photos versus Files presentation is owned by the mobile operating system; the web input
