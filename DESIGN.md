@@ -153,7 +153,7 @@ expression; they are not global rules for the editor.
 **Key Characteristics:**
 
 - Full-bleed photographic opening with a left-anchored statement and visible import actions.
-- Warm paper process section, dark privacy section, and photographic closing invitation.
+- A dedicated street photograph for comparison and a coastal photograph for the closing invitation.
 - Local Bodoni display type paired with a quiet sans-serif utility voice.
 - Safe-light orange used sparingly for action, focus, and drop-state emphasis.
 - Thin exposed rules, a simple circle mark, and a tactile before-and-after divider.
@@ -315,9 +315,10 @@ Each summary keeps the shared touch target and visible focus treatment.
 ### Before-and-After Demo
 
 The landing's signature interaction is a full-frame range-controlled comparison. A one-pixel white
-divider and outlined circular handle move with the range input; `Film-inspired` and `Source` labels
-stay pinned to opposite lower corners. The surrounding six-cell control strip makes the editor's
-actual groups legible without turning the landing into a feature grid.
+divider and outlined circular handle move with the range input; `OpenFilm Look` and `Neutral source`
+labels stay pinned to opposite lower corners. A compact readout names the illustrative adjustment
+values, and the surrounding six-cell control strip makes the editor's actual groups legible without
+turning the landing into a feature grid.
 
 ## Do's and Don'ts
 

@@ -2,6 +2,8 @@ import { useEffect, useReducer, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent, KeyboardEvent, PointerEvent, ReactNode } from 'react';
 
 import darkroomHeroUrl from './assets/openfilm-darkroom-hero.webp';
+import comparisonStreetUrl from './assets/openfilm-comparison-street.webp';
+import closingCoastUrl from './assets/openfilm-closing-coast.webp';
 
 import {
   adjustmentDefinitions,
@@ -378,14 +380,21 @@ function LandingPage({
         </div>
 
         <div className="landing-demo">
+          <div className="landing-demo__readout" aria-hidden="true">
+            <span>Example Look</span>
+            <span>Exposure +0.35 · Temperature +18 · Grain 22</span>
+          </div>
           <div className="landing-demo__frame">
-            <img alt="Example photograph before editing" src={darkroomHeroUrl} />
+            <img
+              alt="Pedestrian crossing a rain-wet street at blue hour before editing"
+              src={comparisonStreetUrl}
+            />
             <div
               aria-hidden="true"
               className="landing-demo__edited"
               style={{ clipPath: `inset(0 ${100 - reveal}% 0 0)` }}
             >
-              <img alt="" src={darkroomHeroUrl} />
+              <img alt="" src={comparisonStreetUrl} />
             </div>
             <span
               aria-hidden="true"
@@ -400,8 +409,8 @@ function LandingPage({
               type="range"
               value={reveal}
             />
-            <span className="landing-demo__label landing-demo__label--edited">Film-inspired</span>
-            <span className="landing-demo__label landing-demo__label--source">Source</span>
+            <span className="landing-demo__label landing-demo__label--edited">OpenFilm Look</span>
+            <span className="landing-demo__label landing-demo__label--source">Neutral source</span>
           </div>
           <div className="landing-demo__controls" aria-label="Available editing groups">
             <span>Light</span>
@@ -454,7 +463,7 @@ function LandingPage({
       </section>
 
       <section className="landing-close">
-        <img alt="" aria-hidden="true" src={darkroomHeroUrl} />
+        <img alt="" aria-hidden="true" src={closingCoastUrl} />
         <div>
           <h2>Open one photograph. Find the version you want to keep.</h2>
           <div className="landing-close__actions">

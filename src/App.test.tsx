@@ -106,6 +106,18 @@ describe('OpenFilm shell', () => {
     expect(screen.queryByRole('button', { name: 'Reload page' })).not.toBeInTheDocument();
   });
 
+  it('updates the landing comparison from its labeled range control', () => {
+    const { container } = render(<App />);
+    const comparison = screen.getByRole('slider', { name: 'Preview before and after' });
+
+    fireEvent.change(comparison, { target: { value: '73' } });
+
+    expect(container.querySelector('.landing-demo__divider')).toHaveStyle({ left: '73%' });
+    expect(container.querySelector('.landing-demo__edited')).toHaveStyle({
+      clipPath: 'inset(0 27% 0 0)',
+    });
+  });
+
   it('keeps the empty state focused and introduces controls after a source is ready', async () => {
     const mocks = installImportBrowserMocks();
 
