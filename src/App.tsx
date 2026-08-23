@@ -69,11 +69,16 @@ import {
   type LuminanceHistogram,
 } from './rendering/renderer';
 import {
+  describeExportAllocationWarning,
+  describeExportDimensionIssue,
   defaultExportOptions,
   exportFormatOptions,
+  getExportDimensionIssue,
   getExportDimensions,
   getExportFileName,
   isLossyExportFormat,
+  isLikelyOversizedExport,
+  MAX_EXPORT_DIMENSION,
   normalizeMaximumLongEdge,
   type ExportFormat,
 } from './rendering/export';
@@ -170,6 +175,64 @@ function createLookId(): string {
   }
 
   return `look-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function scheduleObjectUrlRelease(objectUrl: string): void {
+  let released = false;
+
+  const release = () => {
+    if (released) {
+      return;
+    }
+
+    released = true;
+
+    try {
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      // Download URLs are best-effort browser resources.
+    }
+  };
+
+  try {
+    if (typeof window !== 'undefined' && typeof window.setTimeout === 'function') {
+      window.setTimeout(release, 0);
+    } else {
+      release();
+    }
+  } catch {
+    release();
+  }
+}
+
+function downloadBlob(blob: Blob, fileName: string): void {
+  if (
+    typeof URL === 'undefined' ||
+    typeof URL.createObjectURL !== 'function' ||
+    typeof document === 'undefined'
+  ) {
+    throw new Error('This browser could not create a local download.');
+  }
+
+  let objectUrl: string | null = null;
+  let link: HTMLAnchorElement | null = null;
+
+  try {
+    objectUrl = URL.createObjectURL(blob);
+    link = document.createElement('a');
+
+    link.download = fileName;
+    link.href = objectUrl;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+  } finally {
+    link?.remove();
+
+    if (objectUrl) {
+      scheduleObjectUrlRelease(objectUrl);
+    }
+  }
 }
 
 function getDuplicateLookTitle(title: string, existingLooks: readonly StoredLook[]): string {
@@ -1446,6 +1509,8 @@ interface LookDialogState {
 function ExportControls({
   canExport,
   estimatedOutputDimensions,
+  exportAllocationWarning,
+  exportDimensionIssue,
   exportFormat,
   exportMaximumLongEdge,
   exportMaximumLongEdgeInput,
@@ -1462,6 +1527,8 @@ function ExportControls({
 }: {
   canExport: boolean;
   estimatedOutputDimensions: { height: number; width: number } | null;
+  exportAllocationWarning: string | null;
+  exportDimensionIssue: string | null;
   exportFormat: ExportFormat;
   exportMaximumLongEdge: number | null;
   exportMaximumLongEdgeInput: string;
@@ -1565,7 +1632,7 @@ function ExportControls({
               disabled={!hasSource}
               id="export-long-edge"
               inputMode="numeric"
-              max={16_384}
+              max={MAX_EXPORT_DIMENSION}
               min={1}
               onChange={(event) => onExportMaximumLongEdgeChange(event.currentTarget.value)}
               step={1}
@@ -1593,6 +1660,18 @@ function ExportControls({
           </p>
         ) : null}
 
+        {exportDimensionIssue ? (
+          <p className="export-controls__error" role="alert">
+            {exportDimensionIssue}
+          </p>
+        ) : null}
+
+        {exportAllocationWarning ? (
+          <p aria-live="polite" className="export-controls__warning" role="status">
+            {exportAllocationWarning}
+          </p>
+        ) : null}
+
         {exportMaximumLongEdge !== null && estimatedOutputDimensions ? (
           <p className="field__hint">
             {formatOption?.label ?? 'Export'} will be written as a fresh file; the source remains
@@ -1601,7 +1680,9 @@ function ExportControls({
         ) : null}
         <div className="export-controls__actions">
           <Button
-            disabled={!canExport || !maximumLongEdgeIsValid || isExporting}
+            disabled={
+              !canExport || !maximumLongEdgeIsValid || Boolean(exportDimensionIssue) || isExporting
+            }
             onClick={onDownload}
             variant="primary"
           >
@@ -1629,7 +1710,7 @@ export default function App() {
   );
   const [storageReady, setStorageReady] = useState(!browserStorageAvailable);
   const [storageFeedback, setStorageFeedback] = useState<string | null>(
-    browserStorageAvailable ? null : describeStorageError(),
+    browserStorageAvailable ? null : describeStorageError('unavailable'),
   );
   const [recoveryFeedback, setRecoveryFeedback] = useState<string | null>(null);
   const [recoveryNeedsSource, setRecoveryNeedsSource] = useState(false);
@@ -1682,6 +1763,16 @@ export default function App() {
   const estimatedOutputDimensions = sourcePhotograph
     ? getExportDimensions(sourcePhotograph, geometry, exportMaximumLongEdge)
     : null;
+  const exportDimensionIssue = estimatedOutputDimensions
+    ? getExportDimensionIssue(estimatedOutputDimensions)
+    : null;
+  const exportDimensionIssueMessage = exportDimensionIssue
+    ? describeExportDimensionIssue(exportDimensionIssue)
+    : null;
+  const exportAllocationWarning =
+    estimatedOutputDimensions && isLikelyOversizedExport(estimatedOutputDimensions)
+      ? describeExportAllocationWarning(estimatedOutputDimensions)
+      : null;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1747,7 +1838,7 @@ export default function App() {
       void Promise.resolve().then(() => {
         if (!cancelled) {
           setStorageStatus('unavailable');
-          setStorageFeedback(describeStorageError());
+          setStorageFeedback(describeStorageError('unavailable'));
           setStorageReady(true);
         }
       });
@@ -1821,7 +1912,7 @@ export default function App() {
         if (!cancelled) {
           storageRef.current = null;
           setStorageStatus('failed');
-          setStorageFeedback(describeStorageError());
+          setStorageFeedback(describeStorageError('failed'));
         }
       } finally {
         if (!cancelled) {
@@ -2014,6 +2105,13 @@ export default function App() {
       }
     };
   }, [sourcePhotograph?.objectUrl]);
+
+  useEffect(() => {
+    return () => {
+      importRequestRef.current += 1;
+      presetImportRequestRef.current += 1;
+    };
+  }, []);
 
   function openFilePicker() {
     if (isImporting || importInFlightRef.current) {
@@ -2262,18 +2360,10 @@ export default function App() {
         description: look.description,
         title: look.title,
       });
-      const blob = new Blob([serializePreset(preset)], { type: 'application/json' });
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
       const downloadFileName = getPresetFileName(preset.title);
+      const blob = new Blob([serializePreset(preset)], { type: 'application/json' });
 
-      link.download = downloadFileName;
-      link.href = objectUrl;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+      downloadBlob(blob, downloadFileName);
 
       setImportFeedback({
         kind: 'success',
@@ -2320,7 +2410,7 @@ export default function App() {
     storageRef.current = null;
     pendingEditRef.current = null;
     setStorageStatus('failed');
-    setStorageFeedback(describeStorageError());
+    setStorageFeedback(describeStorageError('failed'));
   }
 
   function continueWithoutStorage() {
@@ -2332,7 +2422,7 @@ export default function App() {
 
     if (!storage) {
       setStorageStatus('unavailable');
-      setStorageFeedback(describeStorageError());
+      setStorageFeedback(describeStorageError('unavailable'));
       return;
     }
 
@@ -2494,6 +2584,7 @@ export default function App() {
       rendererStatus !== 'available' ||
       !isPreviewReady ||
       !maximumLongEdgeIsValid ||
+      exportDimensionIssue ||
       !outputDimensions ||
       isExporting ||
       exportInFlightRef.current
@@ -2517,17 +2608,9 @@ export default function App() {
         maximumLongEdge: exportMaximumLongEdge,
         quality: exportQuality,
       });
-      const objectUrl = URL.createObjectURL(blob);
       const downloadFileName = getExportFileName(source.fileName, selectedFormat);
-      const link = document.createElement('a');
 
-      link.download = downloadFileName;
-      link.href = objectUrl;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+      downloadBlob(blob, downloadFileName);
 
       setExportFeedback({
         kind: 'success',
@@ -2861,9 +2944,15 @@ export default function App() {
 
           <ExportControls
             canExport={
-              hasSource && isPreviewReady && rendererStatus === 'available' && !rendererError
+              hasSource &&
+              isPreviewReady &&
+              rendererStatus === 'available' &&
+              !rendererError &&
+              !exportDimensionIssue
             }
             estimatedOutputDimensions={estimatedOutputDimensions}
+            exportAllocationWarning={exportAllocationWarning}
+            exportDimensionIssue={exportDimensionIssueMessage}
             exportFormat={exportFormat}
             exportMaximumLongEdge={exportMaximumLongEdge}
             exportMaximumLongEdgeInput={exportMaximumLongEdgeInput}

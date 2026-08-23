@@ -6,6 +6,15 @@ import {
 
 export const exportFormats = ['jpeg', 'png', 'webp'] as const;
 
+/** The largest export edge OpenFilm will ask a browser canvas to allocate. */
+export const MAX_EXPORT_DIMENSION = 16_384;
+/** The largest export pixel count OpenFilm will ask a browser canvas to allocate. */
+export const MAX_EXPORT_PIXELS = 80_000_000;
+/** Exports at or above this size can consume enough pixel memory to fail on ordinary devices. */
+export const EXPORT_ALLOCATION_WARNING_PIXELS = 24_000_000;
+/** A long edge at this size is worth warning about even when the other edge is narrow. */
+export const EXPORT_ALLOCATION_WARNING_LONG_EDGE = 8_192;
+
 export type ExportFormat = (typeof exportFormats)[number];
 
 export interface ExportFormatOption {
@@ -54,6 +63,14 @@ export const defaultExportOptions: Readonly<ExportOptions> = Object.freeze({
 
 export type ExportDimensions = GeometryDimensions;
 
+export type ExportDimensionIssueCode =
+  'invalid-dimensions' | 'pixels-too-large' | 'dimension-too-large';
+
+export interface ExportDimensionIssue {
+  code: ExportDimensionIssueCode;
+  dimensions: ExportDimensions;
+}
+
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
@@ -64,6 +81,58 @@ export function isExportFormat(value: unknown): value is ExportFormat {
 
 export function getExportFormatOption(format: ExportFormat): ExportFormatOption {
   return exportFormatOptions.find((option) => option.value === format) ?? exportFormatOptions[0];
+}
+
+export function getExportDimensionIssue(dimensions: ExportDimensions): ExportDimensionIssue | null {
+  if (
+    !Number.isSafeInteger(dimensions.width) ||
+    !Number.isSafeInteger(dimensions.height) ||
+    dimensions.width < 1 ||
+    dimensions.height < 1
+  ) {
+    return { code: 'invalid-dimensions', dimensions };
+  }
+
+  if (dimensions.width > MAX_EXPORT_DIMENSION || dimensions.height > MAX_EXPORT_DIMENSION) {
+    return { code: 'dimension-too-large', dimensions };
+  }
+
+  if (dimensions.width * dimensions.height > MAX_EXPORT_PIXELS) {
+    return { code: 'pixels-too-large', dimensions };
+  }
+
+  return null;
+}
+
+export function describeExportDimensionIssue(issue: ExportDimensionIssue): string {
+  const dimensions = `${issue.dimensions.width.toLocaleString()} × ${issue.dimensions.height.toLocaleString()}`;
+
+  switch (issue.code) {
+    case 'invalid-dimensions':
+      return `OpenFilm could not determine safe export dimensions for ${dimensions} pixels. Choose a smaller crop or maximum long edge.`;
+    case 'dimension-too-large':
+      return `The ${dimensions}-pixel export exceeds the ${MAX_EXPORT_DIMENSION.toLocaleString()}-pixel edge limit. Choose a smaller maximum long edge or crop the Edit.`;
+    case 'pixels-too-large':
+      return `The ${dimensions}-pixel export exceeds the ${MAX_EXPORT_PIXELS.toLocaleString()}-pixel allocation limit. Choose a smaller maximum long edge or crop the Edit.`;
+  }
+}
+
+export function isLikelyOversizedExport(dimensions: ExportDimensions): boolean {
+  if (getExportDimensionIssue(dimensions)) {
+    return false;
+  }
+
+  return (
+    dimensions.width * dimensions.height >= EXPORT_ALLOCATION_WARNING_PIXELS ||
+    Math.max(dimensions.width, dimensions.height) >= EXPORT_ALLOCATION_WARNING_LONG_EDGE
+  );
+}
+
+export function describeExportAllocationWarning(dimensions: ExportDimensions): string {
+  const pixelBytes = dimensions.width * dimensions.height * 4;
+  const pixelMiB = Math.max(1, Math.round(pixelBytes / (1024 * 1024)));
+
+  return `This ${dimensions.width.toLocaleString()} × ${dimensions.height.toLocaleString()} export may need about ${pixelMiB.toLocaleString()} MiB of browser pixel memory. If allocation fails, choose a smaller maximum long edge.`;
 }
 
 export function isLossyExportFormat(format: ExportFormat): boolean {

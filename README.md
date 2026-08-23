@@ -129,6 +129,21 @@ remote font, analytics script, server route, or API client.
 
 ## Known limits
 
+OpenFilm applies these bounded browser limits before it attempts the corresponding resource-heavy
+operation:
+
+| Area                      | Limit                                              | Recovery                                             |
+| ------------------------- | -------------------------------------------------- | ---------------------------------------------------- |
+| Source photograph bytes   | 20 MiB maximum                                     | Choose a smaller JPEG, PNG, or WebP.                 |
+| Decoded source dimensions | 16,384 pixels per edge and 80,000,000 total pixels | Choose a smaller photograph.                         |
+| Preset file bytes         | 64 KiB of UTF-8 JSON                               | Export or choose a smaller preset.                   |
+| Rendered image export     | 16,384 pixels per edge and 80,000,000 total pixels | Crop the Edit or choose a smaller maximum long edge. |
+
+The preview drawing buffer is independently bounded to 4,096 pixels on its longest side. Exports
+at or above 24,000,000 pixels, or with an 8,192-pixel edge, receive a browser pixel-memory warning
+before allocation. These are practical browser limits, not guarantees that every device can
+allocate the maximum; an allocation failure remains recoverable by choosing a smaller export.
+
 The current import path accepts JPEG, PNG, and WebP files at most 20 MiB. After browser
 decoding, it accepts photographs up to 16,384 pixels on either side and 80 million total pixels;
 these limits keep ordinary phone and camera photographs practical for a browser preview. The
@@ -152,7 +167,8 @@ size and sends it through the same WebGL2 adjustment, curve, effect, grain, and 
 the preview; browser re-encoding strips source metadata and creates a new download without
 overwriting the source. Very large source-dimension exports can exceed a browser's WebGL2 texture
 or canvas allocation limit; OpenFilm reports that failure and suggests a smaller maximum long edge.
-The preview texture and canvas drawing buffer are bounded to 4,096 pixels on their longest side.
+The preview texture and canvas drawing buffer are bounded to 4,096 pixels on their longest side;
+the export edge and total-pixel limits above are checked before allocation.
 The tone curve is intentionally limited to eight ordered points and one shared RGB mapping. WebGL2
 is required; the interface explains how to recover when the capability is missing or its context is
 lost. Preset files use OpenFilm format version 1.1 and accept the previous 1.0 minor version. The

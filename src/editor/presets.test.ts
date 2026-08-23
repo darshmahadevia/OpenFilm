@@ -80,4 +80,13 @@ describe('OpenFilm preset format', () => {
     ).toThrow();
     expect(() => deserializePreset('x'.repeat(PRESET_MAX_FILE_SIZE + 1))).toThrow(/too large/i);
   });
+
+  it('measures the preset limit in UTF-8 bytes rather than JavaScript characters', () => {
+    const oversizedUtf8 = 'é'.repeat(Math.floor(PRESET_MAX_FILE_SIZE / 2) + 1);
+
+    expect(new TextEncoder().encode(oversizedUtf8).byteLength).toBeGreaterThan(
+      PRESET_MAX_FILE_SIZE,
+    );
+    expect(() => deserializePreset(oversizedUtf8)).toThrow(/too large/i);
+  });
 });

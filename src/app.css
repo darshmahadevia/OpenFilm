@@ -652,6 +652,12 @@ strong {
   line-height: 1.45;
 }
 
+.export-controls__warning {
+  color: var(--color-muted);
+  font-size: var(--type-xs);
+  line-height: 1.45;
+}
+
 .control-stack {
   display: grid;
   gap: var(--space-6);

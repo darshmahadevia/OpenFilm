@@ -75,6 +75,17 @@ test('explains missing WebGL2 and offers reload', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Reload page' })).toBeVisible();
 });
 
+test('shows a recoverable state when the WebGL2 context is lost', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
+
+  await page.locator('canvas.render-canvas').dispatchEvent('webglcontextlost');
+
+  await expect(page.getByRole('heading', { name: 'Preview stopped.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reload page' })).toBeVisible();
+});
+
 test('imports, previews, resets, replaces, and downloads a JPEG', async ({ page }) => {
   await page.goto('/');
 
@@ -161,6 +172,40 @@ test('selects PNG, reports bounded dimensions, and downloads a fresh export', as
   expect(bytes.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   expect(bytes.readUInt32BE(16)).toBe(200);
   expect(bytes.readUInt32BE(20)).toBe(150);
+});
+
+test('keeps a large source preview bounded and warns before a large export', async ({ page }) => {
+  await page.addInitScript(() => {
+    const naturalWidth = Object.getOwnPropertyDescriptor(
+      HTMLImageElement.prototype,
+      'naturalWidth',
+    );
+    const naturalHeight = Object.getOwnPropertyDescriptor(
+      HTMLImageElement.prototype,
+      'naturalHeight',
+    );
+
+    Object.defineProperty(HTMLImageElement.prototype, 'naturalWidth', {
+      configurable: true,
+      get() {
+        return (naturalWidth?.get?.call(this) ?? 0) > 0 ? 6_000 : 0;
+      },
+    });
+    Object.defineProperty(HTMLImageElement.prototype, 'naturalHeight', {
+      configurable: true,
+      get() {
+        return (naturalHeight?.get?.call(this) ?? 0) > 0 ? 4_000 : 0;
+      },
+    });
+  });
+  await page.goto('/');
+  await page.getByLabel('Choose source photograph').setInputFiles(fixtureFile(previewFixture));
+
+  await expect(page.getByRole('heading', { name: previewFixture.fileName })).toBeVisible();
+  await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
+  await openExport(page);
+  await expect(page.getByText(/browser pixel memory/)).toBeVisible();
+  await expect(page.locator('.export-estimate strong')).toHaveText('6,000 × 4,000 pixels');
 });
 
 test('shows a recovery action when export encoding fails', async ({ page }) => {

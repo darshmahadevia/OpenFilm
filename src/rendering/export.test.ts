@@ -1,11 +1,18 @@
 import { neutralGeometry } from '../editor/geometry';
 import {
   defaultExportOptions,
+  describeExportAllocationWarning,
+  describeExportDimensionIssue,
+  EXPORT_ALLOCATION_WARNING_PIXELS,
   exportFormatOptions,
+  getExportDimensionIssue,
   getExportDimensions,
   getExportFileName,
   getExportSourceDimensions,
+  isLikelyOversizedExport,
   isLossyExportFormat,
+  MAX_EXPORT_DIMENSION,
+  MAX_EXPORT_PIXELS,
   normalizeExportOptions,
 } from './export';
 
@@ -46,6 +53,29 @@ describe('image export options', () => {
     expect(getExportDimensions(source, geometry, 600)).toEqual({ height: 600, width: 267 });
     expect(getExportDimensions(source, geometry, 2_000)).toEqual({ height: 900, width: 400 });
     expect(getExportSourceDimensions(source, geometry, 600)).toEqual({ height: 533, width: 800 });
+  });
+
+  it('rejects export dimensions that exceed the shared browser allocation bounds', () => {
+    const edgeIssue = getExportDimensionIssue({
+      height: 2_000,
+      width: MAX_EXPORT_DIMENSION + 1,
+    });
+    const pixelIssue = getExportDimensionIssue({ height: 10_000, width: 10_000 });
+
+    expect(edgeIssue?.code).toBe('dimension-too-large');
+    expect(describeExportDimensionIssue(edgeIssue!)).toContain('edge limit');
+    expect(pixelIssue?.code).toBe('pixels-too-large');
+    expect(describeExportDimensionIssue(pixelIssue!)).toContain(MAX_EXPORT_PIXELS.toLocaleString());
+    expect(getExportDimensionIssue({ height: 8_000, width: 8_000 })).toBeNull();
+  });
+
+  it('warns before a likely oversized but still bounded export', () => {
+    const dimensions = { height: 4_000, width: 6_000 };
+
+    expect(dimensions.height * dimensions.width).toBe(EXPORT_ALLOCATION_WARNING_PIXELS);
+    expect(isLikelyOversizedExport(dimensions)).toBe(true);
+    expect(describeExportAllocationWarning(dimensions)).toContain('browser pixel memory');
+    expect(isLikelyOversizedExport({ height: 3_000, width: 3_000 })).toBe(false);
   });
 
   it('creates format-specific filenames from the source name', () => {

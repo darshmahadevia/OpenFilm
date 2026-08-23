@@ -15,7 +15,9 @@ import {
 
 export const storageNotice = 'Browser storage is for recovery, not a backup.';
 export const storageUnavailableNotice =
-  'Local recovery is unavailable here. Your Edit will remain in memory until this tab closes.';
+  'Local recovery is unavailable here because this browser does not provide IndexedDB. Your Edit will remain in memory until this tab closes.';
+export const storageFailureNotice =
+  'Local recovery is unavailable here because browser storage failed. Your Edit will remain in memory until this tab closes. Try again or continue without recovery.';
 
 export const STORAGE_DATABASE_NAME = 'openfilm';
 export const STORAGE_DATABASE_VERSION = 2;
@@ -442,6 +444,6 @@ export function createMemoryStorage(
   };
 }
 
-export function describeStorageError(): string {
-  return storageUnavailableNotice;
+export function describeStorageError(reason: 'failed' | 'unavailable' = 'failed'): string {
+  return reason === 'unavailable' ? storageUnavailableNotice : storageFailureNotice;
 }

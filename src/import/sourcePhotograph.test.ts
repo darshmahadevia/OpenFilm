@@ -203,5 +203,11 @@ describe('source photograph import', () => {
         'large.jpg',
       ),
     ).toContain('20 MiB');
+    expect(
+      describeSourcePhotographImportError(
+        new SourcePhotographImportError('decode-failed', 'decode failed'),
+        'broken.jpg',
+      ),
+    ).toContain('could not decode');
   });
 });

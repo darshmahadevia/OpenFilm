@@ -180,8 +180,24 @@ export function serializePreset(preset: Preset): string {
   return `${JSON.stringify(normalized, null, 2)}\n`;
 }
 
+function getUtf8ByteLength(value: string): number {
+  if (typeof TextEncoder !== 'undefined') {
+    return new TextEncoder().encode(value).byteLength;
+  }
+
+  let byteLength = 0;
+
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0;
+
+    byteLength += codePoint <= 0x7f ? 1 : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4;
+  }
+
+  return byteLength;
+}
+
 export function deserializePreset(serialized: string): Preset {
-  if (typeof serialized !== 'string' || serialized.length > PRESET_MAX_FILE_SIZE) {
+  if (typeof serialized !== 'string' || getUtf8ByteLength(serialized) > PRESET_MAX_FILE_SIZE) {
     throwInvalidPreset('The file is too large.');
   }
 

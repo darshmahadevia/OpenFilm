@@ -11,6 +11,7 @@ import {
   TONE_CURVE_LUT_SIZE,
   type RendererStatus,
 } from './renderer';
+import { MAX_EXPORT_DIMENSION } from './export';
 import { grainSeedToUniform } from '../editor/grain';
 import { neutralGeometry } from '../editor/geometry';
 import { sourcePhotographFixtures } from '../import/sourcePhotographFixtures';
@@ -29,6 +30,7 @@ class RendererImage {
 
 function createFakeWebGL2Context() {
   const uniformLocations = new Map<string, WebGLUniformLocation>();
+  let textureId = 0;
   const gl = {
     ARRAY_BUFFER: 0x8892,
     CLAMP_TO_EDGE: 0x812f,
@@ -62,7 +64,7 @@ function createFakeWebGL2Context() {
     createBuffer: vi.fn(() => ({ kind: 'buffer' })),
     createProgram: vi.fn(() => ({ kind: 'program' })),
     createShader: vi.fn((type: number) => ({ kind: 'shader', type })),
-    createTexture: vi.fn(() => ({ kind: 'texture' })),
+    createTexture: vi.fn(() => ({ id: textureId++, kind: 'texture' })),
     createVertexArray: vi.fn(() => ({ kind: 'vertex-array' })),
     deleteBuffer: vi.fn(),
     deleteProgram: vi.fn(),
@@ -105,6 +107,13 @@ function createRendererFixture() {
   const statuses: RendererStatus[] = [];
   const imageBitmaps: Array<{ close: ReturnType<typeof vi.fn> }> = [];
   const blobDimensions: Array<{ height: number; width: number }> = [];
+  const createImageBitmap = vi.fn(async () => {
+    const bitmap = {
+      close: vi.fn(),
+    } as unknown as ImageBitmap;
+    imageBitmaps.push(bitmap as unknown as { close: ReturnType<typeof vi.fn> });
+    return bitmap;
+  });
   const toBlob = vi.fn((callback: BlobCallback, type?: string) => {
     blobDimensions.push({ height: canvas.height, width: canvas.width });
     callback(new Blob(['encoded'], { type: type ?? 'image/png' }));
@@ -118,13 +127,7 @@ function createRendererFixture() {
 
   const renderer = createRenderer(canvas, {
     createImage: () => new RendererImage() as unknown as HTMLImageElement,
-    createImageBitmap: vi.fn(async () => {
-      const bitmap = {
-        close: vi.fn(),
-      } as unknown as ImageBitmap;
-      imageBitmaps.push(bitmap as unknown as { close: ReturnType<typeof vi.fn> });
-      return bitmap;
-    }),
+    createImageBitmap,
     onStatusChange: (status) => statuses.push(status),
   });
 
@@ -132,7 +135,25 @@ function createRendererFixture() {
     throw new Error('The renderer fixture could not create a renderer.');
   }
 
-  return { blobDimensions, canvas, gl, imageBitmaps, renderer, statuses, toBlob };
+  return {
+    blobDimensions,
+    canvas,
+    createImageBitmap,
+    gl,
+    imageBitmaps,
+    renderer,
+    statuses,
+    toBlob,
+  };
+}
+
+async function flushRenderFrame(): Promise<void> {
+  if (typeof window.requestAnimationFrame === 'function') {
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+    return;
+  }
+
+  await Promise.resolve();
 }
 
 describe('renderer capability and geometry helpers', () => {
@@ -164,6 +185,53 @@ describe('renderer capability and geometry helpers', () => {
       width: MAX_PREVIEW_DIMENSION,
     });
     expect(getPreviewDimensions(1200, 800)).toEqual({ height: 800, width: 1200 });
+  });
+
+  it('prepares a representative large source through a bounded preview', async () => {
+    const { createImageBitmap, renderer } = createRendererFixture();
+
+    await renderer.replaceImage({
+      height: 8_000,
+      objectUrl: 'blob:large-camera.jpg',
+      width: 16_000,
+    });
+
+    expect(createImageBitmap).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ resizeHeight: 2_048, resizeWidth: MAX_PREVIEW_DIMENSION }),
+    );
+    renderer.dispose();
+  });
+
+  it('releases the bounded fallback canvas after uploading its pixels', async () => {
+    const canvas = document.createElement('canvas');
+    const temporaryCanvas = document.createElement('canvas');
+    const gl = createFakeWebGL2Context();
+    const temporaryContext = {
+      drawImage: vi.fn(),
+      imageSmoothingEnabled: false,
+      imageSmoothingQuality: 'low',
+    } as unknown as CanvasRenderingContext2D;
+
+    vi.spyOn(canvas, 'getContext').mockReturnValue(gl);
+    vi.spyOn(temporaryCanvas, 'getContext').mockReturnValue(temporaryContext);
+    const renderer = createRenderer(canvas, {
+      createCanvas: () => temporaryCanvas,
+      createImage: () => new RendererImage() as unknown as HTMLImageElement,
+      createImageBitmap: vi.fn(async () => {
+        throw new Error('bitmap path unavailable');
+      }),
+    });
+
+    if (!renderer) {
+      throw new Error('The renderer fixture could not create a renderer.');
+    }
+
+    await renderer.replaceImage({ height: 2, objectUrl: 'blob:fallback.png', width: 3 });
+
+    expect(temporaryCanvas.width).toBe(0);
+    expect(temporaryCanvas.height).toBe(0);
+    renderer.dispose();
   });
 
   it('fits a source inside the canvas without stretching it', () => {
@@ -230,6 +298,7 @@ describe('WebGL2 preview renderer', () => {
       vignetteAmount: 65,
       vignetteSoftness: 80,
     });
+    await flushRenderFrame();
 
     expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_exposure' }, 0.5);
     expect(gl.uniform1f).toHaveBeenCalledWith({ name: 'u_contrast' }, 0.25);
@@ -354,6 +423,97 @@ describe('WebGL2 preview renderer', () => {
     renderer.dispose();
   });
 
+  it('releases stale prepared images when a replacement wins a race', async () => {
+    const { createImageBitmap, imageBitmaps, renderer } = createRendererFixture();
+    let releaseFirstBitmap: ((bitmap: ImageBitmap) => void) | undefined;
+    const firstBitmap = { close: vi.fn() } as unknown as ImageBitmap;
+    const secondBitmap = { close: vi.fn() } as unknown as ImageBitmap;
+
+    createImageBitmap.mockImplementationOnce(
+      () =>
+        new Promise<ImageBitmap>((resolve) => {
+          releaseFirstBitmap = resolve;
+        }),
+    );
+    createImageBitmap.mockImplementationOnce(async () => secondBitmap);
+
+    const firstReplace = renderer.replaceImage({
+      height: 2,
+      objectUrl: 'blob:first.png',
+      width: 3,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const secondReplace = renderer.replaceImage({
+      height: 2,
+      objectUrl: 'blob:second.png',
+      width: 3,
+    });
+    await secondReplace;
+    releaseFirstBitmap?.(firstBitmap);
+    await firstReplace;
+
+    expect(secondBitmap.close).toHaveBeenCalledTimes(1);
+    expect(firstBitmap.close).toHaveBeenCalledTimes(1);
+    expect(imageBitmaps).toHaveLength(0);
+    renderer.dispose();
+  });
+
+  it('does not restore or leak a stale preview when a source changes during export', async () => {
+    const { gl, renderer, toBlob } = createRendererFixture();
+
+    await renderer.replaceImage({ height: 2, objectUrl: 'blob:first.png', width: 3 });
+    const sourceTexture = (gl.createTexture as ReturnType<typeof vi.fn>).mock.results[1]?.value;
+    let finishEncoding: BlobCallback | undefined;
+    toBlob.mockImplementation((callback) => {
+      finishEncoding = callback;
+    });
+
+    const exportPromise = renderer.exportImage({ format: 'png' });
+
+    for (let attempt = 0; attempt < 10 && !toBlob.mock.calls.length; attempt += 1) {
+      await Promise.resolve();
+    }
+
+    expect(toBlob).toHaveBeenCalled();
+    await renderer.replaceImage({ height: 2, objectUrl: 'blob:second.png', width: 3 });
+    finishEncoding?.(new Blob(['encoded'], { type: 'image/png' }));
+
+    await expect(exportPromise).rejects.toThrow(/source photograph changed/i);
+    expect(gl.deleteTexture).toHaveBeenCalledWith(sourceTexture);
+    renderer.dispose();
+  });
+
+  it('reports export allocation failure before leaving the preview unavailable', async () => {
+    const { canvas, gl, renderer } = createRendererFixture();
+
+    await renderer.replaceImage({ height: 2, objectUrl: 'blob:landscape.png', width: 3 });
+    (gl.createTexture as ReturnType<typeof vi.fn>).mockReturnValueOnce(null);
+
+    await expect(renderer.exportImage({ format: 'png' })).rejects.toThrow(
+      /could not allocate .* export/i,
+    );
+    expect(canvas.width).toBeGreaterThan(0);
+    expect(canvas.height).toBeGreaterThan(0);
+    renderer.dispose();
+  });
+
+  it('rejects an export beyond the documented edge bound before decoding it again', async () => {
+    const { createImageBitmap, renderer } = createRendererFixture();
+
+    await renderer.replaceImage({
+      height: 100,
+      objectUrl: 'blob:too-wide.jpg',
+      width: MAX_EXPORT_DIMENSION + 1,
+    });
+    const decodeCallsBeforeExport = createImageBitmap.mock.calls.length;
+
+    await expect(renderer.exportJpeg()).rejects.toThrow(/edge limit/i);
+    expect(createImageBitmap).toHaveBeenCalledTimes(decodeCallsBeforeExport);
+    renderer.dispose();
+  });
+
   it('applies the normalized crop transform to the shader and export buffer', async () => {
     const { blobDimensions, canvas, gl, renderer } = createRendererFixture();
 
@@ -365,6 +525,7 @@ describe('WebGL2 preview renderer', () => {
       flipHorizontal: true,
       rotation: 90,
     });
+    await flushRenderFrame();
 
     expect(gl.uniform4f).toHaveBeenCalledWith({ name: 'u_crop' }, 0.25, 0.1, 0.5, 0.5);
     expect(gl.uniform1i).toHaveBeenCalledWith({ name: 'u_flip_horizontal' }, 1);
@@ -377,6 +538,50 @@ describe('WebGL2 preview renderer', () => {
     expect(canvas.width).toBe(1000);
     expect(canvas.height).toBe(800);
     renderer.dispose();
+  });
+
+  it('coalesces rapid control changes into one latest-state render', async () => {
+    const { gl, renderer } = createRendererFixture();
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    const originalCancelAnimationFrame = window.cancelAnimationFrame;
+    let nextFrameId = 1;
+    const pendingFrames = new Map<number, FrameRequestCallback>();
+
+    window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      const frameId = nextFrameId++;
+      pendingFrames.set(frameId, callback);
+      return frameId;
+    }) as typeof window.requestAnimationFrame;
+    window.cancelAnimationFrame = ((frameId: number) => {
+      pendingFrames.delete(frameId);
+    }) as typeof window.cancelAnimationFrame;
+
+    try {
+      await renderer.replaceImage({ height: 2, objectUrl: 'blob:rapid.png', width: 3 });
+      const drawsBeforeChanges = (gl.drawArrays as ReturnType<typeof vi.fn>).mock.calls.length;
+
+      renderer.setGeometry({ ...neutralGeometry, rotation: 90 });
+      renderer.setGeometry({ ...neutralGeometry, rotation: 180 });
+      renderer.setGeometry({ ...neutralGeometry, rotation: 270 });
+
+      expect((gl.drawArrays as ReturnType<typeof vi.fn>).mock.calls.length).toBe(
+        drawsBeforeChanges,
+      );
+      expect(pendingFrames.size).toBe(1);
+
+      const [callback] = pendingFrames.values();
+      pendingFrames.clear();
+      callback?.(0);
+
+      expect(gl.uniform1i).toHaveBeenLastCalledWith({ name: 'u_rotation' }, 270);
+      expect((gl.drawArrays as ReturnType<typeof vi.fn>).mock.calls.length).toBe(
+        drawsBeforeChanges + 1,
+      );
+    } finally {
+      window.requestAnimationFrame = originalRequestAnimationFrame;
+      window.cancelAnimationFrame = originalCancelAnimationFrame;
+      renderer.dispose();
+    }
   });
 
   it('resizes the drawing buffer and reports a recoverable context loss', async () => {

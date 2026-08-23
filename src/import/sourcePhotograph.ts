@@ -58,7 +58,11 @@ function createBrowserObjectUrl(file: File): string {
 
 function revokeBrowserObjectUrl(objectUrl: string): void {
   if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
-    URL.revokeObjectURL(objectUrl);
+    try {
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      // Releasing an already-invalid browser URL is best effort.
+    }
   }
 }
 
@@ -142,7 +146,7 @@ export function describeSourcePhotographImportError(error: unknown, fileName: st
     case 'unsupported-type':
       return `${name} is not supported. Choose a JPEG, PNG, or WebP file.`;
     case 'file-too-large':
-      return `${name} is too large. Choose a file under ${formatSourcePhotographFileSizeLimit()}.`;
+      return `${name} is too large. Choose a file at most ${formatSourcePhotographFileSizeLimit()}.`;
     case 'invalid-dimensions':
       return `${name} has no usable dimensions. Choose another photograph.`;
     case 'dimensions-too-large':
@@ -150,7 +154,7 @@ export function describeSourcePhotographImportError(error: unknown, fileName: st
     case 'browser-unavailable':
       return `This browser could not make a local preview for ${name}. Try a current browser.`;
     case 'decode-failed':
-      return `OpenFilm could not read ${name}. Choose another JPEG, PNG, or WebP file.`;
+      return `OpenFilm could not decode ${name}. Choose another JPEG, PNG, or WebP file.`;
   }
 }
 
@@ -243,7 +247,11 @@ export async function importSourcePhotograph(
     };
   } catch (error) {
     if (!ownershipTransferred && objectUrl) {
-      revokeObjectUrl(objectUrl);
+      try {
+        revokeObjectUrl(objectUrl);
+      } catch {
+        // Preserve the specific import failure even if browser URL cleanup fails.
+      }
     }
 
     throw error;

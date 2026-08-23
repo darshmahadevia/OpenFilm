@@ -67,6 +67,8 @@ describe('browser storage', () => {
   });
 
   it('explains that a failed storage adapter does not end the editing session', () => {
+    expect(describeStorageError('failed')).toContain('browser storage failed');
+    expect(describeStorageError('unavailable')).toContain('does not provide IndexedDB');
     expect(describeStorageError()).toContain('remain in memory');
     expect(createBrowserStorage(undefined)).toBeNull();
   });

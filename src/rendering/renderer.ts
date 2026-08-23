@@ -18,7 +18,9 @@ import {
 } from '../editor/geometry';
 import { createToneCurveLookup, neutralToneCurve } from '../editor/toneCurve';
 import {
+  describeExportDimensionIssue,
   getExportDimensions,
+  getExportDimensionIssue,
   getExportSourceDimensions,
   getExportFormatOption,
   normalizeExportOptions,
@@ -503,6 +505,23 @@ function createBrowserCanvas(): HTMLCanvasElement {
   return document.createElement('canvas');
 }
 
+function releaseCanvas(canvas: HTMLCanvasElement): void {
+  try {
+    canvas.width = 0;
+    canvas.height = 0;
+  } catch {
+    // Temporary canvases are otherwise released by garbage collection.
+  }
+}
+
+function releaseImageBitmap(bitmap: ImageBitmap): void {
+  try {
+    bitmap.close();
+  } catch {
+    // A bitmap may already be closed by the browser after context loss.
+  }
+}
+
 function loadSourceImage(
   source: RendererSourcePhotograph,
   createImage: () => HTMLImageElement,
@@ -617,7 +636,7 @@ async function prepareImageSource(
 
       return {
         dimensions,
-        release: () => bitmap.close(),
+        release: () => releaseImageBitmap(bitmap),
         source: bitmap,
       };
     } catch {
@@ -626,23 +645,34 @@ async function prepareImageSource(
   }
 
   const canvas = dependencies.createCanvas?.() ?? createBrowserCanvas();
-  canvas.width = dimensions.width;
-  canvas.height = dimensions.height;
-  const context = canvas.getContext('2d');
 
-  if (!context) {
-    throw new RendererError('This browser could not prepare a bounded WebGL2 preview.');
+  try {
+    canvas.width = dimensions.width;
+    canvas.height = dimensions.height;
+
+    if (canvas.width !== dimensions.width || canvas.height !== dimensions.height) {
+      throw new RendererError('This browser could not allocate the bounded WebGL2 preview.');
+    }
+
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+      throw new RendererError('This browser could not prepare a bounded WebGL2 preview.');
+    }
+
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(image, 0, 0, dimensions.width, dimensions.height);
+
+    return {
+      dimensions,
+      release: () => releaseCanvas(canvas),
+      source: canvas,
+    };
+  } catch (error) {
+    releaseCanvas(canvas);
+    throw error;
   }
-
-  context.imageSmoothingEnabled = true;
-  context.imageSmoothingQuality = 'high';
-  context.drawImage(image, 0, 0, dimensions.width, dimensions.height);
-
-  return {
-    dimensions,
-    release: () => undefined,
-    source: canvas,
-  };
 }
 
 function getCanvasDisplaySize(canvas: HTMLCanvasElement): { height: number; width: number } {
@@ -689,11 +719,42 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
   private histogramContext: CanvasRenderingContext2D | null = null;
   private imageDimensions: PreviewDimensions | null = null;
   private resources: GpuResources;
+  private scheduledRender: number | null = null;
   private sourceRequest = 0;
   private source: RendererSourcePhotograph | null = null;
 
+  private cancelScheduledRender(): void {
+    if (this.scheduledRender !== null) {
+      if (typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function') {
+        window.cancelAnimationFrame(this.scheduledRender);
+      }
+
+      this.scheduledRender = null;
+    }
+  }
+
+  private scheduleRender(): void {
+    if (this.disposed || this.contextLost || this.scheduledRender !== null) {
+      return;
+    }
+
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+      this.redraw();
+      return;
+    }
+
+    this.scheduledRender = window.requestAnimationFrame(() => {
+      this.scheduledRender = null;
+
+      if (!this.disposed && !this.contextLost) {
+        this.redraw();
+      }
+    });
+  }
+
   private readonly handleContextLost = (event: Event) => {
     event.preventDefault();
+    this.cancelScheduledRender();
     this.contextLost = true;
     this.sourceRequest += 1;
     this.imageDimensions = null;
@@ -717,6 +778,7 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
           this.options.onError?.(describeRendererFailure(error));
         });
       } else {
+        this.cancelScheduledRender();
         this.redraw();
       }
     } catch (error) {
@@ -741,6 +803,12 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     prepared: PreparedImageSource,
     dimensions: PreviewDimensions,
   ): WebGLTexture {
+    const dimensionIssue = getExportDimensionIssue(dimensions);
+
+    if (dimensionIssue) {
+      throw new RendererError(describeExportDimensionIssue(dimensionIssue));
+    }
+
     if (typeof this.gl.getParameter === 'function') {
       const maximumTextureSize = this.gl.getParameter(this.gl.MAX_TEXTURE_SIZE);
 
@@ -834,6 +902,7 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     }
 
     this.disposed = true;
+    this.cancelScheduledRender();
     this.sourceRequest += 1;
     this.source = null;
     this.canvas.removeEventListener('webglcontextlost', this.handleContextLost);
@@ -843,6 +912,9 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
       deleteGpuResources(this.gl, this.resources);
     }
 
+    if (this.histogramCanvas) {
+      releaseCanvas(this.histogramCanvas);
+    }
     this.histogramContext = null;
     this.histogramCanvas = null;
   }
@@ -912,12 +984,13 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
       return;
     }
 
+    this.cancelScheduledRender();
     deleteTexture(this.gl, this.resources);
     this.redraw();
 
-    const image = await loadSourceImage(source, this.options.createImage ?? createBrowserImage);
-
+    let image: HTMLImageElement | null = null;
     try {
+      image = await loadSourceImage(source, this.options.createImage ?? createBrowserImage);
       const prepared = await prepareImageSource(image, source, this.options);
 
       try {
@@ -945,6 +1018,17 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
             this.gl.UNSIGNED_BYTE,
             prepared.source,
           );
+
+          if (typeof this.gl.getError === 'function') {
+            const error = this.gl.getError();
+
+            if (error !== undefined && error !== this.gl.NO_ERROR) {
+              throw new RendererError(
+                'OpenFilm could not allocate the bounded source texture. Choose another photograph or a smaller one.',
+              );
+            }
+          }
+
           this.resources.texture = texture;
           this.imageDimensions = prepared.dimensions;
         } catch (error) {
@@ -957,7 +1041,7 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
         prepared.release();
       }
     } finally {
-      image.removeAttribute('src');
+      image?.removeAttribute('src');
     }
   }
 
@@ -983,12 +1067,19 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
       );
     }
 
+    this.cancelScheduledRender();
     const request = this.sourceRequest;
     const outputDimensions = getExportDimensions(
       source,
       this.geometry,
       normalizedOptions.maximumLongEdge,
     );
+    const outputDimensionIssue = getExportDimensionIssue(outputDimensions);
+
+    if (outputDimensionIssue) {
+      throw new RendererError(describeExportDimensionIssue(outputDimensionIssue));
+    }
+
     const sourceDimensions = getExportSourceDimensions(
       source,
       this.geometry,
@@ -1024,6 +1115,14 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
       try {
         this.canvas.width = outputDimensions.width;
         this.canvas.height = outputDimensions.height;
+
+        if (
+          this.canvas.width !== outputDimensions.width ||
+          this.canvas.height !== outputDimensions.height
+        ) {
+          throw new Error('The browser returned a smaller export drawing buffer.');
+        }
+
         this.gl.viewport(0, 0, outputDimensions.width, outputDimensions.height);
       } catch {
         throw new RendererError(
@@ -1032,7 +1131,18 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
       }
 
       this.redraw(outputDimensions);
-      return await this.encodeExport(normalizedOptions.format, normalizedOptions.quality);
+      const blob = await this.encodeExport(normalizedOptions.format, normalizedOptions.quality);
+
+      if (
+        this.disposed ||
+        this.contextLost ||
+        request !== this.sourceRequest ||
+        this.source !== source
+      ) {
+        throw new RendererError('The source photograph changed before export finished. Try again.');
+      }
+
+      return blob;
     } catch (error) {
       if (error instanceof RendererError) {
         throw error;
@@ -1042,22 +1152,38 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
         `OpenFilm could not create the ${formatOption.label} export. Try a smaller maximum long edge or a different format.`,
       );
     } finally {
-      if (exportStateActive) {
-        if (!this.contextLost && !this.disposed) {
+      const ownsExportState =
+        exportStateActive &&
+        !this.contextLost &&
+        request === this.sourceRequest &&
+        this.source === source &&
+        this.resources.texture === exportTexture;
+
+      if (ownsExportState) {
+        try {
           this.resources.texture = previewTexture;
           this.imageDimensions = previewImageDimensions;
           this.canvas.width = previewWidth;
           this.canvas.height = previewHeight;
           this.gl.viewport(0, 0, previewWidth, previewHeight);
           this.redraw();
-        } else {
-          this.resources.texture = null;
-          this.imageDimensions = null;
+        } catch {
+          this.resources.texture = previewTexture;
+          this.imageDimensions = previewImageDimensions;
         }
       }
 
-      if (exportTexture && !this.contextLost && !this.disposed) {
+      if (exportTexture && !this.contextLost) {
         this.gl.deleteTexture(exportTexture);
+      }
+
+      if (
+        exportStateActive &&
+        previewTexture &&
+        !this.contextLost &&
+        previewTexture !== this.resources.texture
+      ) {
+        this.gl.deleteTexture(previewTexture);
       }
 
       prepared?.release();
@@ -1159,7 +1285,7 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
 
     if (!this.contextLost && !this.disposed) {
       this.gl.viewport(0, 0, width, height);
-      this.redraw();
+      this.scheduleRender();
     }
   }
 
@@ -1180,7 +1306,7 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
       this.gl.uniform1f(this.resources.uniformVignetteSoftness, shaderAdjustments.vignetteSoftness);
       this.gl.uniform1f(this.resources.uniformGrainAmount, shaderAdjustments.grainAmount);
       this.gl.uniform1f(this.resources.uniformGrainSize, shaderAdjustments.grainSize);
-      this.redraw();
+      this.scheduleRender();
     }
   }
 
@@ -1188,7 +1314,7 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     this.geometry = normalizeGeometry(geometry);
 
     if (!this.contextLost && !this.disposed) {
-      this.redraw();
+      this.scheduleRender();
     }
   }
 
@@ -1198,7 +1324,7 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     if (!this.contextLost && !this.disposed) {
       this.gl.useProgram(this.resources.program);
       this.gl.uniform1f(this.resources.uniformGrainSeed, grainSeedToUniform(this.grainSeed));
-      this.redraw();
+      this.scheduleRender();
     }
   }
 }

@@ -23,6 +23,11 @@ class TestImage {
   removeAttribute() {}
 }
 
+class LargeTestImage extends TestImage {
+  override naturalHeight = 4_000;
+  override naturalWidth = 6_000;
+}
+
 function installImportBrowserMocks() {
   const createObjectUrl = vi.fn((file: File) => `blob:${file.name}`);
   const revokeObjectUrl = vi.fn();
@@ -272,6 +277,51 @@ describe('OpenFilm shell', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Apply preset' }));
       fireEvent.click(screen.getByRole('tab', { name: 'Adjust' }));
       expect(screen.getByLabelText('Exposure value')).toHaveValue(0.75);
+    } finally {
+      mocks.restore();
+    }
+  });
+
+  it('renders imported Look names and descriptions as plain text', async () => {
+    const preset = JSON.parse(validPresetFixture) as {
+      description: string;
+      title: string;
+    } & Record<string, unknown>;
+    preset.title = '<img src=x onerror=alert(1)> unsafe name';
+    preset.description = '<svg onload=alert(1)>unsafe description</svg>';
+    const presetFile = new File([JSON.stringify(preset)], 'unsafe-look.json', {
+      type: 'application/json',
+    });
+    const { container } = render(<App />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Looks' }));
+    fireEvent.change(screen.getByLabelText('Choose Look preset'), {
+      target: { files: [presetFile] },
+    });
+
+    const preview = await screen.findByRole('dialog', { name: 'Review Look preset' });
+
+    expect(preview).toHaveTextContent(preset.title);
+    expect(preview).toHaveTextContent(preset.description);
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('[onerror], [onload]')).toBeNull();
+  });
+
+  it('warns before a representative large export allocation', async () => {
+    const mocks = installImportBrowserMocks();
+    vi.stubGlobal('Image', LargeTestImage);
+    const sourceFile = createSourcePhotographFixtureFile(sourcePhotographFixtures[1]);
+
+    try {
+      render(<App />);
+      fireEvent.change(screen.getByLabelText('Choose source photograph'), {
+        target: { files: [sourceFile] },
+      });
+      expect(await screen.findByRole('heading', { name: sourceFile.name })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+
+      expect(await screen.findByText(/browser pixel memory/)).toBeInTheDocument();
     } finally {
       mocks.restore();
     }
