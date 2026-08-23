@@ -735,7 +735,9 @@ test('applies bundled Looks and supports custom Look CRUD', async ({ page }) => 
     )
     .toContain('My saved Look');
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Resume latest edit' })).toBeVisible();
+  await page.getByRole('button', { name: 'Resume latest edit' }).click();
+  await expect(page.getByText('openfilm-sample.png', { exact: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Looks' }).click();
   await expect(page.getByRole('heading', { name: 'My saved Look' })).toBeVisible();
 
@@ -841,7 +843,12 @@ test('recovers the latest Edit and its source after a reload', async ({ page }) 
   await page.getByRole('tab', { name: 'Adjust' }).click();
   await page.reload();
 
-  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'A quieter room for your photographs.' }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Resume latest edit' })).toBeVisible();
+  await page.getByRole('button', { name: 'Resume latest edit' }).click();
+  await expect(page.getByText('openfilm-sample.png', { exact: true })).toBeVisible();
   await expect(page.getByRole('spinbutton', { name: 'Exposure value' })).toHaveValue('1.25');
   await expect(page.getByText(/Recovered openfilm-sample\.png/)).toBeVisible();
   await page.getByRole('tab', { name: 'Geometry' }).click();

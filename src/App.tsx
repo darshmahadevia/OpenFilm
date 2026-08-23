@@ -239,6 +239,7 @@ function downloadBlob(blob: Blob, fileName: string): void {
 }
 
 function LandingPage({
+  canResumeEdit,
   importFeedback,
   isDropActive,
   isImporting,
@@ -246,6 +247,7 @@ function LandingPage({
   onContinueWithoutStorage,
   onDrop,
   onReload,
+  onResumeEdit,
   onRetryStorage,
   onSetDropActive,
   onTrySample,
@@ -255,6 +257,7 @@ function LandingPage({
   storageFeedback,
   storageStatus,
 }: {
+  canResumeEdit: boolean;
   importFeedback: { kind: 'error' | 'success'; message: string } | null;
   isDropActive: boolean;
   isImporting: boolean;
@@ -262,6 +265,7 @@ function LandingPage({
   onContinueWithoutStorage: () => void;
   onDrop: (event: DragEvent<HTMLDivElement>) => void;
   onReload: () => void;
+  onResumeEdit: () => void;
   onRetryStorage: () => void;
   onSetDropActive: (active: boolean) => void;
   onTrySample: () => void;
@@ -329,7 +333,15 @@ function LandingPage({
           <span>{isDropActive ? 'Release to open' : 'Drop a photograph anywhere'}</span>
         </div>
 
-        {recoveryNeedsSource ? (
+        {canResumeEdit ? (
+          <div className="landing-alert" role="status">
+            <strong>Your latest Edit is ready.</strong>
+            <p>{recoveryFeedback ?? 'Resume where you left off in this browser.'}</p>
+            <button onClick={onResumeEdit} type="button">
+              Resume latest edit
+            </button>
+          </div>
+        ) : recoveryNeedsSource ? (
           <div className="landing-alert" role="status">
             <strong>Your latest Edit is ready.</strong>
             <p>{recoveryFeedback ?? 'Choose its source photograph again to continue.'}</p>
@@ -1964,6 +1976,7 @@ export default function App() {
   const [state, dispatch] = useReducer(editorReducer, initialEditorState);
   const [sourcePhotograph, setSourcePhotograph] = useState<ImportedSourcePhotograph | null>(null);
   const hasSource = Boolean(sourcePhotograph);
+  const [isLandingVisible, setIsLandingVisible] = useState(true);
   const [editHistory, dispatchEditHistory] = useReducer(editHistoryReducer, createEditHistory());
   const [rendererStatus, setRendererStatus] = useState<RendererStatus>('unsupported');
   const [rendererError, setRendererError] = useState<string | null>(null);
@@ -2086,7 +2099,7 @@ export default function App() {
       renderer.dispose();
       rendererRef.current = null;
     };
-  }, [hasSource]);
+  }, [hasSource, isLandingVisible]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2458,6 +2471,7 @@ export default function App() {
       }
 
       setSourcePhotograph(imported);
+      setIsLandingVisible(false);
       setShowBefore(false);
       setExportFeedback(null);
       if (attachingRecoveredSource) {
@@ -2945,10 +2959,11 @@ export default function App() {
         ? 'Checking browser recovery'
         : 'Browser recovery unavailable';
 
-  if (!hasSource) {
+  if (isLandingVisible) {
     return (
       <>
         <LandingPage
+          canResumeEdit={hasSource && Boolean(recoveryFeedback)}
           importFeedback={importFeedback}
           isDropActive={isDropActive}
           isImporting={isImporting}
@@ -2956,6 +2971,7 @@ export default function App() {
           onContinueWithoutStorage={continueWithoutStorage}
           onDrop={handleSourceDrop}
           onReload={() => window.location.reload()}
+          onResumeEdit={() => setIsLandingVisible(false)}
           onRetryStorage={retryStorage}
           onSetDropActive={setIsDropActive}
           onTrySample={importBundledSample}

@@ -580,14 +580,6 @@ strong {
   text-underline-offset: 0.3rem;
 }
 
-.brand__mark {
-  width: 0.78rem;
-  height: 0.78rem;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-  background: transparent;
-}
-
 @keyframes landing-develop {
   from {
     clip-path: inset(0 0 100% 0);
@@ -622,17 +614,11 @@ strong {
 }
 
 .brand__mark {
-  align-items: center;
-  background: var(--color-ink);
-  border-radius: var(--radius-sm);
-  color: var(--color-paper);
-  display: inline-flex;
-  font-size: var(--type-xs);
-  font-weight: 750;
-  height: 1.65rem;
-  justify-content: center;
-  letter-spacing: -0.08em;
-  width: 1.65rem;
+  width: 0.78rem;
+  height: 0.78rem;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  background: transparent;
 }
 
 .brand__name {
