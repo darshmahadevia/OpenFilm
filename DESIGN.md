@@ -8,6 +8,7 @@ colors:
   paper: '#f4f3ee'
   surface: '#fbfaf6'
   surface-raised: '#efeee8'
+  canvas: '#deddd4'
   line: '#d4d3ca'
   line-strong: '#b8b8ad'
   accent: '#b45335'
@@ -182,6 +183,7 @@ set of scoped tones and a brighter action accent.
 - **Process Copy:** supporting copy on the process paper field.
 - **Exposed Rule:** the process grid's quiet gray rule color.
 - **Editor Paper:** the shared editor page background.
+- **Canvas Neutral:** the quiet gray field behind photographs that do not fill the preview frame.
 - **Editor Surface:** raised editor controls and fields.
 - **Editor Ink / Editor Ink Soft / Muted:** primary, secondary, and utility text roles.
 - **Editor Line / Strong Line:** one-pixel dividers and field strokes.

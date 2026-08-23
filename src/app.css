@@ -27,6 +27,10 @@ body {
     env(safe-area-inset-left);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 button,
 input,
 select {
@@ -221,7 +225,6 @@ strong {
 }
 
 .landing-hero__copy {
-  position: relative;
   z-index: 2;
   align-self: center;
   width: min(92rem, 100%);
@@ -331,6 +334,10 @@ strong {
   color: #251b12;
   background: #e8dfcc;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+}
+
+.landing-alert strong {
+  line-height: 1.25;
 }
 
 .landing-alert--error {
@@ -697,7 +704,31 @@ strong {
   padding: 0 var(--space-8) var(--space-8);
 }
 
+.skip-link {
+  position: fixed;
+  z-index: 20;
+  top: var(--space-3);
+  left: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-ink);
+  border-radius: var(--radius-sm);
+  color: var(--color-surface);
+  background: var(--color-ink);
+  font-size: var(--type-sm);
+  font-weight: 650;
+  text-decoration: none;
+  transform: translateY(calc(-100% - var(--space-6)));
+  transition: transform var(--motion-fast) ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 .topbar {
+  position: sticky;
+  z-index: 8;
+  top: 0;
   align-items: center;
   border-bottom: 1px solid var(--color-line);
   display: flex;
@@ -705,6 +736,7 @@ strong {
   margin: 0 auto;
   max-width: 1440px;
   min-height: 4.5rem;
+  background: var(--color-paper);
 }
 
 .brand {
@@ -792,7 +824,7 @@ strong {
 
 .canvas-stage {
   align-items: center;
-  background: #deddd4;
+  background: var(--color-canvas);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
   display: grid;
@@ -820,6 +852,7 @@ strong {
   position: absolute;
   width: 100%;
   z-index: 1;
+  transition: opacity var(--motion-normal) ease;
 }
 
 .render-canvas--visible {
@@ -1064,6 +1097,7 @@ strong {
   min-height: 38rem;
   min-width: 0;
   padding-left: var(--space-8);
+  scrollbar-color: var(--color-line-strong) transparent;
 }
 
 .control-area__header h2 {
@@ -1088,11 +1122,13 @@ strong {
 .tool-tabs {
   align-items: stretch;
   border-bottom: 1px solid var(--color-line);
-  display: flex;
-  gap: var(--space-5);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: var(--space-8);
-  overflow-x: auto;
-  scrollbar-width: thin;
+  position: sticky;
+  z-index: 3;
+  top: 0;
+  background: var(--color-paper);
 }
 
 .tool-tab {
@@ -1106,6 +1142,10 @@ strong {
   min-width: var(--touch-target);
   padding: var(--space-2) var(--space-2);
   white-space: nowrap;
+}
+
+.tool-tab:active {
+  background: var(--color-surface-raised);
 }
 
 .tool-tab:hover,
@@ -1576,12 +1616,15 @@ strong {
 
 select {
   appearance: none;
-  background: var(--color-surface);
+  background-color: var(--color-surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath d='m3.5 5.25 3.5 3.5 3.5-3.5' fill='none' stroke='%234e514b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
   border: 1px solid var(--color-line-strong);
   border-radius: var(--radius-sm);
   color: var(--color-ink);
   min-height: var(--touch-target);
-  padding: 0 var(--space-3);
+  padding: 0 calc(var(--space-8) + var(--space-1)) 0 var(--space-3);
   width: 100%;
 }
 
@@ -1646,6 +1689,11 @@ select:disabled {
     background-color var(--motion-fast) ease,
     border-color var(--motion-fast) ease,
     color var(--motion-fast) ease;
+}
+
+.button:active:not(:disabled),
+.icon-button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .button--small {
@@ -2021,6 +2069,9 @@ textarea {
     min-height: 0;
     padding-left: 0;
     padding-top: var(--space-8);
+    max-height: none;
+    overflow: visible;
+    position: static;
   }
 
   .control-area__header p {
@@ -2029,6 +2080,19 @@ textarea {
 
   .tool-tabs {
     margin-top: var(--space-6);
+    top: 4rem;
+  }
+}
+
+@media (min-width: 901px) {
+  .control-area {
+    position: sticky;
+    top: 6.25rem;
+    max-height: calc(100svh - 7.75rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: var(--space-4);
+    scroll-padding-top: 4rem;
   }
 }
 
@@ -2090,8 +2154,9 @@ textarea {
   }
 
   .landing-alert {
-    right: 1.25rem;
-    bottom: 4rem;
+    position: static;
+    width: 100%;
+    margin-top: var(--space-6);
   }
 
   .landing-process h2,
@@ -2192,7 +2257,8 @@ textarea {
   }
 
   .tool-tabs {
-    gap: var(--space-3);
+    margin-inline: calc(var(--space-4) * -1);
+    padding-inline: var(--space-4);
   }
 
   .disclosure__description {

@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent, KeyboardEvent, PointerEvent, ReactNode } from 'react';
 
 import darkroomHeroUrl from './assets/openfilm-darkroom-hero.webp';
@@ -328,46 +328,46 @@ function LandingPage({
             </Button>
           </div>
           <p className="landing-hero__formats">JPEG, PNG, or WebP · up to 20 MB</p>
+
+          {canResumeEdit ? (
+            <div className="landing-alert" role="status">
+              <strong>Your latest Edit is ready.</strong>
+              <p>{recoveryFeedback ?? 'Resume where you left off in this browser.'}</p>
+              <button onClick={onResumeEdit} type="button">
+                Resume latest edit
+              </button>
+            </div>
+          ) : recoveryNeedsSource ? (
+            <div className="landing-alert" role="status">
+              <strong>Your latest Edit is ready.</strong>
+              <p>{recoveryFeedback ?? 'Choose its source photograph again to continue.'}</p>
+              <button onClick={onChoosePhotograph} type="button">
+                Choose source photograph
+              </button>
+            </div>
+          ) : importFeedback?.kind === 'error' ? (
+            <div className="landing-alert landing-alert--error" role="alert">
+              <strong>That file could not be opened.</strong>
+              <p>{importFeedback.message}</p>
+              <button onClick={onChoosePhotograph} type="button">
+                Try another file
+              </button>
+            </div>
+          ) : rendererMessage ? (
+            <div className="landing-alert landing-alert--error" role="alert">
+              <strong>The editor cannot start.</strong>
+              <p>{rendererMessage}</p>
+              <button onClick={onReload} type="button">
+                Reload page
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className="landing-hero__status">
           <span>Your photographs stay on this device.</span>
           <span>{isDropActive ? 'Release to open' : 'Drop a photograph anywhere'}</span>
         </div>
-
-        {canResumeEdit ? (
-          <div className="landing-alert" role="status">
-            <strong>Your latest Edit is ready.</strong>
-            <p>{recoveryFeedback ?? 'Resume where you left off in this browser.'}</p>
-            <button onClick={onResumeEdit} type="button">
-              Resume latest edit
-            </button>
-          </div>
-        ) : recoveryNeedsSource ? (
-          <div className="landing-alert" role="status">
-            <strong>Your latest Edit is ready.</strong>
-            <p>{recoveryFeedback ?? 'Choose its source photograph again to continue.'}</p>
-            <button onClick={onChoosePhotograph} type="button">
-              Choose source photograph
-            </button>
-          </div>
-        ) : importFeedback?.kind === 'error' ? (
-          <div className="landing-alert landing-alert--error" role="alert">
-            <strong>That file could not be opened.</strong>
-            <p>{importFeedback.message}</p>
-            <button onClick={onChoosePhotograph} type="button">
-              Try another file
-            </button>
-          </div>
-        ) : rendererMessage ? (
-          <div className="landing-alert landing-alert--error" role="alert">
-            <strong>The editor cannot start.</strong>
-            <p>{rendererMessage}</p>
-            <button onClick={onReload} type="button">
-              Reload page
-            </button>
-          </div>
-        ) : null}
       </section>
 
       <section className="landing-process" id="process">
@@ -2062,6 +2062,19 @@ export default function App() {
       ? describeExportAllocationWarning(estimatedOutputDimensions)
       : null;
 
+  useLayoutEffect(() => {
+    if (!isLandingVisible) {
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
+  }, [isLandingVisible]);
+
+  useEffect(() => {
+    document
+      .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+      ?.setAttribute('content', isLandingVisible ? '#0c0c0a' : '#f4f3ee');
+  }, [isLandingVisible]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
 
@@ -2310,7 +2323,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [sourcePhotograph]);
+  }, [isLandingVisible, sourcePhotograph]);
 
   useEffect(() => {
     const renderer = rendererRef.current;
@@ -3006,6 +3019,9 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#active-tool">
+        Skip to editor controls
+      </a>
       <header className="topbar">
         <a aria-label="OpenFilm home" className="brand" href="/">
           <span aria-hidden="true" className="brand__mark" />
@@ -3035,7 +3051,9 @@ export default function App() {
           </div>
 
           <div
-            aria-busy={isImporting}
+            aria-busy={
+              isImporting || (Boolean(sourcePhotograph) && !isPreviewReady && !rendererMessage)
+            }
             aria-label="Source photograph import area"
             className={`canvas-stage ${sourcePhotograph && !sourcePreviewUnavailable ? 'canvas-stage--ready' : ''} ${isDropActive ? 'canvas-stage--drop-active' : ''}`}
             onDragEnter={(event) => {
@@ -3048,9 +3066,15 @@ export default function App() {
             role="group"
           >
             <canvas
-              aria-label="Image preview canvas"
+              aria-hidden={!sourcePhotograph || !isPreviewReady || Boolean(rendererMessage)}
+              aria-label={
+                sourcePhotograph
+                  ? `${showBefore ? 'Neutral' : 'Edited'} preview of ${sourcePhotograph.fileName}`
+                  : 'Image preview'
+              }
               className={`render-canvas ${sourcePhotograph && isPreviewReady && !rendererMessage ? 'render-canvas--visible' : ''}`}
               ref={canvasRef}
+              role="img"
             />
             {sourcePhotograph && !sourcePreviewUnavailable && !isImporting ? null : (
               <div className="canvas-stage__content">
