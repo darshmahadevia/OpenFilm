@@ -15,7 +15,7 @@ Casual photographers choosing whether to open one local image. The primary actio
 
 ## Chosen direction and memorable moment
 
-User-selected category standard executed against Darkroom, VSCO Web Studio, and Lightroom. Approved comp: `.impeccable/mocks/category-standard-split.webp`. A matte dark creative-tool shell uses one violet-blue action color. The first viewport is a 34/66 promise-to-photograph split; dragging the before/after divider is the memorable moment, and the same surface resolves into the full editor after import.
+User-selected category standard executed against Darkroom, VSCO Web Studio, and Lightroom. Approved comp: `.impeccable/mocks/category-standard-split.webp`. A matte dark creative-tool shell uses one violet-blue action color. The first viewport stacks a wide promise field above an edge-to-edge photograph; dragging the before/after divider is the memorable moment, and the same image-first hierarchy carries into the editor after import.
 
 ## Approved comp record
 
@@ -36,7 +36,7 @@ User-selected category standard executed against Darkroom, VSCO Web Studio, and 
 | Tool preview      | Crop and Looks controls enter at the fold with practical labels and selected state                        | Semantic HTML/CSS + authored SVG icons              |
 | Primary action    | Violet-blue rectangular button, 8px corners, visible focus and loading state                              | Semantic button                                     |
 | Remaining landing | One product walkthrough, one privacy proof region, one anchored close; varied density, no equal-card grid | Semantic HTML/CSS + existing rasters                |
-| Editor shell      | Sticky top bar, large central canvas, compact right tool rail, persistent comparison and export paths     | Existing React behavior + CSS                       |
+| Editor shell      | Sticky top bar, full-height canvas, floating right inspector, persistent comparison and export paths      | Existing React behavior + CSS                       |
 | Motion            | One orchestrated hero-to-editor reveal and responsive divider movement; reduced-motion fallback           | CSS transitions/animation                           |
 
 ## Unresolved decisions

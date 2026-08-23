@@ -146,12 +146,14 @@ violet-blue signal. The global tokens in `src/ui/tokens.css` are the source of t
   crop/tone-curve affordances, keyboard focus, and active drop state.
 - **Violet-Blue Hover** (`#686df4`): the brighter hover state for primary actions and the active
   control signal when interaction needs a little more lift.
+- **Violet-Blue Focus** (`#8589ff`): keyboard focus rings and the smallest active control points,
+  where the darker action value does not clear the surrounding chrome.
 
 ### Neutral
 
 - **Near-Black Ground** (`#0b0e14`): the page, landing, and editor chrome ground.
 - **Top Chrome** (`#0c1015`): the top bar, comparison readout, and persistent status strip.
-- **Control Plane** (`#0d1116`): the landing control strip and right-side editor rail.
+- **Control Plane** (`#0d1116`): the landing control strip and floating editor inspector.
 - **Raised Surface** (`#191e27`): hover and disabled control states, never a decorative card fill.
 - **Editor Surface** (`#12161d`): fields, panels, disclosures, histogram, and dialog surfaces.
 - **Canvas Black** (`#070a0f`): the image stage behind a loaded photograph or empty canvas.
@@ -199,18 +201,20 @@ the product should read as a familiar creative tool before it reads as a branded
 
 ## Layout
 
-The landing hero is a full viewport (`100svh`) with a slim `4.25rem` top bar and a 34/66 split:
-the left promise panel holds the headline, local-processing proof, and choose-photo action; the
-right stage gives most of the area to the real before/after photograph. A small readout sits above
-the image, and a six-cell control strip enters at the fold so Crop, Looks, and the editing vocabulary
-are visible without turning the hero into a feature grid. The bottom status strip keeps local-device
-and drop-state messaging available.
+The landing hero is a full viewport (`100svh`) with a slim `4.25rem` top bar. Its upper field pairs
+an oversized two-line promise with one compact action column. The real before-and-after photograph
+then spans the full viewport width, with its readout and six-cell control strip embedded at the image
+edges. This keeps the first screen black, direct, and photograph-led while still making Crop, Looks,
+and the editing vocabulary visible. The bottom status strip carries local-device and drop-state
+messaging.
 
-The editor uses a full-width workspace with a large central canvas and a `20rem–22rem` right tool
-rail. The top bar remains sticky while the rail keeps Adjust, Geometry, Looks, edit history, controls,
-and Export in a clear vertical order. At `900px` and below the rail moves below the canvas with a
-ruled top edge. At `600px` and below the landing nav links disappear, actions become full-width,
-the comparison controls scroll horizontally, and editor padding tightens to `1rem`.
+The editor is a full-height canvas with a `22rem` inspector floating one rem from the right and
+bottom edges. The inspector owns the tool switcher, edit history, histogram, active controls, Export,
+and source actions, so no secondary panels interrupt the photograph. The canvas reserves enough
+room for the inspector rather than allowing it to obscure the image. At `1000px` and below the
+inspector becomes a rounded top-edge workspace below the canvas. At `640px` and below the landing
+nav links disappear, actions become full-width, the comparison controls scroll horizontally, and
+editor padding tightens to `0.75rem`.
 
 The spacing rhythm is the quarter-rem scale from `0.25rem` through `4rem`; interactive controls
 reserve a `2.75rem` minimum target. The supporting landing process is a linear ruled list with one
@@ -294,8 +298,8 @@ bare color change.
 
 Landing navigation is a sparse matte bar: OpenFilm at left, process/privacy links centered, and a
 sample action at right. The editor top bar keeps the wordmark, privacy/storage/renderer status,
-help, and Export visible while the canvas and tool rail scroll beneath it. Links and actions use
-quiet foreground states; only the active action or focus state spends violet-blue. At `600px` the
+help, and Export visible while the canvas and floating inspector sit beneath it. Links and actions use
+quiet foreground states; only the active action or focus state spends violet-blue. At `640px` the
 landing center links and nonessential editor statuses hide to preserve the primary action.
 
 ### Panels and Disclosures
@@ -303,7 +307,7 @@ landing center links and nonessential editor statuses hide to preserve the prima
 Panels and disclosure groups are full-width, ruled sections. Titles use the title scale, descriptions
 use `ink-soft` or `muted`, and the open/closed state is a small rotating chevron. Summaries keep the
 shared `2.75rem` target and visible focus outline. Export stays in the same rail rather than moving
-into a decorative floating card.
+into a second floating card. The inspector is the single floating control plane on desktop.
 
 ### Before-and-After Proof
 

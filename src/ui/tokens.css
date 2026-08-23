@@ -3,6 +3,8 @@
   --color-ink-soft: #bdc3cf;
   --color-muted: #8b93a1;
   --color-paper: #0b0e14;
+  --color-chrome: #0c1015;
+  --color-control: #0d1116;
   --color-surface: #12161d;
   --color-surface-raised: #191e27;
   --color-canvas: #070a0f;
@@ -10,6 +12,7 @@
   --color-line-strong: #39414e;
   --color-accent: #5358ed;
   --color-accent-dark: #686df4;
+  --color-focus: #8589ff;
   --color-accent-ink: #ffffff;
   --color-success: #70d7a3;
   --color-warning: #f0bd69;

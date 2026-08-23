@@ -133,6 +133,35 @@ const toolContextMessages: Record<EditorTool, string> = {
   looks: 'Import a source photograph to apply or save a Look.',
 };
 
+function EditorToolIcon({ tool }: { tool: EditorTool }) {
+  if (tool === 'geometry') {
+    return (
+      <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
+        <path d="M6 3v10.25A.75.75 0 0 0 6.75 14H17" stroke="currentColor" />
+        <path d="M3 6h10.25a.75.75 0 0 1 .75.75V17" stroke="currentColor" />
+      </svg>
+    );
+  }
+
+  if (tool === 'looks') {
+    return (
+      <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r="6.5" stroke="currentColor" />
+        <path d="M10 3.5a6.5 6.5 0 0 1 0 13V3.5Z" fill="currentColor" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
+      <path d="M4 5h12M4 10h12M4 15h12" stroke="currentColor" />
+      <circle cx="8" cy="5" fill="var(--color-surface)" r="1.75" stroke="currentColor" />
+      <circle cx="13" cy="10" fill="var(--color-surface)" r="1.75" stroke="currentColor" />
+      <circle cx="7" cy="15" fill="var(--color-surface)" r="1.75" stroke="currentColor" />
+    </svg>
+  );
+}
+
 const TONE_CURVE_GESTURE_ID = 'tone-curve-drag';
 const CROP_KEYBOARD_STEP = 0.01;
 
@@ -318,7 +347,9 @@ function LandingPage({
               <br />
               Keep them yours.
             </h1>
-            <p>A fast, local photo editor for the crop and finish that make an image yours.</p>
+            <p>
+              Crop, shape light and color, save a Look, and export. Nothing leaves your browser.
+            </p>
             <p className="landing-hero__privacy">
               <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
                 <rect height="10" rx="2" stroke="currentColor" width="13" x="3.5" y="8" />
@@ -440,10 +471,10 @@ function LandingPage({
 
       <section className="landing-process" id="process">
         <div className="landing-process__intro">
-          <h2>Everything you need to finish one photograph.</h2>
+          <h2>A focused editor for one photograph.</h2>
           <p>
-            No account setup and no professional-suite learning curve. OpenFilm keeps the useful
-            path short and every choice reversible.
+            OpenFilm keeps the useful path short. Every change is reversible, and the source stays
+            untouched.
           </p>
         </div>
         <ol className="landing-flow">
@@ -475,7 +506,7 @@ function LandingPage({
             loading="lazy"
             src={darkroomHeroUrl}
           />
-          <p>One source. One reversible Edit. One file worth keeping.</p>
+          <p>One source. One reversible Edit. Your finished file.</p>
         </div>
       </section>
 
@@ -521,7 +552,7 @@ function LandingPage({
       <section className="landing-close">
         <img alt="" aria-hidden="true" src={closingCoastUrl} />
         <div>
-          <h2>Open one photograph. Keep the version that feels like yours.</h2>
+          <h2>Open a photograph. Leave with your version.</h2>
           <div className="landing-close__actions">
             <Button disabled={isImporting} onClick={onChoosePhotograph} variant="primary">
               Choose a photograph
@@ -3031,13 +3062,6 @@ export default function App() {
     rendererStatus === 'available' && rendererError
       ? openFilePicker
       : () => window.location.reload();
-  const storageStatusLabel =
-    storageStatus === 'available'
-      ? 'Browser recovery available'
-      : storageStatus === 'checking'
-        ? 'Checking browser recovery'
-        : 'Browser recovery unavailable';
-
   if (isLandingVisible) {
     return (
       <>
@@ -3242,11 +3266,6 @@ export default function App() {
             <span>{showBefore ? 'Neutral image' : 'Current Edit'}</span>
           </div>
 
-          <div className="canvas-column__footer">
-            <RendererStatusLabel status={rendererStatus} />
-            <span className="storage-status">{storageStatusLabel}</span>
-          </div>
-          <HistogramPanel histogram={histogram} pending={histogramPending} />
           {importFeedback?.kind === 'success' ? (
             <p
               aria-live="polite"
@@ -3326,8 +3345,11 @@ export default function App() {
 
         <aside aria-labelledby="controls-title" className="control-area">
           <div className="control-area__header">
-            <h2 id="controls-title">Edit</h2>
-            <p>Crop, finish, and save without leaving this workspace.</p>
+            <div className="control-area__title-row">
+              <h2 id="controls-title">Edit</h2>
+              <span>{activeTool.title}</span>
+            </div>
+            <p>Adjust the photograph, then export a fresh file.</p>
           </div>
 
           <div
@@ -3352,7 +3374,8 @@ export default function App() {
                 tabIndex={state.activeTool === tool ? 0 : -1}
                 type="button"
               >
-                {toolLabels[tool]}
+                <EditorToolIcon tool={tool} />
+                <span>{toolLabels[tool]}</span>
               </button>
             ))}
           </div>
@@ -3364,6 +3387,8 @@ export default function App() {
             onRedo={redoEdit}
             onUndo={undoEdit}
           />
+
+          <HistogramPanel histogram={histogram} pending={histogramPending} />
 
           <Panel
             ariaLabelledBy={`tool-tab-${state.activeTool}`}

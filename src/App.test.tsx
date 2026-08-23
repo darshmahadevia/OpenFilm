@@ -128,9 +128,7 @@ describe('OpenFilm shell', () => {
         screen.getByRole('heading', { name: 'Edit photos. Keep them yours.' }),
       ).toBeInTheDocument();
       expect(screen.queryByRole('slider', { name: 'Exposure' })).not.toBeInTheDocument();
-      expect(
-        screen.getByText(/No account setup and no professional-suite learning curve/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/OpenFilm keeps the useful path short/)).toBeInTheDocument();
 
       await openBundledSample();
       expect(screen.getByRole('slider', { name: 'Exposure' })).toBeInTheDocument();

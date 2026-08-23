@@ -378,7 +378,7 @@ test('tries the bundled sample and edits the core adjustments', async ({ page })
   await page.getByRole('button', { name: 'Start with the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await openEditHistory(page);
-  await expect(page.locator('.canvas-column__footer .renderer-status')).toBeVisible();
+  await expect(page.locator('.topbar .renderer-status')).toBeVisible();
 
   const values = {
     Contrast: '30',
@@ -429,7 +429,7 @@ test('keeps the adjustment controls labeled and usable at a phone width', async 
   await page.getByRole('button', { name: 'Start with the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await openEditHistory(page);
-  await expect(page.locator('.canvas-column__footer .renderer-status')).toBeVisible();
+  await expect(page.locator('.topbar .renderer-status')).toBeHidden();
 
   for (const label of [
     'Exposure',
@@ -849,7 +849,7 @@ test('recovers the latest Edit and its source after a reload', async ({ page }) 
   await page.goto('/');
   await page.getByRole('button', { name: 'Start with the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
-  await expect(page.getByText('Browser recovery available')).toBeVisible();
+  await expect(page.getByText('Browser storage is for recovery, not a backup.')).toBeVisible();
 
   const exposure = page.getByRole('spinbutton', { name: 'Exposure value' });
   await exposure.fill('1.25');
@@ -950,12 +950,10 @@ test('keeps one canvas-first control area across desktop, phone, and landscape',
   await page.getByRole('button', { name: 'Start with the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
 
-  const desktopColumns = await page
-    .locator('.workspace')
-    .evaluate(
-      (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length,
-    );
-  expect(desktopColumns).toBe(2);
+  const desktopInspectorPosition = await page
+    .locator('.control-area')
+    .evaluate((element) => getComputedStyle(element).position);
+  expect(desktopInspectorPosition).toBe('fixed');
   await expect(page.getByRole('button', { name: 'Edit history' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Undo' })).toBeHidden();
@@ -963,12 +961,10 @@ test('keeps one canvas-first control area across desktop, phone, and landscape',
 
   await page.setViewportSize({ height: 800, width: 360 });
 
-  const phoneColumns = await page
-    .locator('.workspace')
-    .evaluate(
-      (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length,
-    );
-  expect(phoneColumns).toBe(1);
+  const phoneInspectorPosition = await page
+    .locator('.control-area')
+    .evaluate((element) => getComputedStyle(element).position);
+  expect(phoneInspectorPosition).toBe('relative');
 
   const exposure = page.getByRole('spinbutton', { name: 'Exposure value' });
   await exposure.fill('0.75');
