@@ -161,6 +161,15 @@ float grainNoise(vec2 cell) {
   return fract(sin(dot(cell, vec2(12.9898, 78.233)) + u_grain_seed * 91.17) * 43758.5453);
 }
 
+float smoothGrainNoise(vec2 position) {
+  vec2 cell = floor(position);
+  vec2 local = fract(position);
+  vec2 blend = local * local * (3.0 - 2.0 * local);
+  float bottom = mix(grainNoise(cell), grainNoise(cell + vec2(1.0, 0.0)), blend.x);
+  float top = mix(grainNoise(cell + vec2(0.0, 1.0)), grainNoise(cell + vec2(1.0)), blend.x);
+  return mix(bottom, top, blend.y);
+}
+
 void main() {
   vec2 output_uv = v_tex_coord;
 
@@ -205,8 +214,8 @@ void main() {
   float vignetteMask = smoothstep(vignetteStart, 1.0, cornerDistance);
   color *= 1.0 - clamp(u_vignette_amount, 0.0, 1.0) * vignetteMask;
 
-  float grainFrequency = mix(160.0, 12.0, clamp(u_grain_size, 0.0, 1.0));
-  float grain = grainNoise(floor(v_tex_coord * grainFrequency)) - 0.5;
+  float grainFrequency = mix(900.0, 160.0, clamp(u_grain_size, 0.0, 1.0));
+  float grain = smoothGrainNoise(v_tex_coord * grainFrequency) - 0.5;
   color += grain * clamp(u_grain_amount, 0.0, 1.0) * 0.24;
 
   out_color = vec4(clamp(color, 0.0, 1.0), source.a);
@@ -628,7 +637,10 @@ async function prepareImageSource(
   if (createImageBitmap) {
     try {
       const bitmap = await createImageBitmap(image, {
-        imageOrientation: 'from-image',
+        // WebGL ignores UNPACK_FLIP_Y_WEBGL for ImageBitmap sources, so flip the
+        // bitmap before upload. The browser applies the photograph's EXIF
+        // orientation before this vertical flip.
+        imageOrientation: 'flipY',
         resizeHeight: dimensions.height,
         resizeQuality: 'high',
         resizeWidth: dimensions.width,

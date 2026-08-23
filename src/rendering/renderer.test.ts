@@ -198,7 +198,11 @@ describe('renderer capability and geometry helpers', () => {
 
     expect(createImageBitmap).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ resizeHeight: 2_048, resizeWidth: MAX_PREVIEW_DIMENSION }),
+      expect.objectContaining({
+        imageOrientation: 'flipY',
+        resizeHeight: 2_048,
+        resizeWidth: MAX_PREVIEW_DIMENSION,
+      }),
     );
     renderer.dispose();
   });
@@ -335,6 +339,8 @@ describe('WebGL2 preview renderer', () => {
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_grain_amount');
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_grain_size');
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_grain_seed');
+    expect(FRAGMENT_SHADER_SOURCE).toContain('smoothGrainNoise(v_tex_coord * grainFrequency)');
+    expect(FRAGMENT_SHADER_SOURCE).not.toContain('grainNoise(floor(');
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_tone_curve');
     expect(FRAGMENT_SHADER_SOURCE).toContain('texture(u_tone_curve');
     expect(TONE_CURVE_LUT_SIZE).toBe(256);
