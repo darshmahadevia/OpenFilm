@@ -278,27 +278,6 @@ strong {
   color: var(--color-ink-soft);
 }
 
-.canvas-stage--ready .canvas-stage__content {
-  max-width: min(90%, 30rem);
-}
-
-.canvas-stage--ready .canvas-stage__content h2 {
-  font-size: var(--type-xl);
-  max-width: 20ch;
-  overflow-wrap: anywhere;
-}
-
-.canvas-stage--ready .canvas-stage__content p {
-  margin-bottom: 0;
-}
-
-.canvas-stage--ready .canvas-stage__content {
-  background: rgba(244, 243, 238, 0.92);
-  border: 1px solid rgba(27, 28, 24, 0.14);
-  border-radius: var(--radius-sm);
-  padding: var(--space-5);
-}
-
 .canvas-column__footer {
   justify-content: space-between;
   margin-top: var(--space-4);
@@ -844,12 +823,25 @@ strong {
 .crop-control__preview {
   background: var(--color-ink-soft);
   border: 1px solid var(--color-line-strong);
+  isolation: isolate;
   max-width: 21rem;
   min-height: 8rem;
   overflow: hidden;
   position: relative;
   touch-action: none;
   width: 100%;
+}
+
+.crop-control__image {
+  height: 100%;
+  image-orientation: from-image;
+  inset: 0;
+  object-fit: fill;
+  pointer-events: none;
+  position: absolute;
+  user-select: none;
+  width: 100%;
+  z-index: 0;
 }
 
 .crop-control__grid {
@@ -868,11 +860,13 @@ strong {
 }
 
 .crop-control__selection {
-  background: rgba(244, 243, 238, 0.12);
+  background: transparent;
   border: 2px solid var(--color-accent-ink);
+  box-shadow: 0 0 0 100vmax rgba(27, 28, 24, 0.58);
   cursor: move;
   position: absolute;
   touch-action: none;
+  z-index: 1;
 }
 
 .crop-control__selection:focus-visible {
@@ -881,7 +875,7 @@ strong {
 }
 
 .crop-control__selection--dragging {
-  background: rgba(244, 243, 238, 0.2);
+  border-color: var(--color-accent);
 }
 
 .crop-control__handle {
@@ -1263,6 +1257,14 @@ select:disabled {
 }
 
 .control-area__footer p {
+  overflow-wrap: anywhere;
+}
+
+.control-area__footer h2 {
+  color: var(--color-ink-soft);
+  font-size: var(--type-sm);
+  line-height: 1.55;
+  margin: 0;
   overflow-wrap: anywhere;
 }
 

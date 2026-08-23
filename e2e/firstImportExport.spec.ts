@@ -177,6 +177,9 @@ test('imports, previews, resets, replaces, and downloads a JPEG', async ({ page 
   await sourceInput.setInputFiles(fixtureFile(previewFixture));
 
   await expect(page.getByRole('heading', { name: previewFixture.fileName })).toBeVisible();
+  const importArea = page.getByRole('group', { name: 'Source photograph import area' });
+  await expect(importArea.getByText(previewFixture.fileName)).toHaveCount(0);
+  await expect(importArea.getByText(/Ready to edit/)).toHaveCount(0);
   await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
   await openExport(page);
 
@@ -539,7 +542,10 @@ test('crops, rotates, flips, and resets geometry with accessible alternatives to
   await openEditHistory(page);
 
   await page.getByRole('tab', { name: 'Geometry' }).click();
-  await expect(page.getByRole('group', { name: 'Crop preview' })).toBeVisible();
+  const cropPreview = page.getByRole('group', { name: 'Crop preview' });
+  await expect(cropPreview).toBeVisible();
+  await expect(cropPreview.locator('img')).toBeVisible();
+  await expect(cropPreview.locator('img')).toHaveAttribute('src', /^blob:/);
   await expect(page.getByRole('button', { name: 'Resize crop top left' })).toBeVisible();
 
   const cropWidth = page.getByRole('spinbutton', { name: 'Crop width value' });

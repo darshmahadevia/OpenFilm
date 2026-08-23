@@ -857,11 +857,13 @@ function CropControl({
   hasSource,
   onCropChange,
   sourceDimensions,
+  sourceObjectUrl,
 }: {
   geometry: GeometryValues;
   hasSource: boolean;
   onCropChange: (crop: NormalizedCrop) => void;
   sourceDimensions: { height: number; width: number } | null;
+  sourceObjectUrl: string | null;
 }) {
   const cropPreviewRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<CropDragState | null>(null);
@@ -1008,7 +1010,15 @@ function CropControl({
         role="group"
         style={cropPreviewStyle}
       >
-        <div className="crop-control__grid" />
+        {sourceObjectUrl ? (
+          <img
+            alt=""
+            aria-hidden="true"
+            className="crop-control__image"
+            draggable={false}
+            src={sourceObjectUrl}
+          />
+        ) : null}
         <div
           aria-label="Crop selection"
           className={`crop-control__selection ${dragging ? 'crop-control__selection--dragging' : ''}`}
@@ -1024,6 +1034,7 @@ function CropControl({
             width: `${visibleCrop.width * 100}%`,
           }}
         >
+          <div className="crop-control__grid" />
           {(['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map((handle) => (
             <button
               aria-label={`Resize crop ${handle.replace('-', ' ')}`}
@@ -1332,6 +1343,7 @@ function ToolControls({
   onToggleFlipHorizontal,
   onToggleFlipVertical,
   sourceDimensions,
+  sourceObjectUrl,
 }: {
   activeTool: EditorTool;
   adjustments: RendererAdjustments;
@@ -1366,6 +1378,7 @@ function ToolControls({
   onToggleFlipHorizontal: () => void;
   onToggleFlipVertical: () => void;
   sourceDimensions: { height: number; width: number } | null;
+  sourceObjectUrl: string | null;
 }) {
   if (!hasSource && activeTool !== 'looks' && !showDisabledControls) {
     return (
@@ -1383,6 +1396,7 @@ function ToolControls({
           hasSource={hasSource}
           onCropChange={onCropChange}
           sourceDimensions={sourceDimensions}
+          sourceObjectUrl={sourceObjectUrl}
         />
         <Field
           hint="Geometry belongs to this Edit, not its reusable Look."
@@ -2753,75 +2767,70 @@ export default function App() {
               className={`render-canvas ${sourcePhotograph && isPreviewReady && !rendererMessage ? 'render-canvas--visible' : ''}`}
               ref={canvasRef}
             />
-            <div className="canvas-stage__content">
-              {isImporting ? (
-                <CanvasStateMessage kind="loading" title="Opening your photograph…">
-                  Reading it in this tab. You can keep using the other controls.
-                </CanvasStateMessage>
-              ) : sourcePhotograph && sourcePreviewUnavailable ? (
-                <div className="canvas-stage__source-error">
-                  <h2>{sourcePhotograph.fileName}</h2>
-                  <CanvasStateMessage
-                    actionLabel={sourceRecoveryLabel}
-                    kind={rendererError ? 'error' : 'warning'}
-                    onAction={sourceRecoveryAction}
-                    title={
-                      rendererStatus === 'context-lost'
-                        ? 'Preview stopped.'
-                        : 'Preview unavailable.'
-                    }
-                  >
-                    {rendererMessage ?? 'OpenFilm could not prepare this preview.'}
+            {sourcePhotograph && !sourcePreviewUnavailable && !isImporting ? null : (
+              <div className="canvas-stage__content">
+                {isImporting ? (
+                  <CanvasStateMessage kind="loading" title="Opening your photograph…">
+                    Reading it in this tab. You can keep using the other controls.
                   </CanvasStateMessage>
-                </div>
-              ) : sourcePhotograph ? (
-                <>
-                  <h2>{sourcePhotograph.fileName}</h2>
-                  <p>
-                    {sourcePhotograph.width.toLocaleString()} ×{' '}
-                    {sourcePhotograph.height.toLocaleString()} pixels. Ready to edit.
-                  </p>
-                </>
-              ) : recoveryNeedsSource ? (
-                <CanvasStateMessage
-                  actionLabel="Choose source photograph"
-                  onAction={openFilePicker}
-                  title="Choose the source photograph again."
-                >
-                  {recoveryFeedback ?? 'Your latest Edit is ready when you choose that file again.'}
-                </CanvasStateMessage>
-              ) : importFeedback?.kind === 'error' ? (
-                <CanvasStateMessage
-                  actionLabel="Try another file"
-                  kind="error"
-                  onAction={openFilePicker}
-                  title="That file could not be opened."
-                >
-                  {importFeedback.message}
-                </CanvasStateMessage>
-              ) : (
-                <CanvasStateMessage
-                  actions={
-                    <div className="canvas-stage__actions">
-                      <Button disabled={isImporting} onClick={openFilePicker} variant="primary">
-                        Import photograph
-                      </Button>
-                      <Button
-                        disabled={isImporting}
-                        onClick={importBundledSample}
-                        size="small"
-                        variant="quiet"
-                      >
-                        Try bundled sample
-                      </Button>
-                    </div>
-                  }
-                  title="Start with a photograph."
-                >
-                  Edit a JPEG, PNG, or WebP in your browser.
-                </CanvasStateMessage>
-              )}
-            </div>
+                ) : sourcePhotograph && sourcePreviewUnavailable ? (
+                  <div className="canvas-stage__source-error">
+                    <h2>{sourcePhotograph.fileName}</h2>
+                    <CanvasStateMessage
+                      actionLabel={sourceRecoveryLabel}
+                      kind={rendererError ? 'error' : 'warning'}
+                      onAction={sourceRecoveryAction}
+                      title={
+                        rendererStatus === 'context-lost'
+                          ? 'Preview stopped.'
+                          : 'Preview unavailable.'
+                      }
+                    >
+                      {rendererMessage ?? 'OpenFilm could not prepare this preview.'}
+                    </CanvasStateMessage>
+                  </div>
+                ) : recoveryNeedsSource ? (
+                  <CanvasStateMessage
+                    actionLabel="Choose source photograph"
+                    onAction={openFilePicker}
+                    title="Choose the source photograph again."
+                  >
+                    {recoveryFeedback ??
+                      'Your latest Edit is ready when you choose that file again.'}
+                  </CanvasStateMessage>
+                ) : importFeedback?.kind === 'error' ? (
+                  <CanvasStateMessage
+                    actionLabel="Try another file"
+                    kind="error"
+                    onAction={openFilePicker}
+                    title="That file could not be opened."
+                  >
+                    {importFeedback.message}
+                  </CanvasStateMessage>
+                ) : (
+                  <CanvasStateMessage
+                    actions={
+                      <div className="canvas-stage__actions">
+                        <Button disabled={isImporting} onClick={openFilePicker} variant="primary">
+                          Import photograph
+                        </Button>
+                        <Button
+                          disabled={isImporting}
+                          onClick={importBundledSample}
+                          size="small"
+                          variant="quiet"
+                        >
+                          Try bundled sample
+                        </Button>
+                      </div>
+                    }
+                    title="Start with a photograph."
+                  >
+                    Edit a JPEG, PNG, or WebP in your browser.
+                  </CanvasStateMessage>
+                )}
+              </div>
+            )}
           </div>
 
           <div
@@ -3007,6 +3016,7 @@ export default function App() {
               onToggleFlipHorizontal={toggleFlipHorizontal}
               onToggleFlipVertical={toggleFlipVertical}
               sourceDimensions={sourcePhotograph}
+              sourceObjectUrl={sourcePhotograph?.objectUrl ?? null}
             />
           </Panel>
 
@@ -3037,7 +3047,11 @@ export default function App() {
           />
 
           <div className="control-area__footer">
-            <p>{sourcePhotograph?.fileName ?? 'No source photograph yet'}</p>
+            {sourcePhotograph && isPreviewReady && !rendererMessage ? (
+              <h2>{sourcePhotograph.fileName}</h2>
+            ) : (
+              <p>{sourcePhotograph?.fileName ?? 'No source photograph yet'}</p>
+            )}
             {sourcePhotograph ? (
               <div className="control-area__actions">
                 <Button
