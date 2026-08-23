@@ -2,20 +2,20 @@
 name: OpenFilm
 description: A matte, local-first photo editor where the photograph stays in control.
 colors:
-  ink: '#f2f4f7'
-  ink-soft: '#bdc3cf'
-  muted: '#8b93a1'
-  paper: '#0b0e14'
-  chrome: '#0c1015'
-  control: '#0d1116'
-  surface: '#12161d'
-  surface-raised: '#191e27'
-  canvas: '#070a0f'
-  line: '#252b35'
-  line-strong: '#39414e'
-  accent: '#5358ed'
-  accent-dark: '#686df4'
-  accent-ink: '#ffffff'
+  ink: '#f3f1ec'
+  ink-soft: '#c8c3ba'
+  muted: '#918c84'
+  paper: '#090a0b'
+  chrome: '#0b0c0d'
+  control: '#0d0e0f'
+  surface: '#131415'
+  surface-raised: '#1a1b1c'
+  canvas: '#050606'
+  line: '#292928'
+  line-strong: '#3d3b38'
+  accent: '#c6a36f'
+  accent-dark: '#d5b784'
+  accent-ink: '#0b0c0d'
   success: '#70d7a3'
   warning: '#f0bd69'
 typography:
@@ -24,7 +24,7 @@ typography:
     fontSize: 'clamp(2.65rem, 4.7vw, 5.6rem)'
     fontWeight: 700
     lineHeight: 0.94
-    letterSpacing: '-0.05em'
+    letterSpacing: '-0.04em'
   title:
     fontFamily: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif'
     fontSize: 'clamp(1.7rem, 2.5vw, 2.8rem)'
@@ -59,7 +59,7 @@ spacing:
   touch-target: '2.75rem'
 components:
   button-primary:
-    backgroundColor: '{colors.accent}'
+    backgroundColor: '{colors.ink}'
     textColor: '{colors.accent-ink}'
     rounded: '{rounded.sm}'
     height: '{spacing.touch-target}'
@@ -86,8 +86,8 @@ components:
 
 **Creative North Star: The Matte Proof Studio**
 
-OpenFilm is a quiet working surface, not a marketing template. Near-black chrome, off-white type,
-fine separators, and a single violet-blue signal frame the photograph. The landing page lets someone
+OpenFilm is a quiet working surface, not a marketing template. Near-black chrome, warm-white type,
+fine separators, and one restrained sand-colored signal frame the photograph. The landing page lets someone
 start immediately, then provides only the workflow and local-processing facts worth scrolling for.
 The editor keeps the image dominant and the controls compact.
 
@@ -100,7 +100,7 @@ compact utility bar, large photograph, and persistent bottom tool dock.
 ### Core rules
 
 - The photograph is the strongest object in every state.
-- Violet-blue is reserved for action, selection, focus, progress, and recovery.
+- Warm white carries primary actions. Sand is reserved for selection, focus, and direct manipulation.
 - Local processing is stated plainly; no account, cloud, or unsupported privacy claims are implied.
 - Every control is labeled, keyboard reachable, and at least `2.75rem` on coarse pointers.
 - Depth comes from value and one-pixel rules. Shadows are reserved for true overlap.
@@ -108,7 +108,7 @@ compact utility bar, large photograph, and persistent bottom tool dock.
 ## Landing page
 
 The first viewport contains a slim wordmark bar, the direct heading “Open a photograph.”, one factual
-sentence, one neutral “Choose from Photos or Files” action, a quiet sample action, supported formats,
+sentence, one neutral “Choose a photo” action, a quiet sample action, supported formats,
 and the real before/after comparison. The import action uses the standards-based file input; mobile
 operating systems decide whether to present Photos, Files, or another valid source. Accepted formats
 are JPEG, PNG, and WebP.
@@ -141,7 +141,7 @@ full tool set remains available without a cramped split.
 The editor is a single `100dvh` workspace with safe-area padding. The compact utility bar remains at
 the top, the photograph fills the upper region, and the lower `40dvh` becomes a persistent bottom
 dock. Adjust, Geometry, and Looks stay visible at the top of that dock. Tool content scrolls inside
-the dock; status and “Choose another photo” stay anchored at the bottom. The before/current control
+the dock; status and “Replace photo” stay anchored at the bottom. The before/current control
 remains on the photograph. Short landscape viewports fall back to document scrolling so no control
 is trapped offscreen.
 
@@ -150,7 +150,12 @@ is trapped offscreen.
 Adjustment rows show one visible numeric value: the editable number input. The slider announces its
 formatted value through `aria-valuetext` but does not repeat it visually. Each row has a compact,
 accessible reset icon; adjustment-group and global resets remain available. Numeric values use
-tabular figures. Sliders use a thin neutral track, one violet-blue thumb, and an explicit focus ring.
+tabular figures. Sliders use a thin neutral track, one sand-colored thumb, and an explicit focus ring.
+
+Looks are a choice first and file management second. Each starting or saved Look has one visible
+Apply action. Rename, duplicate, delete, save, and preset export sit behind a labeled More disclosure.
+Preset-file transfer has its own disclosure. This keeps the common path readable without removing
+power-user actions.
 
 Fields and buttons use the small `0.5rem` radius. Selected tools use an underline rather than a pill.
 Panels are full-width ruled sections, not floating cards. Histogram, crop handles, tone-curve points,
@@ -162,15 +167,15 @@ Use the neutral system sans stack throughout. Landing display type is bold but b
 editor headings remain compact. Supporting copy is cool gray and short. The token source of truth is
 `src/ui/tokens.css`.
 
-- Ground: `#0b0e14`
-- Chrome: `#0c1015`
-- Control plane: `#0d1116`
-- Canvas: `#070a0f`
-- Foreground: `#f2f4f7`
-- Muted foreground: `#8b93a1`
-- Separator: `#252b35`
-- Action: `#5358ed`
-- Focus: `#8589ff`
+- Ground: `#090a0b`
+- Chrome: `#0b0c0d`
+- Control plane: `#0d0e0f`
+- Canvas: `#050606`
+- Foreground: `#f3f1ec`
+- Muted foreground: `#918c84`
+- Separator: `#292928`
+- Interaction cue: `#c6a36f`
+- Focus: `#e0c48f`
 - Success and warning colors are status-only.
 
 ## Do / do not

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent, KeyboardEvent, PointerEvent, ReactNode } from 'react';
 
-import comparisonStreetUrl from './assets/openfilm-comparison-street.webp';
+import demoPhotoUrl from './assets/openfilm-demo-greenhouse.webp';
 
 import {
   adjustmentDefinitions,
@@ -341,12 +341,14 @@ function LandingPage({
                 onClick={onChoosePhotograph}
                 variant="outline"
               >
-                {isImporting ? 'Opening photograph…' : 'Choose from Photos or Files'}
+                {isImporting ? 'Opening photograph…' : 'Choose a photo'}
               </Button>
               <Button disabled={isImporting} onClick={() => onTrySample()} variant="quiet">
-                Try the sample
+                Open sample
               </Button>
-              <span className="landing-hero__formats">JPEG, PNG, or WebP</span>
+              <span className="landing-hero__formats">
+                From Photos or Files · JPEG, PNG, or WebP
+              </span>
             </div>
 
             {canResumeEdit ? (
@@ -387,17 +389,17 @@ function LandingPage({
           <div className="landing-demo">
             <div className="landing-demo__frame">
               <img
-                alt="Pedestrian crossing a rain-wet street at blue hour before editing"
+                alt="Woman standing in a sunlit greenhouse before editing"
                 decoding="async"
                 fetchPriority="high"
-                src={comparisonStreetUrl}
+                src={demoPhotoUrl}
               />
               <div
                 aria-hidden="true"
                 className="landing-demo__edited"
                 style={{ clipPath: `inset(0 ${100 - reveal}% 0 0)` }}
               >
-                <img alt="" src={comparisonStreetUrl} />
+                <img alt="" src={demoPhotoUrl} />
               </div>
               <span
                 aria-hidden="true"
@@ -1387,11 +1389,11 @@ function LookCard({
 
   return (
     <article className="look-card">
-      <div className="look-card__copy">
-        <h4>{look.title}</h4>
-        <p>{look.description || 'A reusable set of photographic Adjustments.'}</p>
-      </div>
-      <div className="look-card__actions">
+      <div className="look-card__main">
+        <div className="look-card__copy">
+          <h4>{look.title}</h4>
+          <p>{look.description || 'Saved adjustment settings.'}</p>
+        </div>
         <Button
           aria-label={`Apply ${look.title}`}
           onClick={() => onApply(look)}
@@ -1400,52 +1402,73 @@ function LookCard({
         >
           Apply
         </Button>
-        {customLook ? (
-          <>
-            <Button
-              aria-label={`Rename ${look.title}`}
-              onClick={() => onRename(customLook)}
-              size="small"
-              variant="quiet"
-            >
-              Rename
-            </Button>
-            <Button
-              aria-label={`Duplicate ${look.title}`}
-              onClick={() => onDuplicate(look)}
-              size="small"
-              variant="quiet"
-            >
-              Duplicate
-            </Button>
-            <Button
-              aria-label={`Delete ${look.title}`}
-              onClick={() => onDelete(customLook)}
-              size="small"
-              variant="quiet"
-            >
-              Delete
-            </Button>
-          </>
-        ) : (
-          <Button
-            aria-label={`Save ${look.title} as a custom Look`}
-            onClick={() => onDuplicate(look)}
-            size="small"
-            variant="quiet"
-          >
-            Save copy
-          </Button>
-        )}
-        <Button
-          aria-label={`Export ${look.title} preset`}
-          onClick={() => onExport(look)}
-          size="small"
-          variant="quiet"
-        >
-          Export
-        </Button>
       </div>
+      <details className="look-card__more">
+        <summary aria-label={`More actions for ${look.title}`} role="button">
+          <span>More</span>
+          <svg aria-hidden="true" fill="none" viewBox="0 0 16 16">
+            <path d="m4 6 4 4 4-4" stroke="currentColor" strokeLinecap="round" />
+          </svg>
+        </summary>
+        <div className="look-card__actions">
+          {customLook ? (
+            <>
+              <Button
+                aria-label={`Rename ${look.title}`}
+                onClick={() => onRename(customLook)}
+                size="small"
+                variant="quiet"
+              >
+                Rename
+              </Button>
+              <Button
+                aria-label={`Duplicate ${look.title}`}
+                onClick={() => onDuplicate(look)}
+                size="small"
+                variant="quiet"
+              >
+                Duplicate
+              </Button>
+              <Button
+                aria-label={`Export ${look.title} preset`}
+                onClick={() => onExport(look)}
+                size="small"
+                variant="quiet"
+              >
+                Export preset
+              </Button>
+              <Button
+                aria-label={`Delete ${look.title}`}
+                className="button--danger-quiet"
+                onClick={() => onDelete(customLook)}
+                size="small"
+                variant="quiet"
+              >
+                Delete
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                aria-label={`Save ${look.title} as a custom Look`}
+                onClick={() => onDuplicate(look)}
+                size="small"
+                variant="quiet"
+              >
+                Save to My Looks
+              </Button>
+              <Button
+                aria-label={`Export ${look.title} preset`}
+                onClick={() => onExport(look)}
+                size="small"
+                variant="quiet"
+              >
+                Export preset
+              </Button>
+            </>
+          )}
+        </div>
+      </details>
     </article>
   );
 }
@@ -1479,13 +1502,32 @@ function LooksControl({
 }) {
   return (
     <div className="control-stack looks-control">
+      <div className="looks-control__quick-actions">
+        <Button
+          aria-label="Reset to Neutral Look"
+          disabled={!hasSource}
+          onClick={() =>
+            onApplyLook({
+              title: 'Neutral',
+              description: '',
+              adjustments: neutralAdjustments,
+            })
+          }
+          size="small"
+          variant="outline"
+        >
+          Reset to neutral
+        </Button>
+        <Button onClick={onOpenSaveDialog} size="small" variant="outline">
+          Save as Look
+        </Button>
+      </div>
       <section aria-labelledby="bundled-looks-title" className="looks-section">
         <div className="looks-section__header">
           <div>
-            <h3 id="bundled-looks-title">Bundled Looks</h3>
-            <p>Seven original starting points for a new Edit.</p>
+            <h3 id="bundled-looks-title">Starting Looks</h3>
+            <p>Apply one, then fine-tune it in Adjust.</p>
           </div>
-          <span className="looks-section__count">{bundledLookOptions.length}</span>
         </div>
         <div className="look-list">
           {bundledLookOptions.map((look) => (
@@ -1505,12 +1547,9 @@ function LooksControl({
       <section aria-labelledby="custom-looks-title" className="looks-section">
         <div className="looks-section__header">
           <div>
-            <h3 id="custom-looks-title">Your Looks</h3>
-            <p>Save only the reusable Adjustments, not this Edit’s geometry.</p>
+            <h3 id="custom-looks-title">Saved Looks</h3>
+            <p>Your reusable adjustment settings.</p>
           </div>
-          <Button onClick={onOpenSaveDialog} size="small" variant="primary">
-            Save current Look
-          </Button>
         </div>
         {customLooks.length > 0 ? (
           <div className="look-list">
@@ -1528,45 +1567,33 @@ function LooksControl({
             ))}
           </div>
         ) : (
-          <p className="looks-section__empty">Your saved Looks will appear here.</p>
+          <p className="looks-section__empty">No saved Looks yet.</p>
         )}
       </section>
-      <Button
-        aria-label="Use Neutral Look"
-        disabled={!hasSource}
-        onClick={() =>
-          onApplyLook({
-            title: 'Neutral Look',
-            description: '',
-            adjustments: neutralAdjustments,
-          })
-        }
-        size="small"
-        variant="outline"
-      >
-        Use Neutral Look
-      </Button>
-      <div className="looks-file-actions">
-        <Button
-          disabled={isPresetImporting}
-          onClick={onImportPreset}
-          size="small"
-          variant="outline"
-        >
-          {isPresetImporting ? 'Reading preset…' : 'Import Look preset'}
-        </Button>
-        <Button onClick={onExportCurrentLook} size="small" variant="outline">
-          Export current Look
-        </Button>
-      </div>
-      <p className="field__hint">
-        Presets are readable JSON files with one Look. They never include this Edit’s source,
-        geometry, history, or Grain seed.
-      </p>
-      <p className="field__hint">
-        A Look changes photographic Adjustments only. Crop, rotation, flips, and grain seed stay
-        with this Edit.
-      </p>
+      <details className="looks-transfer">
+        <summary aria-label="Preset files" role="button">
+          <span>Preset files</span>
+          <svg aria-hidden="true" fill="none" viewBox="0 0 16 16">
+            <path d="m4 6 4 4 4-4" stroke="currentColor" strokeLinecap="round" />
+          </svg>
+        </summary>
+        <div className="looks-transfer__body">
+          <p>Move Looks between browsers as small JSON preset files.</p>
+          <div className="looks-file-actions">
+            <Button
+              disabled={isPresetImporting}
+              onClick={onImportPreset}
+              size="small"
+              variant="outline"
+            >
+              {isPresetImporting ? 'Reading preset…' : 'Import preset'}
+            </Button>
+            <Button onClick={onExportCurrentLook} size="small" variant="outline">
+              Export current Look
+            </Button>
+          </div>
+        </div>
+      </details>
     </div>
   );
 }
@@ -3049,7 +3076,7 @@ export default function App() {
             </svg>
           </IconButton>
           <Button
-            aria-label="Save photograph"
+            aria-label="Export photograph"
             disabled={
               !hasSource ||
               !isPreviewReady ||
@@ -3144,7 +3171,7 @@ export default function App() {
                     actions={
                       <div className="canvas-stage__actions">
                         <Button disabled={isImporting} onClick={openFilePicker} variant="outline">
-                          Choose from Photos or Files
+                          Choose a photo
                         </Button>
                         <Button
                           disabled={isImporting}
@@ -3333,7 +3360,7 @@ export default function App() {
               ) : null}
               {importFeedback?.kind === 'error' && hasSource ? (
                 <FeedbackNotice
-                  actionLabel="Choose another photo"
+                  actionLabel="Replace photo"
                   kind="error"
                   message={importFeedback.message}
                   onAction={openFilePicker}
@@ -3382,9 +3409,6 @@ export default function App() {
               ) : null}
               {!storageFeedback ? <p className="storage-note">{storageNotice}</p> : null}
             </div>
-            <p className="control-area__source-name">
-              {sourcePhotograph?.fileName ?? 'No source photograph yet'}
-            </p>
             {sourcePhotograph ? (
               <div className="control-area__actions">
                 <Button
@@ -3393,7 +3417,7 @@ export default function App() {
                   size="small"
                   variant="outline"
                 >
-                  Choose another photo
+                  Replace photo
                 </Button>
               </div>
             ) : null}
@@ -3464,7 +3488,7 @@ export default function App() {
           }
           onClose={() => setLookDialog(null)}
           open
-          title={lookDialog.mode === 'rename' ? 'Rename Look' : 'Save current Look'}
+          title={lookDialog.mode === 'rename' ? 'Rename Look' : 'Save a Look'}
         >
           <Field hint="Use a short name you will recognize later." id="look-title" label="Name">
             <input

@@ -79,9 +79,18 @@ function openEditHistory() {
   fireEvent.click(screen.getByRole('button', { name: 'Edit history' }));
 }
 
+function openLookActions(title: string) {
+  const summary = screen.getByRole('button', { name: `More actions for ${title}` });
+  const details = summary.parentElement as HTMLDetailsElement;
+
+  if (!details.open) {
+    fireEvent.click(summary);
+  }
+}
+
 async function openBundledSample() {
-  fireEvent.click(screen.getByRole('button', { name: 'Try the sample' }));
-  await screen.findByRole('heading', { name: 'openfilm-sample.png' });
+  fireEvent.click(screen.getByRole('button', { name: 'Open sample' }));
+  await screen.findByRole('heading', { name: 'openfilm-greenhouse.webp' });
 }
 
 describe('OpenFilm shell', () => {
@@ -98,9 +107,9 @@ describe('OpenFilm shell', () => {
 
     expect(screen.getByRole('heading', { name: 'Open a photograph.' })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'Adjust' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Choose from Photos or Files' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Try the sample' })).toBeInTheDocument();
-    expect(screen.getByText('JPEG, PNG, or WebP')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Choose a photo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open sample' })).toBeInTheDocument();
+    expect(screen.getByText('From Photos or Files · JPEG, PNG, or WebP')).toBeInTheDocument();
     expect(screen.getByRole('slider', { name: 'Preview before and after' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reload page' })).not.toBeInTheDocument();
   });
@@ -227,7 +236,7 @@ describe('OpenFilm shell', () => {
       await openBundledSample();
 
       fireEvent.click(screen.getByRole('tab', { name: 'Looks' }));
-      expect(screen.getByRole('heading', { name: 'Bundled Looks' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Starting Looks' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Apply Quiet Morning' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Apply Street Dust' })).toBeInTheDocument();
 
@@ -236,7 +245,7 @@ describe('OpenFilm shell', () => {
       expect(screen.getByLabelText('Exposure')).toHaveValue('0.35');
 
       fireEvent.click(screen.getByRole('tab', { name: 'Looks' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Save current Look' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save as Look' }));
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My saved Look' } });
       fireEvent.change(screen.getByLabelText('Description'), {
         target: { value: 'A look I want to use again.' },
@@ -244,14 +253,17 @@ describe('OpenFilm shell', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Save Look' }));
       expect(screen.getByRole('heading', { name: 'My saved Look' })).toBeInTheDocument();
 
+      openLookActions('My saved Look');
       fireEvent.click(screen.getByRole('button', { name: 'Rename My saved Look' }));
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Renamed Look' } });
       fireEvent.click(screen.getByRole('button', { name: 'Rename Look' }));
       expect(screen.getByRole('heading', { name: 'Renamed Look' })).toBeInTheDocument();
 
+      openLookActions('Renamed Look');
       fireEvent.click(screen.getByRole('button', { name: 'Duplicate Renamed Look' }));
       expect(screen.getByRole('heading', { name: 'Renamed Look copy' })).toBeInTheDocument();
 
+      openLookActions('Renamed Look');
       fireEvent.click(screen.getByRole('button', { name: 'Delete Renamed Look' }));
       expect(screen.queryByRole('heading', { name: 'Renamed Look' })).not.toBeInTheDocument();
       expect(confirm).toHaveBeenCalledWith(
@@ -415,13 +427,13 @@ describe('OpenFilm shell', () => {
     try {
       render(<App />);
 
-      fireEvent.click(screen.getByRole('button', { name: 'Try the sample' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Open sample' }));
 
       expect(
-        await screen.findByRole('heading', { name: 'openfilm-sample.png' }),
+        await screen.findByRole('heading', { name: 'openfilm-greenhouse.webp' }),
       ).toBeInTheDocument();
       expect(mocks.createObjectUrl).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'openfilm-sample.png', type: 'image/png' }),
+        expect.objectContaining({ name: 'openfilm-greenhouse.webp', type: 'image/webp' }),
       );
     } finally {
       mocks.restore();

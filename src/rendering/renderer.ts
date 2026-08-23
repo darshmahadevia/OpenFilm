@@ -806,7 +806,7 @@ class WebGL2PreviewRenderer implements PreviewRenderer {
     private readonly options: RendererOptions,
   ) {
     this.resources = createGpuResources(gl, this.adjustments.toneCurve);
-    gl.clearColor(0.87, 0.866, 0.831, 1);
+    gl.clearColor(0.02, 0.024, 0.025, 1);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
     canvas.addEventListener('webglcontextlost', this.handleContextLost, false);
     canvas.addEventListener('webglcontextrestored', this.handleContextRestored, false);
