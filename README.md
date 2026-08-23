@@ -4,6 +4,29 @@ OpenFilm is a quiet, browser-based photo editor for reusable film-inspired Looks
 photographs locally and is designed to deploy as static files without accounts, a backend, or paid
 services.
 
+[Open the live app](https://openfilm.vercel.app) · [View the public repository](https://github.com/darshmahadevia/OpenFilm) · [Check CI](https://github.com/darshmahadevia/OpenFilm/actions/workflows/ci.yml)
+
+## See it
+
+The editor keeps the photograph in the foreground. Desktop uses one canvas and one control area;
+the same flow stacks into a phone-sized layout without hiding the values or status messages.
+
+![OpenFilm desktop editor](./docs/screenshots/openfilm-desktop.png)
+
+![OpenFilm phone editor](./docs/screenshots/openfilm-phone.png)
+
+## Features
+
+- Import one JPEG, PNG, or WebP by picker or drag and drop, with bounded preview sizing and clear
+  recovery messages.
+- Adjust exposure, contrast, temperature, tint, saturation, fade, an RGB tone curve, vignette, and
+  deterministic grain through one WebGL2 path.
+- Crop with free or common ratios, rotate in 90-degree steps, and flip horizontally or vertically.
+- Use undo, redo, before and after, reset controls, and a deferred luminance histogram.
+- Apply bundled Looks, save custom Looks in IndexedDB, and exchange one versioned JSON Preset file.
+- Reload the latest recoverable Edit when browser storage permits it, then export a fresh JPEG, PNG,
+  or WebP without changing the Source photograph.
+
 The current application is a canvas-first editor workspace with one active control area, local UI
 primitives, source-photograph import, and a single WebGL2 preview path. It validates JPEG, PNG, and
 WebP files selected by picker or drag and drop, prepares a bounded preview texture, sends the six
@@ -90,17 +113,18 @@ npm run preview
 
 ## Verification scripts
 
-| Script                 | Purpose                                                                                 |
-| ---------------------- | --------------------------------------------------------------------------------------- |
-| `npm run dev`          | Start the Vite development server                                                       |
-| `npm run typecheck`    | Run the TypeScript project build without emitting files                                 |
-| `npm run lint`         | Run ESLint                                                                              |
-| `npm run format:check` | Verify Prettier formatting                                                              |
-| `npm run format`       | Apply Prettier formatting                                                               |
-| `npm run test:unit`    | Run the Vitest unit and component tests                                                 |
-| `npm run test:e2e`     | Run the Playwright Chromium import, editing, history, axe, responsive, and export flows |
-| `npm run build`        | Create the static production bundle                                                     |
-| `npm run check`        | Run formatting, lint, typecheck, tests, and build in sequence                           |
+| Script                                                             | Purpose                                                                                 |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `npm run dev`                                                      | Start the Vite development server                                                       |
+| `npm run typecheck`                                                | Run the TypeScript project build without emitting files                                 |
+| `npm run lint`                                                     | Run ESLint                                                                              |
+| `npm run format:check`                                             | Verify Prettier formatting                                                              |
+| `npm run format`                                                   | Apply Prettier formatting                                                               |
+| `npm run test:unit`                                                | Run the Vitest unit and component tests                                                 |
+| `npm run test:e2e`                                                 | Run the Playwright Chromium import, editing, history, axe, responsive, and export flows |
+| `PLAYWRIGHT_BASE_URL=https://openfilm.vercel.app npm run test:e2e` | Run the same browser suite against production                                           |
+| `npm run build`                                                    | Create the static production bundle                                                     |
+| `npm run check`                                                    | Run formatting, lint, typecheck, tests, and build in sequence                           |
 
 ## Architecture
 
@@ -133,6 +157,17 @@ validation and serialization, `src/storage/browserStorage.test.ts` covers the br
 storage adapters, and `src/rendering/export.test.ts` covers format and export sizing. The component
 tests cover the public controls and editor journey. Playwright runs Chromium journeys at desktop
 and phone widths, plus axe-core scans for the landing and loaded editor states.
+
+## Privacy model
+
+OpenFilm has no account system, application backend, database, analytics add-on, or external API.
+The Vercel deployment serves static HTML, CSS, and JavaScript. The browser reads a Source photograph
+through the File and Canvas APIs, and the editor does not upload it. Export creates a new local
+download and does not overwrite the Source photograph.
+
+IndexedDB may store custom Looks and the latest recoverable Edit, including Source bytes when the
+browser allows it. Clearing site data, using a browser mode that blocks IndexedDB, or a storage
+failure can remove or prevent recovery. Browser storage is not a backup.
 
 ## Accessibility and manual checks
 
@@ -228,5 +263,16 @@ scope.
 
 ## Deployment
 
-`npm run build` creates a static `dist/` directory suitable for Vercel's static deployment. The
-project does not require server functions, a database, paid APIs, or a paid hosting feature.
+The [live production app](https://openfilm.vercel.app) is a static Vercel Hobby deployment from the
+public `main` branch. Pull requests receive Vercel preview deployments through the GitHub
+connection. `vercel.json` pins the build to `npm ci`, `npm run build`, and `dist`, and sends browser
+routes to the Vite entry point while leaving built assets available.
+
+`npm run build` creates the same static `dist/` directory locally. The project does not require
+server functions, a database, paid APIs, a paid hosting feature, or Vercel Web Analytics.
+
+## License and dependency notices
+
+OpenFilm is released under the [MIT License](./LICENSE). The direct runtime and development
+dependency licenses, project links, and the relationship to the pinned transitive dependency graph
+are recorded in [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
