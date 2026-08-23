@@ -1,0 +1,12 @@
+Use case: ui-mockup
+Asset type: OpenFilm landing-page first viewport, desktop web, landscape, composition option three
+Primary request: a category-standard photo editor landing page at exceptional production quality where the working editor occupies nearly the entire first viewport and marketing copy behaves like a compact onboarding panel.
+Structure: minimal top bar with OpenFilm and privacy status; full-viewport editor workspace underneath; large photograph centered; narrow crop/looks rail on the left; concise headline, local-first sentence, and choose-photo action in a compact right-side onboarding panel; export sits in the persistent top bar. A before/after divider runs through the photograph.
+Subject: OpenFilm’s actual workflow—choose a local photo, crop it, apply a look, compare before/after, export.
+Style/medium: realistic high-fidelity shippable web product UI, modern desktop creative tool, not concept art, not a device mockup.
+Composition/framing: 1440x900 landscape; product-first and dense but calm; editor is immediately understandable to a first-time visitor.
+Color palette: near-black #0F1115, slightly lighter charcoal surfaces, clean off-white, muted gray, one restrained violet-blue accent.
+Materials/textures: matte dark chrome, subtle separators, soft restrained elevation only where panels overlap.
+Typography: clean modern neutral sans, compact professional control labels, medium-size onboarding headline.
+Text (verbatim): "OpenFilm", "Private by default", "Edit photos. Keep them yours.", "Choose photo", "Crop", "Looks", "Before", "After", "Export", "Your photo never leaves this device."
+Constraints: no invented claims, no pricing, no testimonials, no unrelated logos, no watermark, no feature cards, no glassmorphism, no oversized centered hero, no excessive rounded containers; practical accessible controls and crystal-clear first action.

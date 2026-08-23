@@ -1,0 +1,8 @@
+{
+  "approved": true,
+  "approval": "Delegated by the user on 2026-08-23",
+  "source": "built-in image_gen",
+  "promptFile": "category-standard-split.prompt.txt",
+  "viewport": { "width": 1586, "height": 992 },
+  "composition": "Image-led split hero with compact promise and CTA at left, live before/after image at right, and real crop/looks controls entering at the fold."
+}

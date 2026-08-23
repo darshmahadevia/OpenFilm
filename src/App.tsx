@@ -270,7 +270,7 @@ function LandingPage({
   onResumeEdit: () => void;
   onRetryStorage: () => void;
   onSetDropActive: (active: boolean) => void;
-  onTrySample: () => void;
+  onTrySample: (tool?: EditorTool) => void;
   recoveryFeedback: string | null;
   recoveryNeedsSource: boolean;
   rendererMessage: string | null;
@@ -294,74 +294,142 @@ function LandingPage({
         onDrop={onDrop}
         role="group"
       >
-        <img
-          alt="Analog camera, notebook, and cup on a desk in late-afternoon light"
-          className="landing-hero__image"
-          decoding="async"
-          fetchPriority="high"
-          src={darkroomHeroUrl}
-        />
-        <div aria-hidden="true" className="landing-hero__veil" />
         <header className="landing-nav">
           <a aria-label="OpenFilm home" className="landing-brand" href="/">
-            <span aria-hidden="true" className="landing-brand__aperture" />
             <span>OpenFilm</span>
           </a>
           <nav aria-label="Landing page">
             <a href="#process">How it works</a>
             <a href="#privacy">Privacy</a>
           </nav>
-          <button className="landing-nav__action" disabled={isImporting} onClick={onTrySample}>
+          <button
+            className="landing-nav__action"
+            disabled={isImporting}
+            onClick={() => onTrySample()}
+          >
             Try the sample
           </button>
         </header>
 
-        <div className="landing-hero__copy">
-          <h1>A quieter room for your photographs.</h1>
-          <p>OpenFilm is a browser photo editor for film-inspired color. No account. No upload.</p>
-          <div className="landing-hero__actions">
-            <Button disabled={isImporting} onClick={onChoosePhotograph} variant="primary">
-              {isImporting ? 'Opening photograph…' : 'Choose a photograph'}
-            </Button>
-            <Button disabled={isImporting} onClick={onTrySample} variant="quiet">
-              Start with the sample
-            </Button>
-          </div>
-          <p className="landing-hero__formats">JPEG, PNG, or WebP · up to 20 MB</p>
+        <div className="landing-hero__grid">
+          <div className="landing-hero__copy">
+            <h1 aria-label="Edit photos. Keep them yours.">
+              Edit photos.
+              <br />
+              Keep them yours.
+            </h1>
+            <p>A fast, local photo editor for the crop and finish that make an image yours.</p>
+            <p className="landing-hero__privacy">
+              <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
+                <rect height="10" rx="2" stroke="currentColor" width="13" x="3.5" y="8" />
+                <path d="M6.5 8V6.5a3.5 3.5 0 0 1 7 0V8" stroke="currentColor" />
+              </svg>
+              Runs locally in your browser.
+            </p>
+            <div className="landing-hero__actions">
+              <Button disabled={isImporting} onClick={onChoosePhotograph} variant="primary">
+                {isImporting ? 'Opening photograph…' : 'Choose a photograph'}
+              </Button>
+              <Button disabled={isImporting} onClick={() => onTrySample()} variant="quiet">
+                Start with the sample
+              </Button>
+            </div>
+            <p className="landing-hero__formats">JPEG, PNG, or WebP · up to 20 MB</p>
 
-          {canResumeEdit ? (
-            <div className="landing-alert" role="status">
-              <strong>Your latest Edit is ready.</strong>
-              <p>{recoveryFeedback ?? 'Resume where you left off in this browser.'}</p>
-              <button onClick={onResumeEdit} type="button">
-                Resume latest edit
-              </button>
+            {canResumeEdit ? (
+              <div className="landing-alert" role="status">
+                <strong>Your latest Edit is ready.</strong>
+                <p>{recoveryFeedback ?? 'Resume where you left off in this browser.'}</p>
+                <button onClick={onResumeEdit} type="button">
+                  Resume latest edit
+                </button>
+              </div>
+            ) : recoveryNeedsSource ? (
+              <div className="landing-alert" role="status">
+                <strong>Your latest Edit is ready.</strong>
+                <p>{recoveryFeedback ?? 'Choose its source photograph again to continue.'}</p>
+                <button onClick={onChoosePhotograph} type="button">
+                  Choose source photograph
+                </button>
+              </div>
+            ) : importFeedback?.kind === 'error' ? (
+              <div className="landing-alert landing-alert--error" role="alert">
+                <strong>That file could not be opened.</strong>
+                <p>{importFeedback.message}</p>
+                <button onClick={onChoosePhotograph} type="button">
+                  Try another file
+                </button>
+              </div>
+            ) : rendererMessage ? (
+              <div className="landing-alert landing-alert--error" role="alert">
+                <strong>The editor cannot start.</strong>
+                <p>{rendererMessage}</p>
+                <button onClick={onReload} type="button">
+                  Reload page
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="landing-demo">
+            <div className="landing-demo__readout" aria-hidden="true">
+              <span>OpenFilm preview</span>
+              <span>Drag to compare</span>
             </div>
-          ) : recoveryNeedsSource ? (
-            <div className="landing-alert" role="status">
-              <strong>Your latest Edit is ready.</strong>
-              <p>{recoveryFeedback ?? 'Choose its source photograph again to continue.'}</p>
-              <button onClick={onChoosePhotograph} type="button">
-                Choose source photograph
-              </button>
+            <div className="landing-demo__frame">
+              <img
+                alt="Pedestrian crossing a rain-wet street at blue hour before editing"
+                decoding="async"
+                fetchPriority="high"
+                src={comparisonStreetUrl}
+              />
+              <div
+                aria-hidden="true"
+                className="landing-demo__edited"
+                style={{ clipPath: `inset(0 ${100 - reveal}% 0 0)` }}
+              >
+                <img alt="" src={comparisonStreetUrl} />
+              </div>
+              <span
+                aria-hidden="true"
+                className="landing-demo__divider"
+                style={{ left: `${reveal}%` }}
+              />
+              <input
+                aria-label="Preview before and after"
+                max="100"
+                min="0"
+                onChange={(event) => setReveal(Number(event.target.value))}
+                type="range"
+                value={reveal}
+              />
+              <span className="landing-demo__label landing-demo__label--edited">After</span>
+              <span className="landing-demo__label landing-demo__label--source">Before</span>
             </div>
-          ) : importFeedback?.kind === 'error' ? (
-            <div className="landing-alert landing-alert--error" role="alert">
-              <strong>That file could not be opened.</strong>
-              <p>{importFeedback.message}</p>
-              <button onClick={onChoosePhotograph} type="button">
-                Try another file
+            <div className="landing-demo__controls" aria-label="Available editing groups">
+              <button
+                aria-pressed="true"
+                className="landing-demo__control--active"
+                disabled={isImporting}
+                onClick={() => onTrySample('geometry')}
+                type="button"
+              >
+                Crop
               </button>
-            </div>
-          ) : rendererMessage ? (
-            <div className="landing-alert landing-alert--error" role="alert">
-              <strong>The editor cannot start.</strong>
-              <p>{rendererMessage}</p>
-              <button onClick={onReload} type="button">
-                Reload page
+              <button
+                aria-pressed="false"
+                disabled={isImporting}
+                onClick={() => onTrySample('looks')}
+                type="button"
+              >
+                Looks
               </button>
+              <span>Exposure +0.35</span>
+              <span>Temperature +18</span>
+              <span>Grain 22</span>
+              <span>Export ready</span>
             </div>
-          ) : null}
+          </div>
         </div>
 
         <div className="landing-hero__status">
@@ -372,54 +440,42 @@ function LandingPage({
 
       <section className="landing-process" id="process">
         <div className="landing-process__intro">
-          <h2>See the photograph change. Keep every choice reversible.</h2>
+          <h2>Everything you need to finish one photograph.</h2>
           <p>
-            Shape light, color, texture, and geometry in one focused workspace. Compare the source
-            at any time, then export a new file when the Edit feels right.
+            No account setup and no professional-suite learning curve. OpenFilm keeps the useful
+            path short and every choice reversible.
           </p>
         </div>
-
-        <div className="landing-demo">
-          <div className="landing-demo__readout" aria-hidden="true">
-            <span>Example Look</span>
-            <span>Exposure +0.35 · Temperature +18 · Grain 22</span>
-          </div>
-          <div className="landing-demo__frame">
-            <img
-              alt="Pedestrian crossing a rain-wet street at blue hour before editing"
-              src={comparisonStreetUrl}
-            />
-            <div
-              aria-hidden="true"
-              className="landing-demo__edited"
-              style={{ clipPath: `inset(0 ${100 - reveal}% 0 0)` }}
-            >
-              <img alt="" src={comparisonStreetUrl} />
+        <ol className="landing-flow">
+          <li>
+            <span>Import</span>
+            <div>
+              <h3>Choose one local photograph.</h3>
+              <p>Open a JPEG, PNG, or WebP without creating an account or uploading a file.</p>
             </div>
-            <span
-              aria-hidden="true"
-              className="landing-demo__divider"
-              style={{ left: `${reveal}%` }}
-            />
-            <input
-              aria-label="Preview before and after"
-              max="100"
-              min="0"
-              onChange={(event) => setReveal(Number(event.target.value))}
-              type="range"
-              value={reveal}
-            />
-            <span className="landing-demo__label landing-demo__label--edited">OpenFilm Look</span>
-            <span className="landing-demo__label landing-demo__label--source">Neutral source</span>
-          </div>
-          <div className="landing-demo__controls" aria-label="Available editing groups">
-            <span>Light</span>
-            <span>Color</span>
-            <span>Curve</span>
-            <span>Grain</span>
-            <span>Geometry</span>
-            <span>Looks</span>
-          </div>
+          </li>
+          <li>
+            <span>Shape</span>
+            <div>
+              <h3>Crop, balance, and build a Look.</h3>
+              <p>Geometry stays with this Edit. Color and texture can travel as a reusable Look.</p>
+            </div>
+          </li>
+          <li>
+            <span>Keep</span>
+            <div>
+              <h3>Export a fresh finished file.</h3>
+              <p>Compare against the source at any time, then download without changing it.</p>
+            </div>
+          </li>
+        </ol>
+        <div className="landing-process__image">
+          <img
+            alt="Analog camera, notebook, and cup on a desk in late-afternoon light"
+            loading="lazy"
+            src={darkroomHeroUrl}
+          />
+          <p>One source. One reversible Edit. One file worth keeping.</p>
         </div>
       </section>
 
@@ -465,12 +521,12 @@ function LandingPage({
       <section className="landing-close">
         <img alt="" aria-hidden="true" src={closingCoastUrl} />
         <div>
-          <h2>Open one photograph. Find the version you want to keep.</h2>
+          <h2>Open one photograph. Keep the version that feels like yours.</h2>
           <div className="landing-close__actions">
             <Button disabled={isImporting} onClick={onChoosePhotograph} variant="primary">
               Choose a photograph
             </Button>
-            <Button disabled={isImporting} onClick={onTrySample} variant="quiet">
+            <Button disabled={isImporting} onClick={() => onTrySample()} variant="quiet">
               Try the sample
             </Button>
           </div>
@@ -2072,8 +2128,8 @@ export default function App() {
   useEffect(() => {
     document
       .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
-      ?.setAttribute('content', isLandingVisible ? '#0c0c0a' : '#f4f3ee');
-  }, [isLandingVisible]);
+      ?.setAttribute('content', '#0b0e14');
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -2671,7 +2727,8 @@ export default function App() {
     applyGeometryAction({ type: 'reset-geometry' });
   }
 
-  function importBundledSample() {
+  function importBundledSample(tool: EditorTool = 'adjustments') {
+    dispatch({ type: 'select-tool', tool });
     void importSelectedSource(createBundledSamplePhotographFile());
   }
 
@@ -3024,10 +3081,19 @@ export default function App() {
       </a>
       <header className="topbar">
         <a aria-label="OpenFilm home" className="brand" href="/">
-          <span aria-hidden="true" className="brand__mark" />
           <span className="brand__name">OpenFilm</span>
         </a>
         <div className="topbar__actions">
+          <span className="topbar__privacy">
+            <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
+              <path
+                d="M10 2.75 16 5v4.5c0 3.55-2.18 6.2-6 7.75-3.82-1.55-6-4.2-6-7.75V5l6-2.25Z"
+                stroke="currentColor"
+              />
+              <path d="m7.5 10 1.6 1.6 3.55-3.55" stroke="currentColor" />
+            </svg>
+            Private by default
+          </span>
           <RendererStatusLabel status={rendererStatus} />
           <IconButton label="Open editor help" onClick={() => setHelpOpen(true)} size="small">
             <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 18 18" width="18">
@@ -3041,13 +3107,29 @@ export default function App() {
               <circle cx="9" cy="12.65" fill="currentColor" r=".75" />
             </svg>
           </IconButton>
+          <Button
+            aria-label="Save photograph"
+            disabled={
+              !hasSource ||
+              !isPreviewReady ||
+              rendererStatus !== 'available' ||
+              Boolean(rendererError) ||
+              Boolean(exportDimensionIssue) ||
+              isExporting
+            }
+            onClick={() => void handleDownload()}
+            size="small"
+            variant="primary"
+          >
+            {isExporting ? 'Exporting…' : 'Export'}
+          </Button>
         </div>
       </header>
 
       <main className="workspace">
         <section aria-labelledby="preview-title" className="canvas-column">
           <div className="canvas-column__header">
-            <h1 id="preview-title">Your photograph, in focus.</h1>
+            <h1 id="preview-title">Your photograph</h1>
           </div>
 
           <div
@@ -3125,7 +3207,7 @@ export default function App() {
                         </Button>
                         <Button
                           disabled={isImporting}
-                          onClick={importBundledSample}
+                          onClick={() => importBundledSample()}
                           size="small"
                           variant="quiet"
                         >
@@ -3244,8 +3326,8 @@ export default function App() {
 
         <aside aria-labelledby="controls-title" className="control-area">
           <div className="control-area__header">
-            <h2 id="controls-title">Make it yours.</h2>
-            <p>One control area keeps the image in charge of the experience.</p>
+            <h2 id="controls-title">Edit</h2>
+            <p>Crop, finish, and save without leaving this workspace.</p>
           </div>
 
           <div

@@ -97,7 +97,7 @@ describe('OpenFilm shell', () => {
     render(<App />);
 
     expect(
-      screen.getByRole('heading', { name: 'A quieter room for your photographs.' }),
+      screen.getByRole('heading', { name: 'Edit photos. Keep them yours.' }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'Adjust' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Choose a photograph' })).toHaveLength(2);
@@ -125,10 +125,12 @@ describe('OpenFilm shell', () => {
       render(<App />);
 
       expect(
-        screen.getByRole('heading', { name: 'A quieter room for your photographs.' }),
+        screen.getByRole('heading', { name: 'Edit photos. Keep them yours.' }),
       ).toBeInTheDocument();
       expect(screen.queryByRole('slider', { name: 'Exposure' })).not.toBeInTheDocument();
-      expect(screen.getByText(/Shape light, color, texture, and geometry/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/No account setup and no professional-suite learning curve/),
+      ).toBeInTheDocument();
 
       await openBundledSample();
       expect(screen.getByRole('slider', { name: 'Exposure' })).toBeInTheDocument();

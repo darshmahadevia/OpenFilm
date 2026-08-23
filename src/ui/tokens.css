@@ -1,18 +1,18 @@
 :root {
-  --color-ink: #1b1c18;
-  --color-ink-soft: #4e514b;
-  --color-muted: #6b6e67;
-  --color-paper: #f4f3ee;
-  --color-surface: #fbfaf6;
-  --color-surface-raised: #efeee8;
-  --color-canvas: #deddd4;
-  --color-line: #d4d3ca;
-  --color-line-strong: #b8b8ad;
-  --color-accent: #b45335;
-  --color-accent-dark: #8e3e28;
-  --color-accent-ink: #fff9f2;
-  --color-success: #4f765c;
-  --color-warning: #7d541f;
+  --color-ink: #f2f4f7;
+  --color-ink-soft: #bdc3cf;
+  --color-muted: #8b93a1;
+  --color-paper: #0b0e14;
+  --color-surface: #12161d;
+  --color-surface-raised: #191e27;
+  --color-canvas: #070a0f;
+  --color-line: #252b35;
+  --color-line-strong: #39414e;
+  --color-accent: #5358ed;
+  --color-accent-dark: #686df4;
+  --color-accent-ink: #ffffff;
+  --color-success: #70d7a3;
+  --color-warning: #f0bd69;
 
   --font-body: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
@@ -21,7 +21,7 @@
   --type-md: 0.96rem;
   --type-lg: 1.18rem;
   --type-xl: clamp(1.7rem, 2.5vw, 2.8rem);
-  --type-display: clamp(2.3rem, 5vw, 5.8rem);
+  --type-display: clamp(2.65rem, 4.7vw, 5.6rem);
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -36,8 +36,8 @@
 
   --touch-target: 2.75rem;
 
-  --radius-sm: 0.3rem;
-  --radius-md: 0.7rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.8rem;
   --radius-round: 999px;
 
   --motion-fast: 120ms;

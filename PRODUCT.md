@@ -45,6 +45,10 @@ The workspace must remain usable on both desktop and phone-sized screens.
 - Prefer the OpenFilm wordmark without a logo. A simple circle may be explored as a quiet mark when
   a concept needs one, but it must never compete with the photograph.
 - Use plain, calm product language and keep the image in the foreground.
+- Use a familiar dark creative-tool visual language at the craft level of Darkroom, VSCO Web
+  Studio, and Lightroom: image-led composition, legible professional controls, matte near-black
+  chrome, and one restrained violet-blue action color. The interface should feel immediately
+  recognizable rather than quirky or nostalgic.
 
 ## Evidence on Hand
 

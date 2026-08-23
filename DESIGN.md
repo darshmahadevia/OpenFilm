@@ -1,51 +1,35 @@
 ---
 name: OpenFilm
-description: A quiet darkroom for local, film-inspired photo editing.
+description: A matte, local-first photo editor where the image stays in control.
 colors:
-  ink: '#1b1c18'
-  ink-soft: '#4e514b'
-  muted: '#6b6e67'
-  paper: '#f4f3ee'
-  surface: '#fbfaf6'
-  surface-raised: '#efeee8'
-  canvas: '#deddd4'
-  line: '#d4d3ca'
-  line-strong: '#b8b8ad'
-  accent: '#b45335'
-  accent-dark: '#8e3e28'
-  accent-ink: '#fff9f2'
-  success: '#4f765c'
-  warning: '#7d541f'
-  landing-ink: '#f2eee3'
-  landing-ink-soft: '#c9c2b5'
-  landing-ground: '#0c0c0a'
-  landing-surface: '#151512'
-  landing-line: '#3b3933'
-  landing-accent: '#ed6137'
-  landing-action-ink: '#160d09'
-  process-paper: '#e4ded1'
-  process-ink: '#1d1b17'
-  process-copy: '#5e594f'
-  process-rule: '#989184'
-  compare-ground: '#171713'
+  ink: '#f2f4f7'
+  ink-soft: '#bdc3cf'
+  muted: '#8b93a1'
+  paper: '#0b0e14'
+  chrome: '#0c1015'
+  control: '#0d1116'
+  surface: '#12161d'
+  surface-raised: '#191e27'
+  canvas: '#070a0f'
+  line: '#252b35'
+  line-strong: '#39414e'
+  accent: '#5358ed'
+  accent-dark: '#686df4'
+  accent-ink: '#ffffff'
+  success: '#70d7a3'
+  warning: '#f0bd69'
 typography:
   display:
-    fontFamily: 'OpenFilm Bodoni, Times New Roman, serif'
-    fontSize: 'clamp(4.25rem, 7vw, 6rem)'
-    fontWeight: 400
-    lineHeight: 0.84
-    letterSpacing: '-0.035em'
-  headline:
-    fontFamily: 'OpenFilm Bodoni, Times New Roman, serif'
-    fontSize: 'clamp(3rem, 6vw, 6rem)'
-    fontWeight: 400
-    lineHeight: 0.92
-    letterSpacing: '-0.035em'
+    fontFamily: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif'
+    fontSize: 'clamp(3.25rem, 3.8vw, 3.5rem)'
+    fontWeight: 700
+    lineHeight: 0.98
+    letterSpacing: '-0.04em'
   title:
     fontFamily: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif'
     fontSize: 'clamp(1.7rem, 2.5vw, 2.8rem)'
     fontWeight: 650
-    lineHeight: 1.05
+    lineHeight: 1
     letterSpacing: '-0.03em'
   body:
     fontFamily: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif'
@@ -55,12 +39,12 @@ typography:
   label:
     fontFamily: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif'
     fontSize: '0.72rem'
-    fontWeight: 400
+    fontWeight: 600
     lineHeight: 1.45
     letterSpacing: '0.06em'
 rounded:
-  sm: '0.3rem'
-  md: '0.7rem'
+  sm: '0.5rem'
+  md: '0.8rem'
   round: '999px'
 spacing:
   space-1: '0.25rem'
@@ -94,19 +78,12 @@ components:
     padding: '0 {spacing.space-4}'
     height: '{spacing.touch-target}'
   button-outline:
-    backgroundColor: 'transparent'
+    backgroundColor: '{colors.surface}'
     textColor: '{colors.ink}'
     typography: '{typography.body}'
     rounded: '{rounded.sm}'
     padding: '0 {spacing.space-4}'
     height: '{spacing.touch-target}'
-  button-landing-primary:
-    backgroundColor: '{colors.landing-accent}'
-    textColor: '{colors.landing-action-ink}'
-    typography: '{typography.body}'
-    rounded: '0'
-    padding: '0 1.3rem'
-    height: '3.25rem'
   field:
     backgroundColor: '{colors.surface}'
     textColor: '{colors.ink}'
@@ -114,231 +91,247 @@ components:
     rounded: '{rounded.sm}'
     padding: '0 {spacing.space-3}'
     height: '{spacing.touch-target}'
-  brand-mark:
-    backgroundColor: 'transparent'
-    rounded: '{rounded.round}'
-    size: '0.78rem'
-  panel:
-    backgroundColor: 'transparent'
-    textColor: '{colors.ink}'
-    typography: '{typography.body}'
   navigation:
-    backgroundColor: '{colors.landing-ground}'
-    textColor: '{colors.landing-ink}'
-    padding: '0 clamp(1.25rem, 4vw, 4.5rem)'
-    height: '5.5rem'
-  before-after-demo:
-    backgroundColor: '{colors.compare-ground}'
-    size: '16 / 9'
+    backgroundColor: '{colors.chrome}'
+    textColor: '{colors.ink}'
+    height: '4.25rem'
+  tool-tab-active:
+    backgroundColor: '{colors.control}'
+    textColor: '{colors.ink}'
+    height: '{spacing.touch-target}'
 ---
 
 # Design System: OpenFilm
 
 ## Overview
 
-**Creative North Star: "The Quiet Darkroom"**
+**Creative North Star: "The Matte Proof Studio"**
 
-OpenFilm's landing world treats the product as a quiet darkroom: a photograph fills the first
-viewport, warm paper gives the story somewhere to breathe, and a safe-light orange marks the
-moments that open the room. The local Bodoni face gives the landing statement and section titles a
-cinematic editorial voice; the sans-serif stack keeps navigation, status, and editor controls
-plain and dependable. A small open circle sits beside the OpenFilm wordmark. The existing OF
-monogram is not part of the identity.
+OpenFilm is a quiet, professional photo workspace where the photograph does the convincing. The
+surface is matte near-black chrome with charcoal planes, off-white type, cool gray supporting copy,
+and one violet-blue signal for action and focus. The product language is familiar at the craft level
+of Darkroom, VSCO Web Studio, and Lightroom: image-led staging, legible controls, and enough density
+to make the workflow feel real without making it feel like a pro-suite exam.
 
-The landing composition is intentionally edge-to-edge and image-led, then yields to the existing
-editor's calm, light workspace. Both surfaces share a vocabulary of thin rules, restrained orange
-accent, generous spacing, visible keyboard focus, and touch-sized controls. The near-black landing
-palette, square landing actions, and split before-and-after composition belong to the landing
-expression; they are not global rules for the editor.
+The landing first viewport is a compact promise beside a live before/after proof. After import, the
+same world resolves into a large canvas and a narrow tool rail for Adjust, Geometry, and Looks.
+Supporting process and privacy sections may change value for reading contrast, but the system does
+not need ornamental brand theatre or a feature-card wall. The image, the active tool, and the export
+path remain the primary objects.
+
+**Provenance:** This scan records the shipped category-standard standing exit, comp option two,
+concept seed `d0d9cfa6`, approved in `.impeccable/mocks/category-standard-split.webp` with its
+sidecar `.impeccable/mocks/category-standard-split.webp.json`, and captured again in
+`.impeccable/review/hero-repro.png`, `editor-desktop.png`, and `editor-mobile.png`. Final reviewer
+disposition: ship.
 
 **Key Characteristics:**
 
-- Full-bleed photographic opening with a left-anchored statement and visible import actions.
-- A dedicated street photograph for comparison and a coastal photograph for the closing invitation.
-- Local Bodoni display type paired with a quiet sans-serif utility voice.
-- Safe-light orange used sparingly for action, focus, and drop-state emphasis.
-- Thin exposed rules, a simple circle mark, and a tactile before-and-after divider.
-- Local processing, reversible edits, and privacy stated in plain language.
+- Matte near-black ground with charcoal chrome and quiet value-based depth.
+- One violet-blue action color used for primary actions, selected tabs, sliders, focus, and drop state.
+- Neutral sans typography throughout, with compact labels and tabular numeric values.
+- The photograph is the product proof: the first viewport is image-led and the editor canvas stays dominant.
+- Compact, precision-oriented controls organized as a three-tool editor rail.
+- No ornamental story grid, glassmorphism, invented claims, or competing identity mark.
 
 ## Colors
 
-The palette moves between photographic near-black, warm paper, and one controlled orange signal.
-The shared editor tokens remain the neutral light workspace; the landing adds a darkroom-specific
-set of scoped tones and a brighter action accent.
+The palette is a cool, low-chroma dark workspace with a clean foreground and one deliberately scarce
+violet-blue signal. The global tokens in `src/ui/tokens.css` are the source of truth; the `chrome` and
+`control` values name the repeated matte planes used by the final landing and editor overrides.
 
 ### Primary
 
-- **Safe-light Orange:** the landing's primary action, focus, and active drop-state color.
-- **Burnt Orange:** the shared editor accent for primary controls, sliders, active tabs, and
-  feedback.
+- **Violet-Blue Action** (`#5358ed`): the primary button, active tool underline, slider track,
+  crop/tone-curve affordances, keyboard focus, and active drop state.
+- **Violet-Blue Hover** (`#686df4`): the brighter hover state for primary actions and the active
+  control signal when interaction needs a little more lift.
 
 ### Neutral
 
-- **Darkroom Ground:** the near-black landing field behind the hero and closing image.
-- **Darkroom Surface:** the near-black privacy section surface.
-- **Warm Paper:** the landing display text and image-led darkroom type color.
-- **Warm Paper Soft:** secondary landing copy and navigation text.
-- **Process Paper:** the light process section's warm paper field.
-- **Process Ink:** the process section's dark reading color.
-- **Process Copy:** supporting copy on the process paper field.
-- **Exposed Rule:** the process grid's quiet gray rule color.
-- **Editor Paper:** the shared editor page background.
-- **Canvas Neutral:** the quiet gray field behind photographs that do not fill the preview frame.
-- **Editor Surface:** raised editor controls and fields.
-- **Editor Ink / Editor Ink Soft / Muted:** primary, secondary, and utility text roles.
-- **Editor Line / Strong Line:** one-pixel dividers and field strokes.
-- **Accent Ink:** readable text placed on the shared burnt-orange accent.
-- **Success / Warning:** status and recovery feedback colors.
+- **Near-Black Ground** (`#0b0e14`): the page, landing, and editor chrome ground.
+- **Top Chrome** (`#0c1015`): the top bar, comparison readout, and persistent status strip.
+- **Control Plane** (`#0d1116`): the landing control strip and right-side editor rail.
+- **Raised Surface** (`#191e27`): hover and disabled control states, never a decorative card fill.
+- **Editor Surface** (`#12161d`): fields, panels, disclosures, histogram, and dialog surfaces.
+- **Canvas Black** (`#070a0f`): the image stage behind a loaded photograph or empty canvas.
+- **Foreground** (`#f2f4f7`): primary headings, wordmark, active controls, and readable values.
+- **Foreground Soft** (`#bdc3cf`): supporting copy and secondary controls.
+- **Muted Gray** (`#8b93a1`): metadata, helper text, inactive tabs, and quiet status labels.
+- **Charcoal Line** (`#252b35`): the default one-pixel separator and panel rule.
+- **Strong Line** (`#39414e`): field borders and controls that need a clearer edge.
+- **Action Ink** (`#ffffff`): text and icons on the violet-blue action.
 
-**The Safe-Light Rule.** Keep orange rare and functional: the brighter landing accent marks actions
-and drop state, while the darker shared accent carries editor controls and status.
+### Tertiary
+
+- **Success Green** (`#70d7a3`): renderer-ready and successful import/export status only.
+- **Warning Gold** (`#f0bd69`): storage, renderer, and export warnings only.
+
+**The One Signal Rule.** Violet-blue is a functional signal, not a decorative brand wash. Keep it
+to action, selection, focus, progress, and recovery states; do not introduce a second accent family.
 
 ## Typography
 
-**Display Font:** OpenFilm Bodoni (with Times New Roman, serif fallback)
-**Body Font:** ui-sans-serif (with -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif fallbacks)
-**Label/Mono Font:** No separate mono face is implemented.
+**Display Font:** ui-sans-serif (with `-apple-system`, `BlinkMacSystemFont`, `Segoe UI`, sans-serif
+fallbacks)
+**Body Font:** the same neutral sans stack
+**Label/Mono Font:** no separate mono face; numeric values use tabular numerals.
 
-**Character:** The pairing contrasts a high-contrast editorial serif with a quiet, utilitarian sans.
-The serif is reserved for the landing's emotional statements; the sans keeps every decision,
-status, and control legible.
+**Character:** The type is plain, compact, and confident. A strong sans headline gives the landing
+promise enough weight, while the same family keeps tool names, helper text, statuses, and values
+visibly related.
 
 ### Hierarchy
 
-- **Display** (400, clamp(4.25rem, 7vw, 6rem), 0.84 line-height): the landing hero statement.
-- **Headline** (400, clamp(3rem, 6vw, 6rem), 0.92 line-height): process, privacy, and closing
-  landing section statements.
-- **Title** (650, clamp(1.7rem, 2.5vw, 2.8rem), 1.05 line-height): editor page and canvas titles.
-- **Body** (400, 0.96rem, 1.55 line-height): explanatory copy, editor context, and action labels.
-  Marketing paragraphs stay around 42–43ch; editor context is kept near 34ch.
-- **Label** (400, 0.72rem, 1.45 line-height, 0.06em letter spacing when uppercase): statuses,
-  metadata, section labels, and small utility text.
+- **Display** (700, `clamp(3.25rem, 3.8vw, 3.5rem)`, `0.98` line-height): the compact landing
+  promise; the mobile override grows from `3.1rem` to `4.25rem` across narrow widths.
+- **Title** (650, `clamp(1.7rem, 2.5vw, 2.8rem)`, `1` line-height): editor heading, panel titles,
+  and section-level tool headings.
+- **Body** (400, `0.96rem`, `1.55` line-height): product explanation, helper copy, and editor
+  context; keep prose short and close to the control it explains.
+- **Label** (600, `0.72rem`, `1.45` line-height, `0.06em` when tracking is needed): navigation,
+  tool tabs, field labels, status, metadata, and comparison readouts.
+- **Value** (400–650, `0.72rem`–`0.84rem`): adjustment values and export estimates use
+  `font-variant-numeric: tabular-nums` so columns do not jump while a control moves.
 
-**The Type Contrast Rule.** Set brand and landing section headlines in the local Bodoni face; keep
-body copy, navigation, labels, and editor controls in the sans stack.
+**The Neutral Sans Rule.** Do not reintroduce a display serif, novelty face, or stylistic wordmark;
+the product should read as a familiar creative tool before it reads as a branded editorial page.
 
 ## Layout
 
-The landing hero is a full-bleed photographic stage with a minimum height of `max(44rem, 100svh)`.
-Its desktop navigation is a three-column row with a spare wordmark at left, two links centered, and
-the sample action at right. Hero copy is left-anchored and vertically centered, while a ruled local
-status line holds the bottom edge. At `900px` and below, navigation links disappear and the story
-stacks; at `520px` and below, actions become full-width vertical controls and the status line keeps
-only the local-processing message.
+The landing hero is a full viewport (`100svh`) with a slim `4.25rem` top bar and a 34/66 split:
+the left promise panel holds the headline, local-processing proof, and choose-photo action; the
+right stage gives most of the area to the real before/after photograph. A small readout sits above
+the image, and a six-cell control strip enters at the fold so Crop, Looks, and the editing vocabulary
+are visible without turning the hero into a feature grid. The bottom status strip keeps local-device
+and drop-state messaging available.
 
-The process section uses a maximum content width of `94rem`, a two-column introduction, and a
-16:9 before-and-after frame. Its six editing-group cells become a three-column, two-row grid on
-phone widths, while the frame changes to a 4:5 crop. The privacy section follows a two-column
-statement-and-facts layout on larger screens and stacks below `900px`. The closing invitation is a
-centered image stage with a minimum height of `76vh`.
+The editor uses a full-width workspace with a large central canvas and a `20rem–22rem` right tool
+rail. The top bar remains sticky while the rail keeps Adjust, Geometry, Looks, edit history, controls,
+and Export in a clear vertical order. At `900px` and below the rail moves below the canvas with a
+ruled top edge. At `600px` and below the landing nav links disappear, actions become full-width,
+the comparison controls scroll horizontally, and editor padding tightens to `1rem`.
 
-The shared editor uses a centered `1440px` maximum workspace with a flexible canvas and a
-`19rem–23rem` control column. That grid collapses to one column below `900px`; the editor controls
-move below the canvas with a ruled top edge. The spacing rhythm comes from the shared `0.25rem`
-through `4rem` scale, with a `2.75rem` minimum interactive target.
+The spacing rhythm is the quarter-rem scale from `0.25rem` through `4rem`; interactive controls
+reserve a `2.75rem` minimum target. The supporting landing process is a linear ruled list with one
+image proof and a separate privacy region, not a repeated equal-card layout. The current process
+field uses a light contrast surface as a reading break; it is scoped to that section and does not
+change the operating workspace's matte dark identity.
 
-**The Yielding Surface Rule.** Landing composition may be edge-to-edge and editorial; the editor
-stays a calm max-width workspace with a dedicated control column.
+**The Photograph-First Rule.** Give the image the largest uninterrupted region available. Copy,
+navigation, and controls frame the proof; they do not compete with it.
 
 ## Elevation & Depth
 
-OpenFilm is flat by default. The landing creates depth through the hero photograph, brightness and
-saturation filters, dark linear veils, warm/cool tonal changes between sections, and one-pixel
-rules rather than stacked cards. The shared editor similarly relies on paper/surface layering and
-lines. A transient landing alert is the one deliberate lifted surface, using a diffuse dark shadow;
-the editor's drop state uses an inset accent rule instead of a floating panel.
+The system is flat at rest. Depth comes from near-black, charcoal, and raised-surface value steps,
+one-pixel rules, the photograph's tonal range, and a restrained comparison handle. Shadows are small
+state cues: the violet-blue primary action gets a low-opacity glow, the divider handle and transient
+alerts lift slightly, and dialogs receive the only deep overlay shadow. There is no glass, blur-heavy
+chrome, or shadow stack under every panel.
 
 ### Shadow Vocabulary
 
-- **Landing alert:** `0 16px 40px rgba(0, 0, 0, 0.25)` for import, recovery, and renderer notices.
-- **Editor drop state:** `inset 0 0 0 1px var(--color-accent)` as a structural focus cue, not a
-  floating elevation.
+- **Primary action:** `0 10px 26px rgba(39, 42, 172, 0.24)` in the editor and
+  `0 12px 30px rgba(39, 42, 172, 0.28)` in the landing; hover increases the spread modestly.
+- **Comparison handle:** `0 8px 24px rgba(0, 0, 0, 0.34)` so the divider remains readable over a
+  changing photograph.
+- **Transient alert:** `0 16px 40px rgba(0, 0, 0, 0.24)` for import/recovery notices.
+- **Dialog:** `0 26px 80px rgba(0, 0, 0, 0.5)` for a modal layer over the workspace.
 
-**The Flat Darkroom Rule.** Let photography, tonal blocks, and exposed rules create depth; reserve
-a shadow for transient notices and overlays.
+**The Matte Layer Rule.** Separate surfaces by value before reaching for a shadow; use elevation only
+when an element overlaps content or needs a clear state response.
 
 ## Shapes
 
-The landing uses square edges and exposed borders to feel like a darkroom contact sheet: buttons,
-image frames, section transitions, and footer rules do not use rounded corners. The wordmark's
-aperture is a small open circle (`0.78rem`, `50%` radius), and the before-and-after handle is a
-`2rem` outlined circle on a one-pixel divider.
+The form language is restrained and tool-like. Small controls, fields, tabs, and buttons use the
+`0.5rem` (`8px`) radius; major canvas and dialog surfaces use `0.8rem` (`12.8px`); icon buttons
+and status dots use the `999px` round token. Photo stages may be cropped and clipped, but they do not
+carry ornamental frames. One-pixel lines carry the structure, while selected tabs use a violet-blue
+bottom rule instead of a pill.
 
-The shared editor is softer but still restrained: small controls and fields use a `0.3rem` radius,
-canvas stages use `0.7rem`, and icon buttons use a fully round `999px` shape. Borders are generally
-one pixel and carry more of the structure than shadows. The landing's square geometry should not be
-promoted to a global editor constraint.
+The landing hero keeps its large planes square and quiet, with only the comparison handle and small
+labels adding a visible silhouette. The editor's crop handles and tone-curve points are round for
+affordance and touch clarity, not as a general rounded-container motif.
 
 ## Components
 
 ### Buttons
 
-Buttons are tactile, direct, and sized for a thumb. The shared editor uses a small radius and the
-landing deliberately overrides that geometry with square actions.
+Buttons are compact, direct, and usable with a thumb. They should feel like controls in a working
+tool, not promotional badges.
 
-- **Shape:** shared buttons use `0.3rem`; landing buttons use `0`.
-- **Primary:** shared primary uses the burnt-orange accent with accent-ink text and a `2.75rem`
-  minimum height; landing primary uses the brighter safe-light orange, dark action text, and a
-  `3.25rem` height.
-- **Hover / Focus:** shared primary darkens to the accent-dark token; landing primary shifts to a
-  brighter orange. All buttons retain the shared visible `3px` accent focus outline with a `3px`
-  offset.
-- **Quiet / Outline:** quiet actions use transparent backgrounds and gain a surface tint on hover;
-  outline actions expose the strong line and darken it on hover. Landing's quiet action is an
-  underlined, border-bottom control that gains a paper tint on hover.
+- **Shape:** `0.5rem` (`8px`) radius, transparent one-pixel border, and a `2.75rem` minimum height;
+  landing primary actions use a slightly taller `3rem` target.
+- **Primary:** violet-blue background with white text and horizontal `1rem` padding. Hover shifts
+  to the brighter violet-blue and adds a restrained glow; disabled moves to the raised surface and
+  muted text.
+- **Hover / Focus:** state transitions use the `120ms` fast motion token. Every button keeps a
+  visible `3px` violet-blue focus outline with a `3px` offset.
+- **Quiet:** transparent at rest, foreground text, and a raised-surface tint on hover.
+- **Outline:** editor-surface background with the strong charcoal line; hover lightens the edge.
 
 ### Cards / Containers
 
-There is no card grid in the landing. Full-width color fields, ruled facts, and image stages do the
-structural work. Import and recovery alerts are warm-paper callouts with `1.2rem` padding and the
-single landing alert shadow. In the editor, panels are flat sections separated by one-pixel lines;
-fields sit on the raised surface token rather than inside floating cards.
+There is no canonical card grid. The landing uses full-width planes, a photograph stage, a ruled
+linear process list, and a privacy fact table. Editor panels and disclosures are flat sections divided
+by one-pixel lines; a dialog is the only intentionally lifted container.
+
+- **Background:** use `paper`/ground for the workspace, `chrome` and `control` for tool chrome,
+  `surface` for fields and panels, and `surface-raised` for hover/disabled states.
+- **Border:** default to `line`; use `line-strong` only where an input or stage needs a firm edge.
+- **Internal padding:** use the spacing scale, usually `1rem–2rem` for controls and `2rem` for
+  the canvas/editor shell.
 
 ### Inputs / Fields
 
-Editor selects, text inputs, number inputs, and textareas use the surface token, a strong one-pixel
-line, a `0.3rem` radius, and a `2.75rem` minimum height. Slider controls use the shared accent
-through the native `accent-color` property. Focus is always the visible accent outline; disabled
-fields move to the raised surface and muted text.
+Selects, text inputs, number inputs, and textareas use the editor surface, a one-pixel strong line,
+the small radius, and the `2.75rem` touch target. Sliders use the violet-blue `accent-color`; their
+numeric value sits beside the label and uses tabular numerals. Disabled fields move to the raised
+surface and muted copy. Focus is always explicit: a `3px` outline with a small offset, never a
+bare color change.
 
 ### Navigation
 
-The landing navigation is a sparse ruled bar with the wordmark at left, centered anchor links, and
-an underlined sample action at right. It loses the center links below `900px` and remains a two-item
-brand/action row. The editor topbar is a light, centered flex row with a one-pixel bottom rule,
-wordmark, and renderer/storage status at the edges; status hides on narrow phone widths.
+Landing navigation is a sparse matte bar: OpenFilm at left, process/privacy links centered, and a
+sample action at right. The editor top bar keeps the wordmark, privacy/storage/renderer status,
+help, and Export visible while the canvas and tool rail scroll beneath it. Links and actions use
+quiet foreground states; only the active action or focus state spends violet-blue. At `600px` the
+landing center links and nonessential editor statuses hide to preserve the primary action.
 
 ### Panels and Disclosures
 
-Editor panels and disclosure groups are flat, full-width sections. Headers use the sans title scale,
-supporting descriptions use muted ink, and open/closed state is shown by a small rotating chevron.
-Each summary keeps the shared touch target and visible focus treatment.
+Panels and disclosure groups are full-width, ruled sections. Titles use the title scale, descriptions
+use `ink-soft` or `muted`, and the open/closed state is a small rotating chevron. Summaries keep the
+shared `2.75rem` target and visible focus outline. Export stays in the same rail rather than moving
+into a decorative floating card.
 
-### Before-and-After Demo
+### Before-and-After Proof
 
-The landing's signature interaction is a full-frame range-controlled comparison. A one-pixel white
-divider and outlined circular handle move with the range input; `OpenFilm Look` and `Neutral source`
-labels stay pinned to opposite lower corners. A compact readout names the illustrative adjustment
-values, and the surrounding six-cell control strip makes the editor's actual groups legible without
-turning the landing into a feature grid.
+This is OpenFilm's signature surface. A real local photograph fills the stage; a semantic range input
+drives the clipped edited image, a one-pixel divider, and an outlined circular handle. Before/After
+labels sit on the image, while the readout and bottom control strip expose real Crop and Looks
+vocabulary. The editor reuses the same comparison idea in the canvas, so the first proof and the
+working tool feel like one product.
 
 ## Do's and Don'ts
 
 ### Do:
 
-- **Do** let the photograph lead the first viewport and the comparison frame.
-- **Do** use the simple open circle beside the OpenFilm wordmark; keep the name readable.
-- **Do** use warm paper, near-black fields, exposed one-pixel rules, and a restrained orange signal.
-- **Do** state local processing, reversible edits, and the no-account/no-upload model plainly.
-- **Do** keep controls keyboard-visible and at least `2.75rem` high.
-- **Do** let the landing feel editorial while preserving the editor's lighter shared control system.
+- **Do** make a real photograph the strongest object in the first viewport and editor canvas.
+- **Do** use the near-black ground, charcoal planes, off-white type, cool gray copy, and one
+  violet-blue action signal.
+- **Do** keep controls compact, labeled, keyboard-visible, and at least `2.75rem` high.
+- **Do** use one-pixel separators, tonal layering, and restrained state shadows to make hierarchy.
+- **Do** keep local processing, reversible edits, recovery, and export language plain and visible.
+- **Do** preserve the responsive order: image and primary action first, tool rail below at narrow widths.
 
 ### Don't:
 
-- **Don't** use the existing OF monogram or replace the wordmark with a competing logo.
-- **Don't** turn the landing's near-black composition, square actions, or 16:9/4:5 framing into a
-  global editor rule.
-- **Don't** introduce a feature-grid SaaS layout, card-heavy chrome, or decorative gradients over the
-  photograph.
-- **Don't** imply accounts, remote uploads, or unsupported product claims.
-- **Don't** overwrite the source photograph; edits and exports stay reversible and local.
+- **Don't** use the old warm-paper/orange/editorial-serif direction or the existing OF monogram.
+- **Don't** add an ornamental story grid, generic three-card SaaS layout, glassmorphism, or a
+  collection of competing accent colors.
+- **Don't** use generated photo content, fictional preset names, testimonials, pricing, or claims
+  that are not present in the product; preserve the approved comp's topology, not its fiction.
+- **Don't** imply accounts, remote uploads, analytics, or a server-side source backup.
+- **Don't** bury the primary choose-photo or export action behind decorative interaction.
+- **Don't** turn every surface into a rounded card or put a wide shadow beneath a border by default.

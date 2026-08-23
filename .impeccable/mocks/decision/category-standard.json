@@ -1,0 +1,7 @@
+{
+  "approved": false,
+  "source": "built-in image_gen",
+  "promptFile": "category-standard.prompt.md",
+  "viewport": { "width": 1586, "height": 992 },
+  "composition": "Centered promise and CTA above a rounded editor screenshot, with a three-feature row entering at the fold."
+}

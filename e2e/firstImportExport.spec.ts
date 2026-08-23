@@ -92,9 +92,7 @@ test('keeps dialog focus contained and restores it after Escape', async ({ page 
 test('introduces the product before revealing editor controls', async ({ page }) => {
   await page.goto('/');
 
-  await expect(
-    page.getByRole('heading', { name: 'A quieter room for your photographs.' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Edit photos. Keep them yours.' })).toBeVisible();
   await expect(page.getByRole('slider', { name: 'Exposure' })).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveCount(0);
   await expect(page.getByRole('slider', { name: 'Preview before and after' })).toBeVisible();
@@ -103,6 +101,22 @@ test('introduces the product before revealing editor controls', async ({ page })
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await page.getByRole('tab', { name: 'Adjust' }).click();
   await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
+});
+
+test('opens the sample editor from the hero editing controls', async ({ page }) => {
+  await page.goto('/');
+
+  const cropControl = page.getByRole('button', { name: 'Crop', exact: true });
+  await expect(cropControl).toHaveAttribute('aria-pressed', 'true');
+  await cropControl.click();
+  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Looks', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Looks' })).toHaveAttribute('aria-selected', 'true');
 });
 
 test('keeps useful state changes while removing nonessential motion', async ({ page }) => {
@@ -845,9 +859,7 @@ test('recovers the latest Edit and its source after a reload', async ({ page }) 
   await page.getByRole('tab', { name: 'Adjust' }).click();
   await page.reload();
 
-  await expect(
-    page.getByRole('heading', { name: 'A quieter room for your photographs.' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Edit photos. Keep them yours.' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Resume latest edit' })).toBeVisible();
   await page.getByRole('button', { name: 'Resume latest edit' }).click();
   await expect(page.getByText('openfilm-sample.png', { exact: true })).toBeVisible();

@@ -1,0 +1,149 @@
+{
+  "title": "Choose OpenFilm’s new visual world",
+  "question": "Each direction makes the working editor the landing-page proof. Choose one to carry through the whole product, or re-roll.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "The Mastering Desk",
+      "kicker": "THE ROLL",
+      "lineage": "recording desks, A/B monitors, and mastering rooms",
+      "thesis": "A photograph moves through a visible signal path from source to finished master.",
+      "palette": ["#F2E7CB", "#151515", "#5B3A22", "#D23B2D"],
+      "materials": ["frosted meter glass", "brushed aluminum", "oiled walnut"],
+      "viewport": "The editor fills the hero while the image, tool channel, and export master read as one left-to-right flow.",
+      "risk": "The console metaphor may make a deliberately simple editor feel expert-only.",
+      "raised": [
+        {
+          "from": "challenger-cephalopod",
+          "raise": "Active state now travels across the whole interface instead of lighting one isolated control."
+        },
+        {
+          "from": "challenger-vu",
+          "raise": "Every adjustment uses one repeated scale so the eye can compare the whole mix at a sweep."
+        },
+        {
+          "from": "challenger-bookshelf",
+          "raise": "Responsive layouts move complete modules rather than breaking controls into fragments."
+        }
+      ],
+      "comp": ".impeccable/mocks/decision/mastering-desk.webp",
+      "board": "https://impeccable.style/worlds/cards/signals-instruments-vu-meter-bridge.webp"
+    },
+    {
+      "id": "model-pick",
+      "label": "The Color Lab",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "print calibration sheets, color bars, and professional proofing tables",
+      "thesis": "The page behaves like a live color proof: the photograph is evidence, not decoration.",
+      "palette": ["#F7F7F2", "#111111", "#0058CC", "#E40046", "#FFD000"],
+      "materials": ["coated proof paper", "backlit glass", "registration ink"],
+      "viewport": "A full-bleed before/after proof shares the first viewport with a compact working tool rail and one start action.",
+      "risk": "Calibration language is familiar territory for creative software and could feel expected.",
+      "comp": ".impeccable/mocks/decision/color-lab.webp"
+    },
+    {
+      "id": "challenger-rietveld",
+      "label": "The Sliding Studio",
+      "kicker": "SYSTEM WINNER",
+      "verdict": "wins",
+      "lineage": "the Rietveld Schröder house and its movable primary-color planes",
+      "thesis": "The landing page becomes the editor as image, story, and tools slide into one continuous space.",
+      "palette": ["#F8F8F5", "#D9D9D6", "#111111", "#E30613", "#FFD400", "#0055A4"],
+      "materials": ["matte painted plane", "black steel joint", "enamel moving edge"],
+      "viewport": "One photograph owns most of the canvas while sliding planes reveal the promise, before/after state, and a direct local-file start.",
+      "case": "Wins both tests: the image remains instantly legible to casual photographers, and every moving plane maps to a real tool, state, or transition.",
+      "risk": "Primary-color geometry turns into poster pastiche unless every colored edge performs a job.",
+      "comp": ".impeccable/mocks/decision/sliding-studio.webp",
+      "hero": "https://impeccable.style/worlds/cards/design-canon-rietveld-sliding-house-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/design-canon-rietveld-sliding-house.webp"
+    },
+    {
+      "id": "challenger-azulejo",
+      "label": "The Tiled Sequence",
+      "verdict": "competitive",
+      "lineage": "cobalt azulejo station halls",
+      "thesis": "OpenFilm unfolds as a sequence of image panels whose seams stay visible and honest.",
+      "palette": ["#F7F4E8", "#064AA1", "#D5A713"],
+      "materials": ["tin glaze", "cobalt wash", "grout grid"],
+      "viewport": "The hero reads as three connected whole-tile panels: choose, edit, keep.",
+      "case": "The panel sequence clarifies the three-step workflow, but the decorative lineage is less immediate for modern photo editing.",
+      "risk": "Pattern borders could compete with the photograph and slow the first action.",
+      "comp": ".impeccable/mocks/decision/tiled-sequence.webp",
+      "hero": "https://impeccable.style/worlds/cards/architecture-places-azulejo-station-hall-hero.webp"
+    },
+    {
+      "id": "challenger-onebit",
+      "label": "The One-Bit Desktop",
+      "verdict": "competitive",
+      "lineage": "early monochrome desktop publishing and image tools",
+      "thesis": "OpenFilm is an instantly recognizable editor made from crisp windows, dithers, and reversible direct manipulation.",
+      "palette": ["#FFFFFF", "#000000"],
+      "materials": ["one-bit pixel", "ordered dither", "marching ants"],
+      "viewport": "A single overlapping editor window demonstrates selection, crop, and export without leaving the hero.",
+      "case": "The interface reads immediately, but the retro desktop identity would speak louder than the user’s photography.",
+      "risk": "Novelty and nostalgia could overpower accessibility and photographic fidelity.",
+      "comp": ".impeccable/mocks/decision/one-bit-desktop.webp",
+      "hero": "https://impeccable.style/worlds/cards/medium-native-one-bit-desktop-hero.webp"
+    },
+    {
+      "id": "challenger-cephalopod",
+      "label": "Living Color Skin",
+      "verdict": "declined",
+      "lineage": "cephalopod chromatophores and traveling skin signals",
+      "thesis": "Every edit ripples visibly across the whole product surface.",
+      "palette": ["#F2E6CE", "#8C3328", "#2CB7B2", "#201A18"],
+      "materials": ["mantle texture", "pigment cell", "iridescent flash"],
+      "viewport": "The hero image and controls share one responsive living texture whose color state changes with the selected look.",
+      "case": "The state language is rich, but the biological metaphor obscures local photo editing instead of explaining it.",
+      "risk": "Organic motion would distract from precise tools and reduced-motion users.",
+      "kept": "State should travel across the interface, not live in isolated controls.",
+      "hero": "https://impeccable.style/worlds/cards/reefs-bioluminescent-nocturnal-chromatophore-skin-language-hero.webp"
+    },
+    {
+      "id": "challenger-vu",
+      "label": "The Meter Bridge",
+      "verdict": "declined",
+      "lineage": "ballistic VU meters across an analog recording desk",
+      "thesis": "Every adjustment remains comparable in one repeated instrument row.",
+      "palette": ["#F4EECB", "#0E0E0E", "#7A7F84", "#D2382D"],
+      "materials": ["meter glass", "warm paper scale", "powder-coated steel"],
+      "viewport": "A broad row of adjustment meters sits beneath one before/after image monitor.",
+      "case": "The sweeping comparison is useful, but it duplicates the assigned mastering world without solving its expert-tool risk.",
+      "risk": "Too many instruments would inflate visual density and cognitive load.",
+      "kept": "Repeated scales let the eye compare the full adjustment state at a sweep.",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-vu-meter-bridge-hero.webp"
+    },
+    {
+      "id": "challenger-bookshelf",
+      "label": "The Opening Cabinet",
+      "verdict": "declined",
+      "lineage": "chaekgeori bookshelf paintings in reverse perspective",
+      "thesis": "Tool groups open toward the photographer as complete, inspectable boxes.",
+      "palette": ["#E8DFC9", "#3C7868", "#B54836", "#27231E"],
+      "materials": ["mineral pigment", "silk ground", "outlined cabinet"],
+      "viewport": "A shelf-like grid holds the image, three tool groups, and export as complete modules that widen on focus.",
+      "case": "Whole-box reflow is disciplined, but the inventory metaphor makes a fast editor feel like a collection to browse.",
+      "risk": "Reverse perspective would fight the image’s own geometry and create spatial confusion.",
+      "kept": "Every responsive module should remain a complete whole rather than a fractional leftover.",
+      "hero": "https://impeccable.style/worlds/cards/graphic-worlds-publishing-chaekgeori-reverse-perspective-hero.webp"
+    }
+  ],
+  "reroll": {
+    "registers": ["safer", "bolder"]
+  },
+  "buildPath": {
+    "value": "comp",
+    "toggle": true
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "A polished dark editor shell with a centered hero, rounded screenshot, and feature cards.",
+    "palette": ["#0F1115", "#F7F8FA", "#6C63FF"],
+    "materials": ["soft shadow", "rounded panel", "dark application chrome"],
+    "viewport": "Centered headline and CTA above a framed editor screenshot, followed by a three-card feature grid.",
+    "risk": "Clear and competent, but indistinguishable from the editors OpenFilm should outgrow.",
+    "comp": ".impeccable/mocks/decision/category-standard.webp"
+  },
+  "steer": true
+}
