@@ -171,7 +171,7 @@ float smoothGrainNoise(vec2 position) {
 }
 
 void main() {
-  vec2 output_uv = v_tex_coord;
+  vec2 output_uv = vec2(v_tex_coord.x, 1.0 - v_tex_coord.y);
 
   if (u_flip_horizontal) {
     output_uv.x = 1.0 - output_uv.x;
@@ -191,7 +191,8 @@ void main() {
     crop_uv = vec2(1.0 - output_uv.y, output_uv.x);
   }
 
-  vec2 source_uv = u_crop.xy + crop_uv * u_crop.zw;
+  vec2 source_uv_top = u_crop.xy + crop_uv * u_crop.zw;
+  vec2 source_uv = vec2(source_uv_top.x, 1.0 - source_uv_top.y);
   vec4 source = texture(u_source, source_uv);
   vec3 color = source.rgb * exp2(u_exposure);
   color = (color - 0.5) * (1.0 + u_contrast) + 0.5;

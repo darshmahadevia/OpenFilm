@@ -341,6 +341,12 @@ describe('WebGL2 preview renderer', () => {
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_grain_seed');
     expect(FRAGMENT_SHADER_SOURCE).toContain('smoothGrainNoise(v_tex_coord * grainFrequency)');
     expect(FRAGMENT_SHADER_SOURCE).not.toContain('grainNoise(floor(');
+    expect(FRAGMENT_SHADER_SOURCE).toContain(
+      'vec2 output_uv = vec2(v_tex_coord.x, 1.0 - v_tex_coord.y);',
+    );
+    expect(FRAGMENT_SHADER_SOURCE).toContain(
+      'vec2 source_uv = vec2(source_uv_top.x, 1.0 - source_uv_top.y);',
+    );
     expect(FRAGMENT_SHADER_SOURCE).toContain('u_tone_curve');
     expect(FRAGMENT_SHADER_SOURCE).toContain('texture(u_tone_curve');
     expect(TONE_CURVE_LUT_SIZE).toBe(256);
