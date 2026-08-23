@@ -90,17 +90,17 @@ npm run preview
 
 ## Verification scripts
 
-| Script                 | Purpose                                                                               |
-| ---------------------- | ------------------------------------------------------------------------------------- |
-| `npm run dev`          | Start the Vite development server                                                     |
-| `npm run typecheck`    | Run the TypeScript project build without emitting files                               |
-| `npm run lint`         | Run ESLint                                                                            |
-| `npm run format:check` | Verify Prettier formatting                                                            |
-| `npm run format`       | Apply Prettier formatting                                                             |
-| `npm run test:unit`    | Run the Vitest unit and component tests                                               |
-| `npm run test:e2e`     | Run the Playwright Chromium import, editing, history, accessibility, and export flows |
-| `npm run build`        | Create the static production bundle                                                   |
-| `npm run check`        | Run formatting, lint, typecheck, tests, and build in sequence                         |
+| Script                 | Purpose                                                                                 |
+| ---------------------- | --------------------------------------------------------------------------------------- |
+| `npm run dev`          | Start the Vite development server                                                       |
+| `npm run typecheck`    | Run the TypeScript project build without emitting files                                 |
+| `npm run lint`         | Run ESLint                                                                              |
+| `npm run format:check` | Verify Prettier formatting                                                              |
+| `npm run format`       | Apply Prettier formatting                                                               |
+| `npm run test:unit`    | Run the Vitest unit and component tests                                                 |
+| `npm run test:e2e`     | Run the Playwright Chromium import, editing, history, axe, responsive, and export flows |
+| `npm run build`        | Create the static production bundle                                                     |
+| `npm run check`        | Run formatting, lint, typecheck, tests, and build in sequence                           |
 
 ## Architecture
 
@@ -126,6 +126,39 @@ The source is intentionally split into a few plain module folders:
 
 The app uses one Vite entry point and one React tree. There is no general-purpose component kit,
 remote font, analytics script, server route, or API client.
+
+Vitest coverage is split by behavior. `src/editor/editorState.test.ts` covers editor state,
+`src/editor/editHistory.test.ts` covers shared history, `src/editor/presets.test.ts` covers preset
+validation and serialization, `src/storage/browserStorage.test.ts` covers the browser and memory
+storage adapters, and `src/rendering/export.test.ts` covers format and export sizing. The component
+tests cover the public controls and editor journey. Playwright runs Chromium journeys at desktop
+and phone widths, plus axe-core scans for the landing and loaded editor states.
+
+## Accessibility and manual checks
+
+The automated browser suite checks accessible names, responsive reachability, keyboard paths, and
+axe-core results for the empty landing state and the loaded editor. Passing those checks does not
+mean formal WCAG certification.
+
+Before a release, manually check:
+
+- Use only the keyboard to move through the landing state, tool tabs, disclosures, sliders, numeric
+  fields, curve points, crop handles, dialogs, Looks, and export controls. Confirm the focus ring
+  stays visible and that arrow keys work where documented.
+- Set browser zoom to 200 percent at a desktop viewport. Confirm the editor reflows without losing
+  controls or creating horizontal scrolling. Repeat at a narrow phone-sized viewport in portrait
+  and landscape.
+- Enable `prefers-reduced-motion` in the browser or operating system. Confirm state changes remain
+  clear without decorative transitions.
+- Review the empty state and a loaded Edit at approximately 1440 × 900 and 360 × 844. Check the
+  canvas-first hierarchy, spacing, text contrast, status messages, touch target size, and that no
+  action depends on hover.
+- Try a supported file, an unsupported file, a decode failure, a missing WebGL2 context, a storage
+  failure, a lost WebGL2 context, and a large export. Confirm each message names the problem and
+  offers the documented recovery.
+
+These checks are practical release checks, not a certification process or a substitute for testing
+on every browser and device.
 
 ## Known limits
 
@@ -177,6 +210,21 @@ state such as geometry, source bytes, history, or the Grain seed.
 
 Browser storage is intended for recovery and is not a backup. WebGL2 is the rendering path; the
 interface reports when the capability is unavailable.
+
+## Browser limitations
+
+OpenFilm needs WebGL2 for preview and export. Browsers without WebGL2, or browsers that lose the
+WebGL2 context, cannot render an Edit until the page is reloaded or the browser recovers the
+context. The application relies on each browser's JPEG, PNG, WebP, File, Canvas, IndexedDB, and
+WebGL2 implementations. The supported browser target is current desktop Chrome, Firefox, Safari,
+and Edge, plus a phone-sized Chromium viewport. Older browsers, private browsing modes that block
+IndexedDB, and devices with limited GPU or canvas memory may reduce recovery or export capacity.
+
+The browser may deny local storage, reject a large allocation, or omit source bytes from recovery.
+OpenFilm keeps the current Edit in memory when it can, but browser storage is not a backup. Import
+and export re-encode locally and do not preserve source metadata. RAW, HEIC, HEIF, TIFF, guaranteed
+AVIF support, professional color management, and real-device compatibility matrices remain out of
+scope.
 
 ## Deployment
 

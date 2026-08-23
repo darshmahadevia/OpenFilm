@@ -31,6 +31,7 @@ export function Disclosure({
       <summary
         aria-controls={`${id}-content`}
         aria-describedby={descriptionId}
+        aria-expanded={open}
         aria-label={title}
         className="disclosure__summary"
         role="button"

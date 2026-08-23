@@ -1,7 +1,7 @@
 :root {
   --color-ink: #1b1c18;
   --color-ink-soft: #4e514b;
-  --color-muted: #74776e;
+  --color-muted: #6b6e67;
   --color-paper: #f4f3ee;
   --color-surface: #fbfaf6;
   --color-surface-raised: #efeee8;
@@ -11,7 +11,7 @@
   --color-accent-dark: #8e3e28;
   --color-accent-ink: #fff9f2;
   --color-success: #4f765c;
-  --color-warning: #9a6b2f;
+  --color-warning: #7d541f;
 
   --font-body: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 

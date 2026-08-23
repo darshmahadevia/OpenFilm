@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 import { validPresetFixture } from '../src/editor/presets.fixtures';
@@ -24,6 +25,68 @@ async function openExport(page: Page) {
   await page.getByRole('button', { name: 'Export' }).click();
 }
 
+async function expectNoAccessibilityViolations(page: Page) {
+  const results = await new AxeBuilder({ page }).analyze();
+
+  expect(
+    results.violations.map(({ id, impact, help, nodes }) => ({
+      help,
+      id,
+      impact,
+      targets: nodes.map((node) => node.target),
+    })),
+  ).toEqual([]);
+}
+
+test('has no automated accessibility violations on the landing state', async ({ page }) => {
+  await page.goto('/');
+  await expectNoAccessibilityViolations(page);
+});
+
+test('has no automated accessibility violations in the editor', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
+  await expectNoAccessibilityViolations(page);
+});
+
+test('operates tabs and crop handles from the keyboard', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+
+  const adjustTab = page.getByRole('tab', { name: 'Adjust' });
+  await adjustTab.focus();
+  await adjustTab.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByRole('tab', { name: 'Geometry' })).toBeFocused();
+
+  const topLeftHandle = page.getByRole('button', { name: 'Resize crop top left' });
+  await topLeftHandle.focus();
+  await topLeftHandle.press('ArrowRight');
+  await expect(page.getByRole('spinbutton', { name: 'Crop left value' })).toHaveValue('1');
+});
+
+test('keeps dialog focus contained and restores it after Escape', async ({ page }) => {
+  await page.goto('/');
+
+  const helpButton = page.getByRole('button', { name: 'Open editor help' });
+  await helpButton.click();
+  const dialog = page.getByRole('dialog', { name: 'A quiet place to edit' });
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Close dialog' })).toBeFocused();
+
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: 'Close', exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Close dialog' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(helpButton).toBeFocused();
+});
+
 test('keeps the empty state concise and reveals controls in context', async ({ page }) => {
   await page.goto('/');
 
@@ -40,6 +103,25 @@ test('keeps the empty state concise and reveals controls in context', async ({ p
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await page.getByRole('tab', { name: 'Adjust' }).click();
   await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
+});
+
+test('keeps useful state changes while removing nonessential motion', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+
+  const motionStyles = await page
+    .getByRole('button', { name: 'Import photograph' })
+    .evaluate((button) => {
+      const styles = getComputedStyle(button);
+      return {
+        animationDuration: styles.animationDuration,
+        transition: styles.transition,
+      };
+    });
+
+  expect(motionStyles).toEqual({ animationDuration: '0s', transition: 'none' });
+  await page.getByRole('button', { name: 'Try bundled sample' }).click();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
 });
 
 test('reports an unsupported file with one recovery action', async ({ page }) => {
@@ -278,6 +360,7 @@ test('tries the bundled sample and edits the core adjustments', async ({ page })
   await page.getByRole('button', { name: 'Try bundled sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await openEditHistory(page);
+  await expect(page.locator('.canvas-column__footer .renderer-status')).toBeVisible();
 
   const values = {
     Contrast: '30',
@@ -328,6 +411,7 @@ test('keeps the adjustment controls labeled and usable at a phone width', async 
   await page.getByRole('button', { name: 'Try bundled sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await openEditHistory(page);
+  await expect(page.locator('.canvas-column__footer .renderer-status')).toBeVisible();
 
   for (const label of [
     'Exposure',

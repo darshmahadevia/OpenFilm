@@ -31,6 +31,10 @@ export function Slider({
 }: SliderProps) {
   const hintId = `${id}-hint`;
   const numericInputId = `${id}-value`;
+  const valueText =
+    typeof displayValue === 'string' || typeof displayValue === 'number'
+      ? String(displayValue)
+      : String(value);
   const classes = ['slider-field', className].filter(Boolean).join(' ');
 
   return (
@@ -40,7 +44,12 @@ export function Slider({
           {label}
         </label>
         <div className="slider-field__value-group">
-          <output className="slider-field__value" htmlFor={id}>
+          <output
+            aria-live="polite"
+            className="slider-field__value"
+            htmlFor={id}
+            id={`${id}-output`}
+          >
             {displayValue ?? value}
           </output>
           <input
@@ -62,6 +71,7 @@ export function Slider({
       <input
         {...props}
         aria-describedby={hint ? hintId : undefined}
+        aria-valuetext={valueText}
         className="slider"
         disabled={disabled}
         id={id}

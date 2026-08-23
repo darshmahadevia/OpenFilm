@@ -9,10 +9,13 @@ export function IconButton({
   className = '',
   label,
   size = 'regular',
+  title,
   type = 'button',
   ...props
 }: IconButtonProps) {
   const classes = ['icon-button', `icon-button--${size}`, className].filter(Boolean).join(' ');
 
-  return <button {...props} aria-label={label} className={classes} type={type} />;
+  return (
+    <button {...props} aria-label={label} className={classes} title={title ?? label} type={type} />
+  );
 }

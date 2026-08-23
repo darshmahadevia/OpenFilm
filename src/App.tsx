@@ -130,6 +130,7 @@ const toolContextMessages: Record<EditorTool, string> = {
 };
 
 const TONE_CURVE_GESTURE_ID = 'tone-curve-drag';
+const CROP_KEYBOARD_STEP = 0.01;
 
 type LookSource = {
   adjustments: AdjustmentValues;
@@ -971,6 +972,23 @@ function CropControl({
     onCropChange(normalizeCrop({ ...geometry.crop, [key]: numericValue / 100 }));
   }
 
+  function handleCropHandleKeyDown(handle: CropHandle, event: KeyboardEvent<HTMLButtonElement>) {
+    if (!hasSource) {
+      return;
+    }
+
+    const step = event.shiftKey ? CROP_KEYBOARD_STEP * 5 : CROP_KEYBOARD_STEP;
+    const deltaX = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
+    const deltaY = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0;
+
+    if (deltaX === 0 && deltaY === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    onCropChange(resizeCrop(geometry.crop, handle, deltaX, deltaY));
+  }
+
   const cropPreviewStyle = sourceDimensions
     ? { aspectRatio: `${sourceDimensions.width} / ${sourceDimensions.height}` }
     : undefined;
@@ -1009,9 +1027,11 @@ function CropControl({
           {(['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map((handle) => (
             <button
               aria-label={`Resize crop ${handle.replace('-', ' ')}`}
+              aria-describedby="crop-interaction-hint"
               className={`crop-control__handle crop-control__handle--${handle}`}
               disabled={!hasSource}
               key={handle}
+              onKeyDown={(event) => handleCropHandleKeyDown(handle, event)}
               onPointerCancel={endDrag}
               onPointerDown={(event) => startDrag(handle, event)}
               onPointerMove={moveDrag}
@@ -1021,8 +1041,9 @@ function CropControl({
           ))}
         </div>
       </div>
-      <p className="field__hint">
-        The crop stays with this Edit. It is not part of a reusable Look.
+      <p className="field__hint" id="crop-interaction-hint">
+        Use the arrow keys on a crop handle or enter the values below. The crop stays with this Edit
+        and is not part of a reusable Look.
       </p>
       <Field
         hint="Free keeps the crop flexible. Other options fit the current selection."
@@ -1742,6 +1763,7 @@ export default function App() {
   const rendererRef = useRef<PreviewRenderer | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const presetFileInputRef = useRef<HTMLInputElement>(null);
+  const toolTabRefs = useRef<Partial<Record<EditorTool, HTMLButtonElement | null>>>({});
   const importRequestRef = useRef(0);
   const importInFlightRef = useRef(false);
   const presetImportRequestRef = useRef(0);
@@ -2127,6 +2149,33 @@ export default function App() {
     }
 
     presetFileInputRef.current?.click();
+  }
+
+  function handleToolKeyDown(tool: EditorTool, event: KeyboardEvent<HTMLButtonElement>) {
+    const currentIndex = editorTools.indexOf(tool);
+    let nextIndex: number;
+
+    switch (event.key) {
+      case 'ArrowLeft':
+        nextIndex = (currentIndex - 1 + editorTools.length) % editorTools.length;
+        break;
+      case 'ArrowRight':
+        nextIndex = (currentIndex + 1) % editorTools.length;
+        break;
+      case 'Home':
+        nextIndex = 0;
+        break;
+      case 'End':
+        nextIndex = editorTools.length - 1;
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    const nextTool = editorTools[nextIndex];
+    dispatch({ type: 'select-tool', tool: nextTool });
+    toolTabRefs.current[nextTool]?.focus();
   }
 
   async function importSelectedSource(file: File | undefined) {
@@ -2861,6 +2910,7 @@ export default function App() {
             className="visually-hidden"
             onChange={handleFileSelected}
             ref={fileInputRef}
+            tabIndex={-1}
             type="file"
           />
           <input
@@ -2869,6 +2919,7 @@ export default function App() {
             className="visually-hidden"
             onChange={handlePresetFileSelected}
             ref={presetFileInputRef}
+            tabIndex={-1}
             type="file"
           />
         </section>
@@ -2879,7 +2930,12 @@ export default function App() {
             <p>One control area keeps the image in charge of the experience.</p>
           </div>
 
-          <div aria-label="Editor tools" className="tool-tabs" role="tablist">
+          <div
+            aria-label="Editor tools"
+            aria-orientation="horizontal"
+            className="tool-tabs"
+            role="tablist"
+          >
             {editorTools.map((tool) => (
               <button
                 aria-controls="active-tool"
@@ -2888,7 +2944,12 @@ export default function App() {
                 id={`tool-tab-${tool}`}
                 key={tool}
                 onClick={() => dispatch({ type: 'select-tool', tool })}
+                onKeyDown={(event) => handleToolKeyDown(tool, event)}
+                ref={(element) => {
+                  toolTabRefs.current[tool] = element;
+                }}
                 role="tab"
+                tabIndex={state.activeTool === tool ? 0 : -1}
                 type="button"
               >
                 {toolLabels[tool]}
@@ -2904,7 +2965,14 @@ export default function App() {
             onUndo={undoEdit}
           />
 
-          <Panel description={activeTool.description} id="active-tool" title={activeTool.title}>
+          <Panel
+            ariaLabelledBy={`tool-tab-${state.activeTool}`}
+            description={activeTool.description}
+            id="active-tool"
+            role="tabpanel"
+            tabIndex={-1}
+            title={activeTool.title}
+          >
             <ToolControls
               activeTool={state.activeTool}
               adjustments={adjustments}
