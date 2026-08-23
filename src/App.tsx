@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent, KeyboardEvent, PointerEvent, ReactNode } from 'react';
 
-import demoPhotoUrl from './assets/openfilm-demo-greenhouse.webp';
+import demoPhotoUrl from './assets/openfilm-landing-coastal-valley.webp';
 
 import {
   adjustmentDefinitions,
@@ -389,7 +389,7 @@ function LandingPage({
           <div className="landing-demo">
             <div className="landing-demo__frame">
               <img
-                alt="Woman standing in a sunlit greenhouse before editing"
+                alt="Coastal valley and tidal stream before editing"
                 decoding="async"
                 fetchPriority="high"
                 src={demoPhotoUrl}

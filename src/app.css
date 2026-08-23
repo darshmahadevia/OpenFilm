@@ -772,6 +772,9 @@ strong {
 .topbar .button--primary {
   min-width: 5.75rem;
   padding-inline: 1.1rem;
+  transition:
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
 }
 
 .workspace {
