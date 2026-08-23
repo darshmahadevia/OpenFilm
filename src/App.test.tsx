@@ -80,7 +80,7 @@ function openEditHistory() {
 }
 
 async function openBundledSample() {
-  fireEvent.click(screen.getByRole('button', { name: 'Start with the sample' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Try the sample' }));
   await screen.findByRole('heading', { name: 'openfilm-sample.png' });
 }
 
@@ -96,12 +96,11 @@ describe('OpenFilm shell', () => {
   it('introduces the product and keeps the editor behind a clear import action', () => {
     render(<App />);
 
-    expect(
-      screen.getByRole('heading', { name: 'Edit photos. Keep them yours.' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Open a photograph.' })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'Adjust' })).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Choose a photograph' })).toHaveLength(2);
-    expect(screen.getByRole('button', { name: 'Start with the sample' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Choose from Photos or Files' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try the sample' })).toBeInTheDocument();
+    expect(screen.getByText('JPEG, PNG, or WebP')).toBeInTheDocument();
     expect(screen.getByRole('slider', { name: 'Preview before and after' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reload page' })).not.toBeInTheDocument();
   });
@@ -124,11 +123,9 @@ describe('OpenFilm shell', () => {
     try {
       render(<App />);
 
-      expect(
-        screen.getByRole('heading', { name: 'Edit photos. Keep them yours.' }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open a photograph.' })).toBeInTheDocument();
       expect(screen.queryByRole('slider', { name: 'Exposure' })).not.toBeInTheDocument();
-      expect(screen.getByText(/OpenFilm keeps the useful path short/)).toBeInTheDocument();
+      expect(screen.getByText(/Crop, shape color, save a Look, and export/)).toBeInTheDocument();
 
       await openBundledSample();
       expect(screen.getByRole('slider', { name: 'Exposure' })).toBeInTheDocument();
@@ -418,7 +415,7 @@ describe('OpenFilm shell', () => {
     try {
       render(<App />);
 
-      fireEvent.click(screen.getByRole('button', { name: 'Start with the sample' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Try the sample' }));
 
       expect(
         await screen.findByRole('heading', { name: 'openfilm-sample.png' }),

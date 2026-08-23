@@ -1,9 +1,7 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent, KeyboardEvent, PointerEvent, ReactNode } from 'react';
 
-import darkroomHeroUrl from './assets/openfilm-darkroom-hero.webp';
 import comparisonStreetUrl from './assets/openfilm-comparison-street.webp';
-import closingCoastUrl from './assets/openfilm-closing-coast.webp';
 
 import {
   adjustmentDefinitions,
@@ -327,45 +325,29 @@ function LandingPage({
           <a aria-label="OpenFilm home" className="landing-brand" href="/">
             <span>OpenFilm</span>
           </a>
-          <nav aria-label="Landing page">
-            <a href="#process">How it works</a>
-            <a href="#privacy">Privacy</a>
-          </nav>
-          <button
-            className="landing-nav__action"
-            disabled={isImporting}
-            onClick={() => onTrySample()}
-          >
-            Try the sample
-          </button>
+          <span>Private browser photo editing</span>
         </header>
 
         <div className="landing-hero__grid">
           <div className="landing-hero__copy">
-            <h1 aria-label="Edit photos. Keep them yours.">
-              Edit photos.
-              <br />
-              Keep them yours.
-            </h1>
-            <p>
-              Crop, shape light and color, save a Look, and export. Nothing leaves your browser.
-            </p>
-            <p className="landing-hero__privacy">
-              <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
-                <rect height="10" rx="2" stroke="currentColor" width="13" x="3.5" y="8" />
-                <path d="M6.5 8V6.5a3.5 3.5 0 0 1 7 0V8" stroke="currentColor" />
-              </svg>
-              Runs locally in your browser.
-            </p>
+            <div className="landing-hero__intro">
+              <h1>Open a photograph.</h1>
+              <p>Edit in this browser, save a reusable Look, and export a fresh file.</p>
+            </div>
             <div className="landing-hero__actions">
-              <Button disabled={isImporting} onClick={onChoosePhotograph} variant="primary">
-                {isImporting ? 'Opening photograph…' : 'Choose a photograph'}
+              <Button
+                className="landing-import-action"
+                disabled={isImporting}
+                onClick={onChoosePhotograph}
+                variant="outline"
+              >
+                {isImporting ? 'Opening photograph…' : 'Choose from Photos or Files'}
               </Button>
               <Button disabled={isImporting} onClick={() => onTrySample()} variant="quiet">
-                Start with the sample
+                Try the sample
               </Button>
+              <span className="landing-hero__formats">JPEG, PNG, or WebP</span>
             </div>
-            <p className="landing-hero__formats">JPEG, PNG, or WebP · up to 20 MB</p>
 
             {canResumeEdit ? (
               <div className="landing-alert" role="status">
@@ -403,10 +385,6 @@ function LandingPage({
           </div>
 
           <div className="landing-demo">
-            <div className="landing-demo__readout" aria-hidden="true">
-              <span>OpenFilm preview</span>
-              <span>Drag to compare</span>
-            </div>
             <div className="landing-demo__frame">
               <img
                 alt="Pedestrian crossing a rain-wet street at blue hour before editing"
@@ -437,51 +415,21 @@ function LandingPage({
               <span className="landing-demo__label landing-demo__label--edited">After</span>
               <span className="landing-demo__label landing-demo__label--source">Before</span>
             </div>
-            <div className="landing-demo__controls" aria-label="Available editing groups">
-              <button
-                aria-pressed="true"
-                className="landing-demo__control--active"
-                disabled={isImporting}
-                onClick={() => onTrySample('geometry')}
-                type="button"
-              >
-                Crop
-              </button>
-              <button
-                aria-pressed="false"
-                disabled={isImporting}
-                onClick={() => onTrySample('looks')}
-                type="button"
-              >
-                Looks
-              </button>
-              <span>Exposure +0.35</span>
-              <span>Temperature +18</span>
-              <span>Grain 22</span>
-              <span>Export ready</span>
-            </div>
+            <p className="landing-demo__hint">Drag to compare</p>
           </div>
-        </div>
-
-        <div className="landing-hero__status">
-          <span>Your photographs stay on this device.</span>
-          <span>{isDropActive ? 'Release to open' : 'Drop a photograph anywhere'}</span>
         </div>
       </section>
 
       <section className="landing-process" id="process">
         <div className="landing-process__intro">
-          <h2>A focused editor for one photograph.</h2>
-          <p>
-            OpenFilm keeps the useful path short. Every change is reversible, and the source stays
-            untouched.
-          </p>
+          <h2>One photograph, one clear path.</h2>
+          <p>Crop, shape color, save a Look, and export. Your source stays untouched.</p>
         </div>
         <ol className="landing-flow">
           <li>
             <span>Import</span>
             <div>
-              <h3>Choose one local photograph.</h3>
+              <h3>Choose a photograph.</h3>
               <p>Open a JPEG, PNG, or WebP without creating an account or uploading a file.</p>
             </div>
           </li>
@@ -500,19 +448,11 @@ function LandingPage({
             </div>
           </li>
         </ol>
-        <div className="landing-process__image">
-          <img
-            alt="Analog camera, notebook, and cup on a desk in late-afternoon light"
-            loading="lazy"
-            src={darkroomHeroUrl}
-          />
-          <p>One source. One reversible Edit. Your finished file.</p>
-        </div>
       </section>
 
       <section className="landing-privacy" id="privacy">
         <div>
-          <h2>The photograph never leaves the room.</h2>
+          <h2>Your photograph stays in this browser.</h2>
           <p>
             OpenFilm reads and renders the source in this browser. Export creates a fresh local file
             and never overwrites the original.
@@ -547,21 +487,6 @@ function LandingPage({
             </button>
           </div>
         ) : null}
-      </section>
-
-      <section className="landing-close">
-        <img alt="" aria-hidden="true" src={closingCoastUrl} />
-        <div>
-          <h2>Open a photograph. Leave with your version.</h2>
-          <div className="landing-close__actions">
-            <Button disabled={isImporting} onClick={onChoosePhotograph} variant="primary">
-              Choose a photograph
-            </Button>
-            <Button disabled={isImporting} onClick={() => onTrySample()} variant="quiet">
-              Try the sample
-            </Button>
-          </div>
-        </div>
       </section>
 
       <footer className="landing-footer">
@@ -608,22 +533,6 @@ function isTextEntryTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement
     ? ['email', 'number', 'password', 'search', 'tel', 'text', 'url'].includes(target.type)
     : false;
-}
-
-function RendererStatusLabel({ status }: { status: RendererStatus }) {
-  const isAvailable = status === 'available';
-  const label = isAvailable
-    ? 'WebGL2 ready'
-    : status === 'context-lost'
-      ? 'WebGL2 context lost'
-      : 'WebGL2 unavailable';
-
-  return (
-    <span className={`renderer-status renderer-status--${status}`}>
-      <span aria-hidden="true" className="renderer-status__dot" />
-      {label}
-    </span>
-  );
 }
 
 function CanvasStateMessage({
@@ -834,6 +743,31 @@ function AdjustmentControl({
       <Slider
         disabled={!hasSource}
         displayValue={formatAdjustmentValue(adjustmentKey, value)}
+        headerAction={
+          <IconButton
+            className="adjustment-control__reset"
+            disabled={!hasSource || value === definition.neutral}
+            label={`Reset ${definition.label}`}
+            onClick={() => onReset(adjustmentKey)}
+            size="small"
+          >
+            <svg aria-hidden="true" fill="none" viewBox="0 0 18 18">
+              <path
+                d="M5.2 5.5A5 5 0 1 1 4 10.2"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeWidth="1.4"
+              />
+              <path
+                d="M2.7 4.9h3.2v3.2"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.4"
+              />
+            </svg>
+          </IconButton>
+        }
         hint={`${definition.description} ${definition.rangeHint}`}
         id={adjustmentKey}
         label={definition.label}
@@ -851,15 +785,6 @@ function AdjustmentControl({
         step={definition.step}
         value={value}
       />
-      <Button
-        aria-label={`Reset ${definition.label}`}
-        disabled={!hasSource || value === definition.neutral}
-        onClick={() => onReset(adjustmentKey)}
-        size="small"
-        variant="outline"
-      >
-        Reset
-      </Button>
     </div>
   );
 }
@@ -3107,18 +3032,10 @@ export default function App() {
         <a aria-label="OpenFilm home" className="brand" href="/">
           <span className="brand__name">OpenFilm</span>
         </a>
+        <span className="topbar__filename">
+          {sourcePhotograph?.fileName ?? 'No photograph open'}
+        </span>
         <div className="topbar__actions">
-          <span className="topbar__privacy">
-            <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
-              <path
-                d="M10 2.75 16 5v4.5c0 3.55-2.18 6.2-6 7.75-3.82-1.55-6-4.2-6-7.75V5l6-2.25Z"
-                stroke="currentColor"
-              />
-              <path d="m7.5 10 1.6 1.6 3.55-3.55" stroke="currentColor" />
-            </svg>
-            Private by default
-          </span>
-          <RendererStatusLabel status={rendererStatus} />
           <IconButton label="Open editor help" onClick={() => setHelpOpen(true)} size="small">
             <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 18 18" width="18">
               <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.4" />
@@ -3153,7 +3070,7 @@ export default function App() {
       <main className="workspace">
         <section aria-labelledby="preview-title" className="canvas-column">
           <div className="canvas-column__header">
-            <h1 id="preview-title">Your photograph</h1>
+            <h1 id="preview-title">{sourcePhotograph?.fileName ?? 'Your photograph'}</h1>
           </div>
 
           <div
@@ -3190,7 +3107,7 @@ export default function App() {
                   </CanvasStateMessage>
                 ) : sourcePhotograph && sourcePreviewUnavailable ? (
                   <div className="canvas-stage__source-error">
-                    <h2>{sourcePhotograph.fileName}</h2>
+                    <p className="canvas-stage__source-name">{sourcePhotograph.fileName}</p>
                     <CanvasStateMessage
                       actionLabel={sourceRecoveryLabel}
                       kind={rendererError ? 'error' : 'warning'}
@@ -3226,8 +3143,8 @@ export default function App() {
                   <CanvasStateMessage
                     actions={
                       <div className="canvas-stage__actions">
-                        <Button disabled={isImporting} onClick={openFilePicker} variant="primary">
-                          Import photograph
+                        <Button disabled={isImporting} onClick={openFilePicker} variant="outline">
+                          Choose from Photos or Files
                         </Button>
                         <Button
                           disabled={isImporting}
@@ -3241,7 +3158,7 @@ export default function App() {
                     }
                     title="Start with a photograph."
                   >
-                    Edit a JPEG, PNG, or WebP in your browser.
+                    JPEG, PNG, or WebP. Nothing leaves this browser.
                   </CanvasStateMessage>
                 )}
               </div>
@@ -3266,63 +3183,6 @@ export default function App() {
             <span>{showBefore ? 'Neutral image' : 'Current Edit'}</span>
           </div>
 
-          {importFeedback?.kind === 'success' ? (
-            <p
-              aria-live="polite"
-              className="import-feedback import-feedback--success"
-              role="status"
-            >
-              {importFeedback.message}
-            </p>
-          ) : null}
-          {importFeedback?.kind === 'error' && hasSource ? (
-            <FeedbackNotice
-              actionLabel="Choose another source"
-              kind="error"
-              message={importFeedback.message}
-              onAction={openFilePicker}
-            />
-          ) : null}
-          {rendererMessage && !sourcePreviewUnavailable ? (
-            <FeedbackNotice
-              actionLabel="Reload page"
-              kind="warning"
-              message={rendererMessage}
-              onAction={() => window.location.reload()}
-            />
-          ) : null}
-          {recoveryFeedback && hasSource ? (
-            <p aria-live="polite" className="storage-feedback" role="status">
-              {recoveryFeedback}
-            </p>
-          ) : null}
-          {storageFeedback ? (
-            <FeedbackNotice
-              actionLabel={storageStatus === 'failed' ? 'Try again' : 'Continue without recovery'}
-              kind="warning"
-              message={storageFeedback}
-              onAction={storageStatus === 'failed' ? retryStorage : continueWithoutStorage}
-            />
-          ) : null}
-          <p className="storage-note">{storageNotice}</p>
-          {exportFeedback?.kind === 'success' ? (
-            <p
-              aria-live="polite"
-              className="export-feedback export-feedback--success"
-              role="status"
-            >
-              {exportFeedback.message}
-            </p>
-          ) : null}
-          {exportFeedback?.kind === 'error' ? (
-            <FeedbackNotice
-              actionLabel="Try export again"
-              disabled={isExporting}
-              kind="error"
-              message={exportFeedback.message}
-              onAction={() => void handleDownload()}
-            />
-          ) : null}
           <input
             accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
             aria-label="Choose source photograph"
@@ -3345,11 +3205,7 @@ export default function App() {
 
         <aside aria-labelledby="controls-title" className="control-area">
           <div className="control-area__header">
-            <div className="control-area__title-row">
-              <h2 id="controls-title">Edit</h2>
-              <span>{activeTool.title}</span>
-            </div>
-            <p>Adjust the photograph, then export a fresh file.</p>
+            <h2 id="controls-title">Edit</h2>
           </div>
 
           <div
@@ -3380,94 +3236,155 @@ export default function App() {
             ))}
           </div>
 
-          <EditHistoryDisclosure
-            canRedo={editHistory.future.length > 0}
-            canUndo={editHistory.past.length > 0}
-            hasSource={Boolean(sourcePhotograph)}
-            onRedo={redoEdit}
-            onUndo={undoEdit}
-          />
-
-          <HistogramPanel histogram={histogram} pending={histogramPending} />
-
-          <Panel
-            ariaLabelledBy={`tool-tab-${state.activeTool}`}
-            description={activeTool.description}
-            id="active-tool"
-            role="tabpanel"
-            tabIndex={-1}
-            title={activeTool.title}
-          >
-            <ToolControls
-              activeTool={state.activeTool}
-              adjustments={adjustments}
-              bundledLookOptions={bundledLooks}
-              customLooks={customLooks}
-              geometry={geometry}
+          <div className="control-area__scroll">
+            <EditHistoryDisclosure
+              canRedo={editHistory.future.length > 0}
+              canUndo={editHistory.past.length > 0}
               hasSource={Boolean(sourcePhotograph)}
-              hasNonNeutralGeometryValue={hasNonNeutralGeometry(geometry)}
-              isPresetImporting={isPresetImporting}
-              showDisabledControls={editHasChanges}
-              onAdjustmentChange={handleAdjustmentChange}
-              onAdjustmentGestureEnd={endAdjustmentGesture}
-              onAdjustmentGestureStart={beginAdjustmentGesture}
-              onApplyLook={applyLook}
-              onCropChange={handleCropChange}
-              onDeleteLook={deleteLook}
-              onDuplicateLook={duplicateLook}
-              onExportCurrentLook={exportCurrentLook}
-              onExportLook={exportLook}
-              onGeometryReset={resetGeometry}
-              onImportPreset={openPresetFilePicker}
-              onOpenRenameDialog={openRenameLookDialog}
-              onOpenSaveDialog={openSaveLookDialog}
-              onResetAdjustment={resetAdjustment}
-              onReset={resetAdjustments}
-              onResetGroup={resetAdjustmentGroup}
-              onResetToneCurve={resetToneCurve}
-              onRotationChange={handleRotationChange}
-              onToneCurveGestureEnd={endToneCurveGesture}
-              onToneCurveGestureStart={beginToneCurveGesture}
-              onToneCurveChange={handleToneCurveChange}
-              onToggleFlipHorizontal={toggleFlipHorizontal}
-              onToggleFlipVertical={toggleFlipVertical}
-              sourceDimensions={sourcePhotograph}
-              sourceObjectUrl={sourcePhotograph?.objectUrl ?? null}
+              onRedo={redoEdit}
+              onUndo={undoEdit}
             />
-          </Panel>
 
-          <ExportControls
-            canExport={
-              hasSource &&
-              isPreviewReady &&
-              rendererStatus === 'available' &&
-              !rendererError &&
-              !exportDimensionIssue
-            }
-            estimatedOutputDimensions={estimatedOutputDimensions}
-            exportAllocationWarning={exportAllocationWarning}
-            exportDimensionIssue={exportDimensionIssueMessage}
-            exportFormat={exportFormat}
-            exportMaximumLongEdge={exportMaximumLongEdge}
-            exportMaximumLongEdgeInput={exportMaximumLongEdgeInput}
-            exportQuality={exportQuality}
-            exportSizeMode={exportSizeMode}
-            hasSource={Boolean(sourcePhotograph)}
-            isExporting={isExporting}
-            maximumLongEdgeIsValid={maximumLongEdgeIsValid}
-            onDownload={handleDownload}
-            onExportFormatChange={setExportFormat}
-            onExportMaximumLongEdgeChange={setExportMaximumLongEdgeInput}
-            onExportQualityChange={setExportQuality}
-            onExportSizeModeChange={setExportSizeMode}
-          />
+            <HistogramPanel histogram={histogram} pending={histogramPending} />
+
+            <Panel
+              ariaLabelledBy={`tool-tab-${state.activeTool}`}
+              description={activeTool.description}
+              id="active-tool"
+              role="tabpanel"
+              tabIndex={-1}
+              title={activeTool.title}
+            >
+              <ToolControls
+                activeTool={state.activeTool}
+                adjustments={adjustments}
+                bundledLookOptions={bundledLooks}
+                customLooks={customLooks}
+                geometry={geometry}
+                hasSource={Boolean(sourcePhotograph)}
+                hasNonNeutralGeometryValue={hasNonNeutralGeometry(geometry)}
+                isPresetImporting={isPresetImporting}
+                showDisabledControls={editHasChanges}
+                onAdjustmentChange={handleAdjustmentChange}
+                onAdjustmentGestureEnd={endAdjustmentGesture}
+                onAdjustmentGestureStart={beginAdjustmentGesture}
+                onApplyLook={applyLook}
+                onCropChange={handleCropChange}
+                onDeleteLook={deleteLook}
+                onDuplicateLook={duplicateLook}
+                onExportCurrentLook={exportCurrentLook}
+                onExportLook={exportLook}
+                onGeometryReset={resetGeometry}
+                onImportPreset={openPresetFilePicker}
+                onOpenRenameDialog={openRenameLookDialog}
+                onOpenSaveDialog={openSaveLookDialog}
+                onResetAdjustment={resetAdjustment}
+                onReset={resetAdjustments}
+                onResetGroup={resetAdjustmentGroup}
+                onResetToneCurve={resetToneCurve}
+                onRotationChange={handleRotationChange}
+                onToneCurveGestureEnd={endToneCurveGesture}
+                onToneCurveGestureStart={beginToneCurveGesture}
+                onToneCurveChange={handleToneCurveChange}
+                onToggleFlipHorizontal={toggleFlipHorizontal}
+                onToggleFlipVertical={toggleFlipVertical}
+                sourceDimensions={sourcePhotograph}
+                sourceObjectUrl={sourcePhotograph?.objectUrl ?? null}
+              />
+            </Panel>
+
+            <ExportControls
+              canExport={
+                hasSource &&
+                isPreviewReady &&
+                rendererStatus === 'available' &&
+                !rendererError &&
+                !exportDimensionIssue
+              }
+              estimatedOutputDimensions={estimatedOutputDimensions}
+              exportAllocationWarning={exportAllocationWarning}
+              exportDimensionIssue={exportDimensionIssueMessage}
+              exportFormat={exportFormat}
+              exportMaximumLongEdge={exportMaximumLongEdge}
+              exportMaximumLongEdgeInput={exportMaximumLongEdgeInput}
+              exportQuality={exportQuality}
+              exportSizeMode={exportSizeMode}
+              hasSource={Boolean(sourcePhotograph)}
+              isExporting={isExporting}
+              maximumLongEdgeIsValid={maximumLongEdgeIsValid}
+              onDownload={handleDownload}
+              onExportFormatChange={setExportFormat}
+              onExportMaximumLongEdgeChange={setExportMaximumLongEdgeInput}
+              onExportQualityChange={setExportQuality}
+              onExportSizeModeChange={setExportSizeMode}
+            />
+          </div>
 
           <div className="control-area__footer">
-            {sourcePhotograph && isPreviewReady && !rendererMessage ? (
-              <h2>{sourcePhotograph.fileName}</h2>
-            ) : (
-              <p>{sourcePhotograph?.fileName ?? 'No source photograph yet'}</p>
-            )}
+            <div className="control-area__status">
+              {importFeedback?.kind === 'success' ? (
+                <p
+                  aria-live="polite"
+                  className="import-feedback import-feedback--success"
+                  role="status"
+                >
+                  {importFeedback.message}
+                </p>
+              ) : null}
+              {importFeedback?.kind === 'error' && hasSource ? (
+                <FeedbackNotice
+                  actionLabel="Choose another photo"
+                  kind="error"
+                  message={importFeedback.message}
+                  onAction={openFilePicker}
+                />
+              ) : null}
+              {rendererMessage && !sourcePreviewUnavailable ? (
+                <FeedbackNotice
+                  actionLabel="Reload page"
+                  kind="warning"
+                  message={rendererMessage}
+                  onAction={() => window.location.reload()}
+                />
+              ) : null}
+              {recoveryFeedback && hasSource ? (
+                <p aria-live="polite" className="storage-feedback" role="status">
+                  {recoveryFeedback}
+                </p>
+              ) : null}
+              {storageFeedback ? (
+                <FeedbackNotice
+                  actionLabel={
+                    storageStatus === 'failed' ? 'Try again' : 'Continue without recovery'
+                  }
+                  kind="warning"
+                  message={storageFeedback}
+                  onAction={storageStatus === 'failed' ? retryStorage : continueWithoutStorage}
+                />
+              ) : null}
+              {exportFeedback?.kind === 'success' ? (
+                <p
+                  aria-live="polite"
+                  className="export-feedback export-feedback--success"
+                  role="status"
+                >
+                  {exportFeedback.message}
+                </p>
+              ) : null}
+              {exportFeedback?.kind === 'error' ? (
+                <FeedbackNotice
+                  actionLabel="Try export again"
+                  disabled={isExporting}
+                  kind="error"
+                  message={exportFeedback.message}
+                  onAction={() => void handleDownload()}
+                />
+              ) : null}
+              {!storageFeedback ? <p className="storage-note">{storageNotice}</p> : null}
+            </div>
+            <p className="control-area__source-name">
+              {sourcePhotograph?.fileName ?? 'No source photograph yet'}
+            </p>
             {sourcePhotograph ? (
               <div className="control-area__actions">
                 <Button
@@ -3476,7 +3393,7 @@ export default function App() {
                   size="small"
                   variant="outline"
                 >
-                  Choose another source
+                  Choose another photo
                 </Button>
               </div>
             ) : null}

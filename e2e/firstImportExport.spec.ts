@@ -45,14 +45,14 @@ test('has no automated accessibility violations on the landing state', async ({ 
 
 test('has no automated accessibility violations in the editor', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
   await expectNoAccessibilityViolations(page);
 });
 
 test('operates tabs and crop handles from the keyboard', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
 
   const adjustTab = page.getByRole('tab', { name: 'Adjust' });
   await adjustTab.focus();
@@ -71,7 +71,7 @@ test('operates tabs and crop handles from the keyboard', async ({ page }) => {
 
 test('keeps dialog focus contained and restores it after Escape', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
 
   const helpButton = page.getByRole('button', { name: 'Open editor help' });
@@ -92,31 +92,27 @@ test('keeps dialog focus contained and restores it after Escape', async ({ page 
 test('introduces the product before revealing editor controls', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Edit photos. Keep them yours.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Open a photograph.' })).toBeVisible();
+  await expect(page.locator('input[type="file"]')).toHaveAttribute(
+    'accept',
+    'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp',
+  );
   await expect(page.getByRole('slider', { name: 'Exposure' })).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveCount(0);
   await expect(page.getByRole('slider', { name: 'Preview before and after' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await page.getByRole('tab', { name: 'Adjust' }).click();
   await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
 });
 
-test('opens the sample editor from the hero editing controls', async ({ page }) => {
+test('opens the sample editor from the quiet secondary action', async ({ page }) => {
   await page.goto('/');
 
-  const cropControl = page.getByRole('button', { name: 'Crop', exact: true });
-  await expect(cropControl).toHaveAttribute('aria-pressed', 'true');
-  await cropControl.click();
-  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
-
-  await page.reload();
-  await page.getByRole('button', { name: 'Looks', exact: true }).click();
-  await expect(page.getByRole('tab', { name: 'Looks' })).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('button', { name: 'Try the sample' }).click();
+  await expect(page.getByRole('tab', { name: 'Adjust' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
 });
 
 test('keeps useful state changes while removing nonessential motion', async ({ page }) => {
@@ -124,7 +120,7 @@ test('keeps useful state changes while removing nonessential motion', async ({ p
   await page.goto('/');
 
   const motionStyles = await page
-    .getByRole('button', { name: 'Choose a photograph' })
+    .getByRole('button', { name: 'Choose from Photos or Files' })
     .first()
     .evaluate((button) => {
       const styles = getComputedStyle(button);
@@ -135,7 +131,7 @@ test('keeps useful state changes while removing nonessential motion', async ({ p
     });
 
   expect(motionStyles).toEqual({ animationDuration: '0s', transition: 'none' });
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
 });
 
@@ -151,7 +147,7 @@ test('reports an unsupported file with one recovery action', async ({ page }) =>
   await expect(page.getByText('That file could not be opened.')).toBeVisible();
   await expect(page.getByRole('alert')).toContainText('not supported');
   await expect(page.getByRole('button', { name: 'Try another file' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Start with the sample' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Try the sample' })).toBeVisible();
 });
 
 test('explains missing WebGL2 and offers reload', async ({ page }) => {
@@ -167,7 +163,7 @@ test('explains missing WebGL2 and offers reload', async ({ page }) => {
     };
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
 
   await expect(page.getByText(/OpenFilm needs WebGL2 to show a preview/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Reload page' })).toBeVisible();
@@ -175,7 +171,7 @@ test('explains missing WebGL2 and offers reload', async ({ page }) => {
 
 test('shows a recoverable state when the WebGL2 context is lost', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
 
   await page.locator('canvas.render-canvas').dispatchEvent('webglcontextlost');
@@ -191,7 +187,7 @@ test('imports, previews, resets, replaces, and downloads a JPEG', async ({ page 
   await sourceInput.setInputFiles(fixtureFile(previewFixture));
 
   await expect(page.getByRole('heading', { name: previewFixture.fileName })).toBeVisible();
-  await expect(page.getByText('WebGL2 ready').first()).toBeVisible();
+  await expect(page.getByText('WebGL2 ready')).toHaveCount(0);
   const importArea = page.getByRole('group', { name: 'Source photograph import area' });
   await expect(importArea.getByText(previewFixture.fileName)).toHaveCount(0);
   await expect(importArea.getByText(/Ready to edit/)).toHaveCount(0);
@@ -239,7 +235,7 @@ test('imports, previews, resets, replaces, and downloads a JPEG', async ({ page 
 
 test('selects PNG, reports bounded dimensions, and downloads a fresh export', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
   await openExport(page);
@@ -315,7 +311,7 @@ test('shows a recovery action when export encoding fails', async ({ page }) => {
     };
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
   await openExport(page);
@@ -345,7 +341,7 @@ test('prevents duplicate exports without blocking tool navigation', async ({ pag
     };
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
   await openExport(page);
@@ -375,10 +371,10 @@ test('prevents duplicate exports without blocking tool navigation', async ({ pag
 test('tries the bundled sample and edits the core adjustments', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await openEditHistory(page);
-  await expect(page.locator('.topbar .renderer-status')).toBeVisible();
+  await expect(page.locator('.topbar .renderer-status')).toHaveCount(0);
 
   const values = {
     Contrast: '30',
@@ -426,10 +422,32 @@ test('keeps the adjustment controls labeled and usable at a phone width', async 
 
   await page.setViewportSize({ height: 844, width: 360 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
+  await expect(page.locator('.topbar__filename')).toHaveText('openfilm-sample.png');
   await openEditHistory(page);
-  await expect(page.locator('.topbar .renderer-status')).toBeHidden();
+  await expect(page.locator('.topbar .renderer-status')).toHaveCount(0);
+
+  const dockLayout = await page.evaluate(() => {
+    const stage = document.querySelector('.canvas-column')?.getBoundingClientRect();
+    const dock = document.querySelector('.control-area')?.getBoundingClientRect();
+    const scrollArea = document.querySelector('.control-area__scroll');
+
+    return {
+      dockBottom: dock?.bottom,
+      dockHeight: dock?.height,
+      horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
+      pageScroll: document.documentElement.scrollHeight > window.innerHeight,
+      scrollOverflow: scrollArea ? getComputedStyle(scrollArea).overflowY : undefined,
+      stageHeight: stage?.height,
+    };
+  });
+
+  expect(dockLayout.dockBottom).toBeLessThanOrEqual(845);
+  expect(dockLayout.dockHeight).toBeGreaterThan(280);
+  expect(dockLayout.stageHeight).toBeGreaterThan(350);
+  expect(dockLayout.scrollOverflow).toBe('auto');
+  expect(dockLayout.horizontalOverflow).toBe(false);
+  expect(dockLayout.pageScroll).toBe(false);
 
   for (const label of [
     'Exposure',
@@ -443,10 +461,13 @@ test('keeps the adjustment controls labeled and usable at a phone width', async 
     'Grain amount',
     'Grain size',
   ]) {
-    await expect(page.getByRole('slider', { name: label })).toBeVisible();
+    const slider = page.getByRole('slider', { name: label });
+    await slider.scrollIntoViewIfNeeded();
+    await expect(slider).toBeVisible();
     await expect(page.getByRole('spinbutton', { name: `${label} value` })).toBeVisible();
   }
 
+  await page.getByRole('group', { name: 'RGB tone curve plot' }).scrollIntoViewIfNeeded();
   await expect(page.getByRole('group', { name: 'RGB tone curve plot' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add tone curve point' })).toBeVisible();
   await expect(page.getByRole('spinbutton', { name: 'Input (x)' })).toBeVisible();
@@ -475,7 +496,7 @@ test('keeps the adjustment controls labeled and usable at a phone width', async 
 
 test('edits the bounded RGB tone curve with numeric and keyboard controls', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
 
   await expect(page.getByText('2 / 8 points')).toBeVisible();
@@ -488,6 +509,7 @@ test('edits the bounded RGB tone curve with numeric and keyboard controls', asyn
   await expect(output).toHaveValue('0.50');
 
   const plot = page.getByRole('group', { name: 'RGB tone curve plot' });
+  await plot.scrollIntoViewIfNeeded();
   const plotBox = await plot.boundingBox();
   const pointBox = await page
     .getByRole('button', { name: /Tone curve point 2, input 0\.50, output 0\.50/ })
@@ -517,7 +539,7 @@ test('edits deterministic vignette and grain effects with group reset history', 
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await openEditHistory(page);
 
@@ -552,7 +574,7 @@ test('crops, rotates, flips, and resets geometry with accessible alternatives to
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await openEditHistory(page);
 
@@ -573,6 +595,7 @@ test('crops, rotates, flips, and resets geometry with accessible alternatives to
   await expect(cropHeight).toHaveValue('80');
 
   const cropSelection = page.locator('.crop-control__selection');
+  await cropSelection.scrollIntoViewIfNeeded();
   const cropBox = await cropSelection.boundingBox();
   expect(cropBox).not.toBeNull();
   await page.mouse.move(cropBox!.x + cropBox!.width / 2, cropBox!.y + cropBox!.height / 2);
@@ -616,8 +639,8 @@ test('keeps geometry controls named and usable at a phone width', async ({ page 
 
   await page.setViewportSize({ height: 844, width: 360 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
+  await expect(page.locator('.topbar__filename')).toHaveText('openfilm-sample.png');
   await openEditHistory(page);
   await page.getByRole('tab', { name: 'Geometry' }).click();
 
@@ -660,7 +683,7 @@ test('shares Edit history across tools, compares before and after, and updates t
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await openEditHistory(page);
 
@@ -708,7 +731,7 @@ test('shares Edit history across tools, compares before and after, and updates t
 
 test('applies bundled Looks and supports custom Look CRUD', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
 
   await page.getByRole('tab', { name: 'Looks' }).click();
@@ -753,7 +776,7 @@ test('applies bundled Looks and supports custom Look CRUD', async ({ page }) => 
   await page.evaluate(() => window.scrollTo(0, 360));
   await page.getByRole('button', { name: 'Resume latest edit' }).click();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
-  await expect(page.getByText('openfilm-sample.png', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await page.getByRole('tab', { name: 'Looks' }).click();
   await expect(page.getByRole('heading', { name: 'My saved Look' })).toBeVisible();
 
@@ -777,7 +800,7 @@ test('applies bundled Looks and supports custom Look CRUD', async ({ page }) => 
 
 test('previews, applies, saves, and exports a versioned Look preset', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await page.getByRole('tab', { name: 'Looks' }).click();
 
@@ -832,7 +855,7 @@ test('previews, applies, saves, and exports a versioned Look preset', async ({ p
 
 test('rejects an invalid Look preset without opening the preview dialog', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await page.getByRole('tab', { name: 'Looks' }).click();
 
   await page.getByLabel('Choose Look preset').setInputFiles({
@@ -847,7 +870,7 @@ test('rejects an invalid Look preset without opening the preview dialog', async 
 
 test('recovers the latest Edit and its source after a reload', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await expect(page.getByText('Browser storage is for recovery, not a backup.')).toBeVisible();
 
@@ -859,10 +882,10 @@ test('recovers the latest Edit and its source after a reload', async ({ page }) 
   await page.getByRole('tab', { name: 'Adjust' }).click();
   await page.reload();
 
-  await expect(page.getByRole('heading', { name: 'Edit photos. Keep them yours.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Open a photograph.' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Resume latest edit' })).toBeVisible();
   await page.getByRole('button', { name: 'Resume latest edit' }).click();
-  await expect(page.getByText('openfilm-sample.png', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
   await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
   await expect(
     page.getByRole('img', { name: 'Edited preview of openfilm-sample.png' }),
@@ -877,7 +900,7 @@ test('restores settings and requests the source again when source bytes are unav
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
 
   const exposure = page.getByRole('spinbutton', { name: 'Exposure value' });
@@ -914,8 +937,8 @@ test('restores settings and requests the source again when source bytes are unav
 test('keeps bundled and custom Look controls reachable at a phone width', async ({ page }) => {
   await page.setViewportSize({ height: 844, width: 360 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
-  await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
+  await expect(page.locator('.topbar__filename')).toHaveText('openfilm-sample.png');
   await page.getByRole('tab', { name: 'Looks' }).click();
 
   await expect(page.getByRole('heading', { name: 'Bundled Looks' })).toBeVisible();
@@ -947,7 +970,7 @@ test('keeps one canvas-first control area across desktop, phone, and landscape',
 }) => {
   await page.setViewportSize({ height: 900, width: 1440 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Start with the sample' }).click();
+  await page.getByRole('button', { name: 'Try the sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-sample.png' })).toBeVisible();
 
   const desktopInspectorPosition = await page

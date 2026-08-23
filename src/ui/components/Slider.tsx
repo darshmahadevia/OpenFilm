@@ -5,6 +5,7 @@ export interface SliderProps extends Omit<
   'aria-label' | 'type' | 'value'
 > {
   displayValue?: ReactNode;
+  headerAction?: ReactNode;
   hint?: string;
   id: string;
   label: string;
@@ -17,6 +18,7 @@ export function Slider({
   className = '',
   disabled,
   displayValue,
+  headerAction,
   hint,
   id,
   label,
@@ -44,14 +46,6 @@ export function Slider({
           {label}
         </label>
         <div className="slider-field__value-group">
-          <output
-            aria-live="polite"
-            className="slider-field__value"
-            htmlFor={id}
-            id={`${id}-output`}
-          >
-            {displayValue ?? value}
-          </output>
           <input
             aria-describedby={hint ? hintId : undefined}
             aria-label={`${label} value`}
@@ -66,6 +60,7 @@ export function Slider({
             type="number"
             value={value}
           />
+          {headerAction}
         </div>
       </div>
       <input

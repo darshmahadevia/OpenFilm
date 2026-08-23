@@ -1,44 +1,56 @@
 ---
-version: 1
+version: 2
 slug: 'src-app-tsx'
 primary_target: 'src/App.tsx'
-related_targets: ['index.html', 'src/app.css', 'src/ui/tokens.css']
+related_targets: ['index.html', 'src/app.css', 'src/ui/components/Slider.tsx', 'src/ui/tokens.css']
 ---
 
 ## Scope and mode
 
-Production landing and editor shell in `App.tsx`. Persuade a casual photographer to start, then carry the same visual system into the operating workspace.
+Production landing page and responsive editor shell. Refined from the earlier category-standard
+concept to remove AI-SaaS visual tells while keeping the proven dark creative-tool vocabulary.
 
 ## Audience, job, action, proof, constraints
 
-Casual photographers choosing whether to open one local image. The primary action is choosing a photograph; the sample is secondary. Proof is the interactive before/after, visible real Crop and Looks controls, and plain local-processing status. No accounts, uploads, invented claims, analytics, or destructive source changes. Desktop and phone layouts must keep the photograph, primary action, active tool, and export path findable.
+The audience is a casual photographer deciding whether to open one local image. The primary action
+is choosing a photograph; the sample is secondary. Proof is the real interactive before/after and
+the functioning editor. Processing stays in the browser. No accounts, uploads, analytics, invented
+claims, HEIC support, or destructive source changes.
 
-## Chosen direction and memorable moment
+## Current direction
 
-User-selected category standard executed against Darkroom, VSCO Web Studio, and Lightroom. Approved comp: `.impeccable/mocks/category-standard-split.webp`. A matte dark creative-tool shell uses one violet-blue action color. The first viewport stacks a wide promise field above an edge-to-edge photograph; dragging the before/after divider is the memorable moment, and the same image-first hierarchy carries into the editor after import.
+The first viewport is direct: compact heading and actions followed by one large comparison image.
+Below it, a linear workflow and a local-processing fact section provide enough explanation for
+someone who scrolls. There is no feature-card grid, decorative image sequence, or closing CTA repeat.
 
-## Approved comp record
+The editor uses a flat right rail on desktop, a stacked tablet layout, and a mobile `100dvh` image
+workspace with a persistent bottom tool dock. The supplied three-phone image defines mobile topology,
+not literal styling or content. On phones, Adjust, Geometry, and Looks remain visible while active
+controls scroll internally above a persistent status/source footer.
 
-- Ground: sampled `#0b0e14`; dominant control surface: sampled `#0d1116`; top chrome: sampled `#0c1015`.
-- Action: sampled `#5358ed`; foreground: off-white; secondary copy: cool gray; separators: charcoal near `#1c2023`.
-- Corners: 8px controls, 12–14px major surfaces; 1px separators; no border beneath a wide shadow.
-- Elevation: matte layers differentiated mostly by value; only overlapping panels receive a soft low-opacity shadow.
-- Type ramp: 50–58px landing display, 24–30px section headings, 16–18px body, 12–14px tool labels. Neutral sans throughout with tabular numerals for values.
-- What not to literalize: generated photo content, exact crop thumbnails, or fictional preset names. Preserve the topology, scale, density, and control clarity with real OpenFilm content.
+## Implementation commitments
 
-## Implementation inventory
+| Ingredient         | Commitment                                                                        |
+| ------------------ | --------------------------------------------------------------------------------- |
+| Import             | One honest “Choose from Photos or Files” file input accepting JPEG, PNG, and WebP |
+| Hero proof         | Existing interactive before/after photograph, dominant and edge-to-edge           |
+| Supporting content | One ruled workflow and one local-processing fact section                          |
+| Editor chrome      | Compact top bar with wordmark, filename on phone, help, and Export                |
+| Desktop controls   | Flat `22rem` right rail with one internally scrolling content area                |
+| Mobile controls    | Safe-area-aware bottom dock around `40dvh`, persistent tabs and footer            |
+| Slider values      | One visible editable number; formatted `aria-valuetext`; compact row reset        |
+| Accessibility      | `2.75rem` coarse-pointer targets, visible focus, keyboard tools, reduced motion   |
 
-| Ingredient        | Commitment                                                                                                | Medium                                              |
-| ----------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| Slim top bar      | Wordmark, process/privacy links, sample action; matte chrome and hairline separator                       | Semantic HTML/CSS                                   |
-| Promise panel     | Compact headline, one sentence, local-processing proof, primary and secondary actions                     | Semantic HTML/CSS + authored SVG icons              |
-| Hero proof        | Large edge-to-edge interactive before/after using the existing street photograph                          | Existing raster + semantic range input/CSS clipping |
-| Tool preview      | Crop and Looks controls enter at the fold with practical labels and selected state                        | Semantic HTML/CSS + authored SVG icons              |
-| Primary action    | Violet-blue rectangular button, 8px corners, visible focus and loading state                              | Semantic button                                     |
-| Remaining landing | One product walkthrough, one privacy proof region, one anchored close; varied density, no equal-card grid | Semantic HTML/CSS + existing rasters                |
-| Editor shell      | Sticky top bar, full-height canvas, floating right inspector, persistent comparison and export paths      | Existing React behavior + CSS                       |
-| Motion            | One orchestrated hero-to-editor reveal and responsive divider movement; reduced-motion fallback           | CSS transitions/animation                           |
+## Review decisions
+
+- Removed the oversized slogan, six-cell pseudo-feature strip, extra lifestyle image, coastal close,
+  repeated actions, and ornamental status chrome.
+- Kept one violet-blue functional accent; made landing import neutral so the photo is the color event.
+- Preserved image aspect ratio, all editor tools, recovery, local status, help, and export behavior.
+- Native Photos versus Files presentation is owned by the mobile operating system; the web input
+  cannot truthfully force two separate native picker modes.
 
 ## Unresolved decisions
 
-None. The user delegated the comp choice and approved the best-default implementation path.
+None. Native picker wording and available providers vary by device and browser and require physical
+iOS/Android verification outside automated browser emulation.

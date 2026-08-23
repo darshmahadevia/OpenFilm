@@ -47,7 +47,9 @@ describe('base UI components', () => {
     expect(screen.getByLabelText('Format')).toHaveValue('jpeg');
     expect(screen.getByText('Choose a source first.')).toBeInTheDocument();
     expect(screen.getByLabelText('Exposure')).toHaveValue('0');
-    expect(screen.getByText('0.00')).toBeInTheDocument();
+    expect(screen.getByLabelText('Exposure')).toHaveAttribute('aria-valuetext', '0.00');
+    expect(screen.getByRole('spinbutton', { name: 'Exposure value' })).toHaveValue(0);
+    expect(screen.queryByText('0.00')).not.toBeInTheDocument();
   });
 
   it('provides a titled panel and closable dialog', () => {
