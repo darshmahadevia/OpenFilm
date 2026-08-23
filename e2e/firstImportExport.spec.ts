@@ -121,6 +121,34 @@ test('introduces the product before revealing editor controls', async ({ page })
   await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
 });
 
+test('does not clip landing headline glyphs after its entrance motion', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+
+  const heading = page.getByRole('heading', { name: 'Open a photograph.' });
+  await heading.evaluate((element) =>
+    Promise.all(element.getAnimations().map((animation) => animation.finished)),
+  );
+
+  await expect(heading).toHaveCSS('clip-path', 'none');
+});
+
+test('keeps recovered landing copy below the navigation in a short viewport', async ({ page }) => {
+  await page.setViewportSize({ height: 160, width: 838 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open sample' }).click();
+  await page.getByRole('spinbutton', { name: 'Exposure value' }).fill('1');
+  await page.reload();
+
+  await expect(page.getByRole('button', { name: 'Resume latest edit' })).toBeVisible();
+  const positions = await page.evaluate(() => ({
+    headingTop: document.querySelector('.landing-hero__intro h1')!.getBoundingClientRect().top,
+    navigationBottom: document.querySelector('.landing-nav')!.getBoundingClientRect().bottom,
+  }));
+
+  expect(positions.headingTop).toBeGreaterThanOrEqual(positions.navigationBottom);
+});
+
 test('opens the sample editor from the quiet secondary action', async ({ page }) => {
   await page.goto('/');
 

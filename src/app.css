@@ -2203,7 +2203,7 @@ input:disabled,
 }
 
 .landing-hero__grid {
-  grid-template-rows: minmax(10.5rem, 25dvh) minmax(28rem, 1fr);
+  grid-template-rows: auto minmax(28rem, 1fr);
 }
 
 .landing-hero__copy {
@@ -2972,13 +2972,11 @@ input:disabled,
 
 @keyframes landing-title-enter {
   from {
-    clip-path: inset(0 0 18% 0);
     filter: blur(5px);
     transform: translateY(1rem);
   }
 
   to {
-    clip-path: inset(0 0 0 0);
     filter: blur(0);
     transform: translateY(0);
   }

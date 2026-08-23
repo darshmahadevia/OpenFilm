@@ -33,7 +33,7 @@ controls scroll internally above a persistent status/source footer.
 | Ingredient         | Commitment                                                                       |
 | ------------------ | -------------------------------------------------------------------------------- |
 | Import             | One “Choose a photo” input; the supporting line names Photos, Files, and formats |
-| Hero proof         | Greenhouse portrait comparison, dominant and edge-to-edge                        |
+| Hero proof         | Coastal valley comparison, dominant and edge-to-edge                             |
 | Supporting content | One ruled workflow and one local-processing fact section                         |
 | Editor chrome      | Compact top bar with wordmark, filename on phone, help, and Export               |
 | Desktop controls   | Flat `22rem` right rail with one internally scrolling content area               |
