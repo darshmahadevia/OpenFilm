@@ -79,6 +79,11 @@ function openEditHistory() {
   fireEvent.click(screen.getByRole('button', { name: 'Edit history' }));
 }
 
+async function openBundledSample() {
+  fireEvent.click(screen.getByRole('button', { name: 'Start with the sample' }));
+  await screen.findByRole('heading', { name: 'openfilm-sample.png' });
+}
+
 describe('OpenFilm shell', () => {
   beforeEach(() => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);
@@ -88,16 +93,17 @@ describe('OpenFilm shell', () => {
     vi.restoreAllMocks();
   });
 
-  it('gives the preview priority and shows one active tool area', () => {
+  it('introduces the product and keeps the editor behind a clear import action', () => {
     render(<App />);
 
-    expect(screen.getByRole('heading', { name: 'Your photograph, in focus.' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Adjust', selected: true })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Adjustments' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Import photograph' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Try bundled sample' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reload page' })).toBeInTheDocument();
-    expect(screen.getByText(/OpenFilm needs WebGL2/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'A quieter room for your photographs.' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Adjust' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Choose a photograph' })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Start with the sample' })).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Preview before and after' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reload page' })).not.toBeInTheDocument();
   });
 
   it('keeps the empty state focused and introduces controls after a source is ready', async () => {
@@ -106,24 +112,20 @@ describe('OpenFilm shell', () => {
     try {
       render(<App />);
 
-      expect(screen.getByRole('heading', { name: 'Start with a photograph.' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'A quieter room for your photographs.' }),
+      ).toBeInTheDocument();
       expect(screen.queryByRole('slider', { name: 'Exposure' })).not.toBeInTheDocument();
-      expect(
-        screen.getByText('Import a source photograph to change its light, color, and texture.'),
-      ).toBeInTheDocument();
-      expect(document.querySelector('.stage-art')).not.toBeInTheDocument();
+      expect(screen.getByText(/Shape light, color, texture, and geometry/)).toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('button', { name: 'Try bundled sample' }));
-      expect(
-        await screen.findByRole('heading', { name: 'openfilm-sample.png' }),
-      ).toBeInTheDocument();
+      await openBundledSample();
       expect(screen.getByRole('slider', { name: 'Exposure' })).toBeInTheDocument();
     } finally {
       mocks.restore();
     }
   });
 
-  it('keeps navigation available and prevents a second source import while loading', async () => {
+  it('keeps the landing page stable and prevents a second source import while loading', async () => {
     const mocks = installImportBrowserMocks();
     const sourceFile = createSourcePhotographFixtureFile(sourcePhotographFixtures[0]);
     const ignoredSecondFile = createSourcePhotographFixtureFile(sourcePhotographFixtures[1]);
@@ -145,10 +147,8 @@ describe('OpenFilm shell', () => {
       });
       await waitFor(() => expect(resolveDecode).toEqual(expect.any(Function)));
 
-      expect(screen.queryByRole('button', { name: 'Try bundled sample' })).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Opening your photograph…' })).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('tab', { name: 'Geometry' }));
-      expect(screen.getByRole('heading', { name: 'Geometry' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Opening photograph…' })).toBeDisabled();
+      expect(screen.queryByRole('tab', { name: 'Geometry' })).not.toBeInTheDocument();
 
       fireEvent.change(screen.getByLabelText('Choose source photograph'), {
         target: { files: [ignoredSecondFile] },
@@ -179,7 +179,7 @@ describe('OpenFilm shell', () => {
       render(<App />);
 
       expect(await screen.findByText(/Local recovery is unavailable here/)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Try recovery again' })).toBeInTheDocument();
     } finally {
       if (originalIndexedDb) {
         Object.defineProperty(globalThis, 'indexedDB', originalIndexedDb);
@@ -189,15 +189,22 @@ describe('OpenFilm shell', () => {
     }
   });
 
-  it('switches tools and opens the help dialog', () => {
-    render(<App />);
+  it('switches tools and opens the help dialog', async () => {
+    const mocks = installImportBrowserMocks();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Geometry' }));
-    expect(screen.getByRole('heading', { name: 'Geometry' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Geometry', selected: true })).toBeInTheDocument();
+    try {
+      render(<App />);
+      await openBundledSample();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open editor help' }));
-    expect(screen.getByRole('dialog', { name: 'A quiet place to edit' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('tab', { name: 'Geometry' }));
+      expect(screen.getByRole('heading', { name: 'Geometry' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Geometry', selected: true })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open editor help' }));
+      expect(screen.getByRole('dialog', { name: 'A quiet place to edit' })).toBeInTheDocument();
+    } finally {
+      mocks.restore();
+    }
   });
 
   it('explains unavailable recovery and supports bundled and custom Look CRUD', async () => {
@@ -208,10 +215,7 @@ describe('OpenFilm shell', () => {
       render(<App />);
       expect(screen.getByText(/remain in memory until this tab closes/)).toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('button', { name: 'Try bundled sample' }));
-      expect(
-        await screen.findByRole('heading', { name: 'openfilm-sample.png' }),
-      ).toBeInTheDocument();
+      await openBundledSample();
 
       fireEvent.click(screen.getByRole('tab', { name: 'Looks' }));
       expect(screen.getByRole('heading', { name: 'Bundled Looks' })).toBeInTheDocument();
@@ -258,6 +262,7 @@ describe('OpenFilm shell', () => {
 
     try {
       render(<App />);
+      await openBundledSample();
       fireEvent.click(screen.getByRole('tab', { name: 'Looks' }));
       fireEvent.change(screen.getByLabelText('Choose Look preset'), {
         target: { files: [presetFile] },
@@ -292,8 +297,10 @@ describe('OpenFilm shell', () => {
     const presetFile = new File([JSON.stringify(preset)], 'unsafe-look.json', {
       type: 'application/json',
     });
+    const mocks = installImportBrowserMocks();
     const { container } = render(<App />);
 
+    await openBundledSample();
     fireEvent.click(screen.getByRole('tab', { name: 'Looks' }));
     fireEvent.change(screen.getByLabelText('Choose Look preset'), {
       target: { files: [presetFile] },
@@ -305,6 +312,7 @@ describe('OpenFilm shell', () => {
     expect(preview).toHaveTextContent(preset.description);
     expect(container.querySelector('img')).toBeNull();
     expect(container.querySelector('[onerror], [onload]')).toBeNull();
+    mocks.restore();
   });
 
   it('warns before a representative large export allocation', async () => {
@@ -344,7 +352,9 @@ describe('OpenFilm shell', () => {
       ).toBeInTheDocument();
       expect(mocks.createObjectUrl).toHaveBeenCalledWith(firstFile);
 
-      fireEvent.change(input, { target: { files: [secondFile] } });
+      fireEvent.change(screen.getByLabelText('Choose source photograph'), {
+        target: { files: [secondFile] },
+      });
 
       expect(await screen.findByText(/Loaded landscape\.png/)).toBeInTheDocument();
       await waitFor(() =>
@@ -367,7 +377,6 @@ describe('OpenFilm shell', () => {
     try {
       render(<App />);
 
-      const importArea = screen.getByRole('group', { name: 'Source photograph import area' });
       fireEvent.change(screen.getByLabelText('Choose source photograph'), {
         target: { files: [supportedFile] },
       });
@@ -375,7 +384,9 @@ describe('OpenFilm shell', () => {
         await screen.findByRole('heading', { name: 'orientation-6-portrait.jpg' }),
       ).toBeInTheDocument();
 
-      fireEvent.drop(importArea, { dataTransfer: { files: [unsupportedFile] } });
+      fireEvent.drop(screen.getByRole('group', { name: 'Source photograph import area' }), {
+        dataTransfer: { files: [unsupportedFile] },
+      });
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'Choose a JPEG, PNG, or WebP file',
@@ -395,7 +406,7 @@ describe('OpenFilm shell', () => {
     try {
       render(<App />);
 
-      fireEvent.click(screen.getByRole('button', { name: 'Try bundled sample' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Start with the sample' }));
 
       expect(
         await screen.findByRole('heading', { name: 'openfilm-sample.png' }),
@@ -637,7 +648,9 @@ describe('OpenFilm shell', () => {
       expect(exposure).toHaveValue('0');
 
       fireEvent.change(exposure, { target: { value: '0.5' } });
-      fireEvent.change(input, { target: { files: [rejectedReplacement] } });
+      fireEvent.change(screen.getByLabelText('Choose source photograph'), {
+        target: { files: [rejectedReplacement] },
+      });
 
       expect(
         await screen.findByText('The current source photograph is still open.'),
@@ -652,7 +665,9 @@ describe('OpenFilm shell', () => {
       expect(mocks.revokeObjectUrl).toHaveBeenCalledWith('blob:landscape.png');
 
       confirm.mockReturnValue(true);
-      fireEvent.change(input, { target: { files: [acceptedReplacement] } });
+      fireEvent.change(screen.getByLabelText('Choose source photograph'), {
+        target: { files: [acceptedReplacement] },
+      });
 
       expect(await screen.findByText(/Loaded square\.webp/)).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'square.webp' })).toBeInTheDocument();

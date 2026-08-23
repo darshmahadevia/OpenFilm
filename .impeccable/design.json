@@ -1,0 +1,570 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-23T03:19:45Z",
+  "title": "Design System: OpenFilm",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Editor Ink",
+        "canonical": "#1b1c18",
+        "tonalRamp": [
+          "oklch(15% 0.01 110)",
+          "oklch(26% 0.01 110)",
+          "oklch(38% 0.01 110)",
+          "oklch(50% 0.01 110)",
+          "oklch(62% 0.01 110)",
+          "oklch(74% 0.01 110)",
+          "oklch(86% 0.01 110)",
+          "oklch(95% 0.01 110)"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Editor Ink Soft",
+        "canonical": "#4e514b",
+        "tonalRamp": [
+          "oklch(15% 0.015 120)",
+          "oklch(26% 0.015 120)",
+          "oklch(38% 0.015 120)",
+          "oklch(50% 0.015 120)",
+          "oklch(62% 0.015 120)",
+          "oklch(74% 0.015 120)",
+          "oklch(86% 0.015 120)",
+          "oklch(95% 0.015 120)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "canonical": "#6b6e67",
+        "tonalRamp": [
+          "oklch(15% 0.018 110)",
+          "oklch(26% 0.018 110)",
+          "oklch(38% 0.018 110)",
+          "oklch(50% 0.018 110)",
+          "oklch(62% 0.018 110)",
+          "oklch(74% 0.018 110)",
+          "oklch(86% 0.018 110)",
+          "oklch(95% 0.018 110)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Editor Paper",
+        "canonical": "#f4f3ee",
+        "tonalRamp": [
+          "oklch(15% 0.02 95)",
+          "oklch(26% 0.02 95)",
+          "oklch(38% 0.02 95)",
+          "oklch(50% 0.02 95)",
+          "oklch(62% 0.02 95)",
+          "oklch(74% 0.02 95)",
+          "oklch(86% 0.02 95)",
+          "oklch(95% 0.02 95)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Editor Surface",
+        "canonical": "#fbfaf6",
+        "tonalRamp": [
+          "oklch(15% 0.012 95)",
+          "oklch(26% 0.012 95)",
+          "oklch(38% 0.012 95)",
+          "oklch(50% 0.012 95)",
+          "oklch(62% 0.012 95)",
+          "oklch(74% 0.012 95)",
+          "oklch(86% 0.012 95)",
+          "oklch(95% 0.012 95)"
+        ]
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "Raised Surface",
+        "canonical": "#efeee8",
+        "tonalRamp": [
+          "oklch(15% 0.018 95)",
+          "oklch(26% 0.018 95)",
+          "oklch(38% 0.018 95)",
+          "oklch(50% 0.018 95)",
+          "oklch(62% 0.018 95)",
+          "oklch(74% 0.018 95)",
+          "oklch(86% 0.018 95)",
+          "oklch(95% 0.018 95)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Editor Line",
+        "canonical": "#d4d3ca",
+        "tonalRamp": [
+          "oklch(15% 0.018 95)",
+          "oklch(26% 0.018 95)",
+          "oklch(38% 0.018 95)",
+          "oklch(50% 0.018 95)",
+          "oklch(62% 0.018 95)",
+          "oklch(74% 0.018 95)",
+          "oklch(86% 0.018 95)",
+          "oklch(95% 0.018 95)"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Strong Line",
+        "canonical": "#b8b8ad",
+        "tonalRamp": [
+          "oklch(15% 0.025 95)",
+          "oklch(26% 0.025 95)",
+          "oklch(38% 0.025 95)",
+          "oklch(50% 0.025 95)",
+          "oklch(62% 0.025 95)",
+          "oklch(74% 0.025 95)",
+          "oklch(86% 0.025 95)",
+          "oklch(95% 0.025 95)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Burnt Orange",
+        "canonical": "#b45335",
+        "tonalRamp": [
+          "oklch(15% 0.15 35)",
+          "oklch(26% 0.15 35)",
+          "oklch(38% 0.15 35)",
+          "oklch(50% 0.15 35)",
+          "oklch(62% 0.15 35)",
+          "oklch(74% 0.15 35)",
+          "oklch(86% 0.15 35)",
+          "oklch(95% 0.15 35)"
+        ]
+      },
+      "accent-dark": {
+        "role": "primary",
+        "displayName": "Burnt Orange Dark",
+        "canonical": "#8e3e28",
+        "tonalRamp": [
+          "oklch(15% 0.14 35)",
+          "oklch(26% 0.14 35)",
+          "oklch(38% 0.14 35)",
+          "oklch(50% 0.14 35)",
+          "oklch(62% 0.14 35)",
+          "oklch(74% 0.14 35)",
+          "oklch(86% 0.14 35)",
+          "oklch(95% 0.14 35)"
+        ]
+      },
+      "accent-ink": {
+        "role": "neutral",
+        "displayName": "Accent Ink",
+        "canonical": "#fff9f2",
+        "tonalRamp": [
+          "oklch(15% 0.02 70)",
+          "oklch(26% 0.02 70)",
+          "oklch(38% 0.02 70)",
+          "oklch(50% 0.02 70)",
+          "oklch(62% 0.02 70)",
+          "oklch(74% 0.02 70)",
+          "oklch(86% 0.02 70)",
+          "oklch(95% 0.02 70)"
+        ]
+      },
+      "success": {
+        "role": "status",
+        "displayName": "Success Green",
+        "canonical": "#4f765c",
+        "tonalRamp": [
+          "oklch(15% 0.08 145)",
+          "oklch(26% 0.08 145)",
+          "oklch(38% 0.08 145)",
+          "oklch(50% 0.08 145)",
+          "oklch(62% 0.08 145)",
+          "oklch(74% 0.08 145)",
+          "oklch(86% 0.08 145)",
+          "oklch(95% 0.08 145)"
+        ]
+      },
+      "warning": {
+        "role": "status",
+        "displayName": "Warning Ochre",
+        "canonical": "#7d541f",
+        "tonalRamp": [
+          "oklch(15% 0.12 70)",
+          "oklch(26% 0.12 70)",
+          "oklch(38% 0.12 70)",
+          "oklch(50% 0.12 70)",
+          "oklch(62% 0.12 70)",
+          "oklch(74% 0.12 70)",
+          "oklch(86% 0.12 70)",
+          "oklch(95% 0.12 70)"
+        ]
+      },
+      "landing-ink": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "#f2eee3",
+        "tonalRamp": [
+          "oklch(15% 0.03 90)",
+          "oklch(26% 0.03 90)",
+          "oklch(38% 0.03 90)",
+          "oklch(50% 0.03 90)",
+          "oklch(62% 0.03 90)",
+          "oklch(74% 0.03 90)",
+          "oklch(86% 0.03 90)",
+          "oklch(95% 0.03 90)"
+        ]
+      },
+      "landing-ink-soft": {
+        "role": "neutral",
+        "displayName": "Warm Paper Soft",
+        "canonical": "#c9c2b5",
+        "tonalRamp": [
+          "oklch(15% 0.03 85)",
+          "oklch(26% 0.03 85)",
+          "oklch(38% 0.03 85)",
+          "oklch(50% 0.03 85)",
+          "oklch(62% 0.03 85)",
+          "oklch(74% 0.03 85)",
+          "oklch(86% 0.03 85)",
+          "oklch(95% 0.03 85)"
+        ]
+      },
+      "landing-ground": {
+        "role": "neutral",
+        "displayName": "Darkroom Ground",
+        "canonical": "#0c0c0a",
+        "tonalRamp": [
+          "oklch(15% 0.012 100)",
+          "oklch(26% 0.012 100)",
+          "oklch(38% 0.012 100)",
+          "oklch(50% 0.012 100)",
+          "oklch(62% 0.012 100)",
+          "oklch(74% 0.012 100)",
+          "oklch(86% 0.012 100)",
+          "oklch(95% 0.012 100)"
+        ]
+      },
+      "landing-surface": {
+        "role": "neutral",
+        "displayName": "Darkroom Surface",
+        "canonical": "#151512",
+        "tonalRamp": [
+          "oklch(15% 0.015 105)",
+          "oklch(26% 0.015 105)",
+          "oklch(38% 0.015 105)",
+          "oklch(50% 0.015 105)",
+          "oklch(62% 0.015 105)",
+          "oklch(74% 0.015 105)",
+          "oklch(86% 0.015 105)",
+          "oklch(95% 0.015 105)"
+        ]
+      },
+      "landing-line": {
+        "role": "neutral",
+        "displayName": "Darkroom Rule",
+        "canonical": "#3b3933",
+        "tonalRamp": [
+          "oklch(15% 0.02 90)",
+          "oklch(26% 0.02 90)",
+          "oklch(38% 0.02 90)",
+          "oklch(50% 0.02 90)",
+          "oklch(62% 0.02 90)",
+          "oklch(74% 0.02 90)",
+          "oklch(86% 0.02 90)",
+          "oklch(95% 0.02 90)"
+        ]
+      },
+      "landing-accent": {
+        "role": "primary",
+        "displayName": "Safe-light Orange",
+        "canonical": "#ed6137",
+        "tonalRamp": [
+          "oklch(15% 0.18 35)",
+          "oklch(26% 0.18 35)",
+          "oklch(38% 0.18 35)",
+          "oklch(50% 0.18 35)",
+          "oklch(62% 0.18 35)",
+          "oklch(74% 0.18 35)",
+          "oklch(86% 0.18 35)",
+          "oklch(95% 0.18 35)"
+        ]
+      },
+      "landing-action-ink": {
+        "role": "neutral",
+        "displayName": "Action Ink",
+        "canonical": "#160d09",
+        "tonalRamp": [
+          "oklch(15% 0.02 35)",
+          "oklch(26% 0.02 35)",
+          "oklch(38% 0.02 35)",
+          "oklch(50% 0.02 35)",
+          "oklch(62% 0.02 35)",
+          "oklch(74% 0.02 35)",
+          "oklch(86% 0.02 35)",
+          "oklch(95% 0.02 35)"
+        ]
+      },
+      "process-paper": {
+        "role": "neutral",
+        "displayName": "Process Paper",
+        "canonical": "#e4ded1",
+        "tonalRamp": [
+          "oklch(15% 0.035 85)",
+          "oklch(26% 0.035 85)",
+          "oklch(38% 0.035 85)",
+          "oklch(50% 0.035 85)",
+          "oklch(62% 0.035 85)",
+          "oklch(74% 0.035 85)",
+          "oklch(86% 0.035 85)",
+          "oklch(95% 0.035 85)"
+        ]
+      },
+      "process-ink": {
+        "role": "neutral",
+        "displayName": "Process Ink",
+        "canonical": "#1d1b17",
+        "tonalRamp": [
+          "oklch(15% 0.02 80)",
+          "oklch(26% 0.02 80)",
+          "oklch(38% 0.02 80)",
+          "oklch(50% 0.02 80)",
+          "oklch(62% 0.02 80)",
+          "oklch(74% 0.02 80)",
+          "oklch(86% 0.02 80)",
+          "oklch(95% 0.02 80)"
+        ]
+      },
+      "process-copy": {
+        "role": "neutral",
+        "displayName": "Process Copy",
+        "canonical": "#5e594f",
+        "tonalRamp": [
+          "oklch(15% 0.035 85)",
+          "oklch(26% 0.035 85)",
+          "oklch(38% 0.035 85)",
+          "oklch(50% 0.035 85)",
+          "oklch(62% 0.035 85)",
+          "oklch(74% 0.035 85)",
+          "oklch(86% 0.035 85)",
+          "oklch(95% 0.035 85)"
+        ]
+      },
+      "process-rule": {
+        "role": "neutral",
+        "displayName": "Exposed Rule",
+        "canonical": "#989184",
+        "tonalRamp": [
+          "oklch(15% 0.03 85)",
+          "oklch(26% 0.03 85)",
+          "oklch(38% 0.03 85)",
+          "oklch(50% 0.03 85)",
+          "oklch(62% 0.03 85)",
+          "oklch(74% 0.03 85)",
+          "oklch(86% 0.03 85)",
+          "oklch(95% 0.03 85)"
+        ]
+      },
+      "compare-ground": {
+        "role": "neutral",
+        "displayName": "Comparison Ground",
+        "canonical": "#171713",
+        "tonalRamp": [
+          "oklch(15% 0.01 100)",
+          "oklch(26% 0.01 100)",
+          "oklch(38% 0.01 100)",
+          "oklch(50% 0.01 100)",
+          "oklch(62% 0.01 100)",
+          "oklch(74% 0.01 100)",
+          "oklch(86% 0.01 100)",
+          "oklch(95% 0.01 100)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Darkroom Display",
+        "purpose": "Large landing statements and the first-viewport invitation."
+      },
+      "headline": {
+        "displayName": "Section Headline",
+        "purpose": "Editorial statements in the process, privacy, and closing sections."
+      },
+      "title": {
+        "displayName": "Editor Title",
+        "purpose": "Canvas, workspace, and control-area titles in the operating editor."
+      },
+      "body": {
+        "displayName": "Utility Sans",
+        "purpose": "Explanatory copy, navigation, control labels, and status messages."
+      },
+      "label": {
+        "displayName": "Small Utility Label",
+        "purpose": "Metadata, statuses, format hints, and compact section labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "landing-alert",
+        "value": "0 16px 40px rgba(0, 0, 0, 0.25)",
+        "purpose": "Diffuse lift for import, recovery, and renderer notices over the hero."
+      },
+      {
+        "name": "editor-drop-inset",
+        "value": "inset 0 0 0 1px var(--color-accent)",
+        "purpose": "Structural drop-state cue on the editor canvas, not a floating shadow."
+      }
+    ],
+    "motion": [
+      {
+        "name": "motion-fast",
+        "value": "120ms ease",
+        "purpose": "Small editor button, disclosure, and field state transitions."
+      },
+      {
+        "name": "motion-normal",
+        "value": "180ms ease",
+        "purpose": "Landing border state and ordinary shared control transitions."
+      },
+      {
+        "name": "landing-develop",
+        "value": "1.1s cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Hero image reveal on landing entry; disabled under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "md",
+        "value": "900px",
+        "purpose": "Collapse landing navigation and editor workspace columns."
+      },
+      {
+        "name": "sm",
+        "value": "520px",
+        "purpose": "Stack landing actions, switch the demo frame to 4:5, and tighten phone layout."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Shared editor primary action with burnt-orange emphasis.",
+      "html": "<button class=\"ds-button-primary\">Export photograph</button>",
+      "css": ".ds-button-primary { align-items: center; background: var(--color-accent); border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--color-accent-ink); display: inline-flex; font-family: var(--font-body); font-size: var(--type-sm); font-weight: 650; justify-content: center; min-height: var(--touch-target); padding: 0 var(--space-4); transition: background-color var(--motion-fast) ease, border-color var(--motion-fast) ease, color var(--motion-fast) ease; } .ds-button-primary:hover { background: var(--color-accent-dark); } .ds-button-primary:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Low-emphasis shared editor action that stays in the paper surface.",
+      "html": "<button class=\"ds-button-quiet\">Compare before and after</button>",
+      "css": ".ds-button-quiet { align-items: center; background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--color-ink); display: inline-flex; font-family: var(--font-body); font-size: var(--type-sm); font-weight: 650; justify-content: center; min-height: var(--touch-target); padding: 0 var(--space-4); transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease; } .ds-button-quiet:hover { background: var(--color-surface-raised); } .ds-button-quiet:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Shared editor secondary action with an exposed field line.",
+      "html": "<button class=\"ds-button-outline\">Cancel</button>",
+      "css": ".ds-button-outline { align-items: center; background: transparent; border: 1px solid var(--color-line-strong); border-radius: var(--radius-sm); color: var(--color-ink); display: inline-flex; font-family: var(--font-body); font-size: var(--type-sm); font-weight: 650; justify-content: center; min-height: var(--touch-target); padding: 0 var(--space-4); transition: background-color var(--motion-fast) ease, border-color var(--motion-fast) ease, color var(--motion-fast) ease; } .ds-button-outline:hover { border-color: var(--color-ink-soft); } .ds-button-outline:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }"
+    },
+    {
+      "name": "Landing Primary Action",
+      "kind": "button",
+      "refersTo": "button-landing-primary",
+      "description": "Square safe-light action used to open a local photograph.",
+      "html": "<button class=\"ds-landing-primary\">Choose a photograph</button>",
+      "css": ".ds-landing-primary { align-items: center; background: #ed6137; border: 1px solid #ed6137; border-radius: 0; color: #160d09; display: inline-flex; font-family: var(--font-body); font-size: var(--type-sm); font-weight: 650; justify-content: center; min-height: 3.25rem; padding: 0 1.3rem; transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease; } .ds-landing-primary:hover { background: #ff7950; border-color: #ff7950; } .ds-landing-primary:focus-visible { outline: 3px solid #ed6137; outline-offset: 3px; }"
+    },
+    {
+      "name": "Editor Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Raised-surface field used for editor values and export settings.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field__label\">Maximum long edge</span><input class=\"ds-field__input\" type=\"text\" value=\"2400\" /></label>",
+      "css": ".ds-field { display: grid; gap: var(--space-2); } .ds-field__label { color: var(--color-ink); font-family: var(--font-body); font-size: var(--type-sm); font-weight: 600; } .ds-field__input { background: var(--color-surface); border: 1px solid var(--color-line-strong); border-radius: var(--radius-sm); color: var(--color-ink); font-family: var(--font-body); font-size: var(--type-sm); min-height: var(--touch-target); padding: 0 var(--space-3); width: 100%; } .ds-field__input:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }"
+    },
+    {
+      "name": "Editor Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Flat editor grouping separated by one-pixel rules.",
+      "html": "<section class=\"ds-panel\"><header><h2>Adjustments</h2><p>Change light, color, and texture.</p></header><div class=\"ds-panel__body\">Panel content</div></section>",
+      "css": ".ds-panel { border-bottom: 1px solid var(--color-line); color: var(--color-ink); font-family: var(--font-body); } .ds-panel header { padding: var(--space-6) 0 var(--space-5); } .ds-panel h2 { font-size: var(--type-lg); font-weight: 650; letter-spacing: -0.03em; margin: 0; } .ds-panel p { color: var(--color-ink-soft); font-size: var(--type-sm); line-height: 1.55; margin: var(--space-2) 0 0; } .ds-panel__body { padding-bottom: var(--space-8); }"
+    },
+    {
+      "name": "Landing Navigation",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Sparse darkroom header with wordmark, anchors, and sample action.",
+      "html": "<nav class=\"ds-landing-nav\"><a class=\"ds-landing-brand\" href=\"#\"><span class=\"ds-landing-aperture\" aria-hidden=\"true\"></span><span>OpenFilm</span></a><div class=\"ds-landing-links\"><a href=\"#process\">How it works</a><a href=\"#privacy\">Privacy</a></div><button class=\"ds-landing-sample\">Try the sample</button></nav>",
+      "css": ".ds-landing-nav { align-items: center; border-bottom: 1px solid rgba(242, 238, 227, 0.24); color: #f2eee3; display: grid; grid-template-columns: 1fr auto 1fr; min-height: 5.5rem; padding: 0 1.25rem; } .ds-landing-brand { align-items: center; color: #f2eee3; display: inline-flex; gap: 0.7rem; font-family: var(--font-body); font-size: 1rem; font-weight: 700; letter-spacing: -0.035em; text-decoration: none; } .ds-landing-aperture { border: 1.5px solid currentColor; border-radius: 50%; height: 0.78rem; width: 0.78rem; } .ds-landing-links { display: flex; gap: 2.25rem; } .ds-landing-links a, .ds-landing-sample { color: #c9c2b5; font-family: var(--font-body); font-size: var(--type-xs); } .ds-landing-links a { text-underline-offset: 0.35rem; } .ds-landing-links a:hover { color: #f2eee3; } .ds-landing-sample { background: transparent; border: 0; border-bottom: 1px solid currentColor; justify-self: end; min-height: 2.75rem; padding: 0 0.2rem; } .ds-landing-sample:hover { color: #f2eee3; } .ds-landing-nav a:focus-visible, .ds-landing-sample:focus-visible { outline: 3px solid #ed6137; outline-offset: 3px; }"
+    },
+    {
+      "name": "Before-and-After Demo",
+      "kind": "custom",
+      "refersTo": "before-after-demo",
+      "description": "Range-controlled comparison with a ruled divider and circular handle.",
+      "html": "<div class=\"ds-compare\"><div class=\"ds-compare__source\"></div><div class=\"ds-compare__edited\"></div><span class=\"ds-compare__divider\" aria-hidden=\"true\"></span><input aria-label=\"Preview before and after\" type=\"range\" min=\"0\" max=\"100\" value=\"58\" /><span class=\"ds-compare__label ds-compare__label--edited\">Film-inspired</span><span class=\"ds-compare__label ds-compare__label--source\">Source</span></div>",
+      "css": ".ds-compare { aspect-ratio: 16 / 9; background: #171713; overflow: hidden; position: relative; } .ds-compare__source, .ds-compare__edited { inset: 0; position: absolute; } .ds-compare__source { background: linear-gradient(110deg, #78664a 0%, #161711 43%, #60402b 74%, #c19e65 100%); } .ds-compare__edited { background: linear-gradient(110deg, #b39465 0%, #302f1f 43%, #75462a 74%, #e1bd7f 100%); clip-path: inset(0 42% 0 0); } .ds-compare__divider { background: rgba(255, 255, 255, 0.85); bottom: 0; left: 58%; pointer-events: none; position: absolute; top: 0; width: 1px; } .ds-compare__divider::after { background: rgba(20, 20, 17, 0.64); border: 1px solid #fff; border-radius: 50%; content: ''; height: 2rem; left: 50%; position: absolute; top: 50%; transform: translate(-50%, -50%); width: 2rem; } .ds-compare input { cursor: ew-resize; inset: 0; margin: 0; opacity: 0; position: absolute; width: 100%; z-index: 2; } .ds-compare__label { background: rgba(12, 12, 10, 0.72); bottom: 1rem; color: #f4efe4; font-family: var(--font-body); font-size: 0.66rem; padding: 0.42rem 0.58rem; position: absolute; z-index: 1; } .ds-compare__label--edited { left: 1rem; } .ds-compare__label--source { right: 1rem; } .ds-compare input:focus-visible { opacity: 0.01; outline: 3px solid #ed6137; outline-offset: -3px; }"
+    },
+    {
+      "name": "OpenFilm Aperture Mark",
+      "kind": "custom",
+      "refersTo": "brand-mark",
+      "description": "Quiet open circle used beside the wordmark; it never becomes a monogram.",
+      "html": "<span class=\"ds-aperture-mark\" aria-label=\"OpenFilm\"></span>",
+      "css": ".ds-aperture-mark { border: 1.5px solid currentColor; border-radius: 50%; color: #f2eee3; display: inline-block; height: 0.78rem; width: 0.78rem; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Darkroom",
+    "overview": "OpenFilm's landing world treats the product as a quiet darkroom: a photograph fills the first viewport, warm paper gives the story somewhere to breathe, and a safe-light orange marks the moments that open the room. The local Bodoni face gives the landing statement and section titles a cinematic editorial voice; the sans-serif stack keeps navigation, status, and editor controls plain and dependable. A small open circle sits beside the OpenFilm wordmark. The existing OF monogram is not part of the identity.\n\nThe landing composition is intentionally edge-to-edge and image-led, then yields to the existing editor's calm, light workspace. Both surfaces share a vocabulary of thin rules, restrained orange accent, generous spacing, visible keyboard focus, and touch-sized controls. The near-black landing palette, square landing actions, and split before-and-after composition belong to the landing expression; they are not global rules for the editor.",
+    "keyCharacteristics": [
+      "Full-bleed photographic opening with a left-anchored statement and visible import actions.",
+      "Warm paper process section, dark privacy section, and photographic closing invitation.",
+      "Local Bodoni display type paired with a quiet sans-serif utility voice.",
+      "Safe-light orange used sparingly for action, focus, and drop-state emphasis.",
+      "Thin exposed rules, a simple circle mark, and a tactile before-and-after divider.",
+      "Local processing, reversible edits, and privacy stated in plain language."
+    ],
+    "rules": [
+      {
+        "name": "The Safe-Light Rule",
+        "body": "Keep orange rare and functional: the brighter landing accent marks actions and drop state, while the darker shared accent carries editor controls and status.",
+        "section": "colors"
+      },
+      {
+        "name": "The Type Contrast Rule",
+        "body": "Set brand and landing section headlines in the local Bodoni face; keep body copy, navigation, labels, and editor controls in the sans stack.",
+        "section": "typography"
+      },
+      {
+        "name": "The Yielding Surface Rule",
+        "body": "Landing composition may be edge-to-edge and editorial; the editor stays a calm max-width workspace with a dedicated control column.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Darkroom Rule",
+        "body": "Let photography, tonal blocks, and exposed rules create depth; reserve a shadow for transient notices and overlays.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do let the photograph lead the first viewport and the comparison frame.",
+      "Do use the simple open circle beside the OpenFilm wordmark; keep the name readable.",
+      "Do use warm paper, near-black fields, exposed one-pixel rules, and a restrained orange signal.",
+      "Do state local processing, reversible edits, and the no-account/no-upload model plainly.",
+      "Do keep controls keyboard-visible and at least `2.75rem` high.",
+      "Do let the landing feel editorial while preserving the editor's lighter shared control system."
+    ],
+    "donts": [
+      "Don't use the existing OF monogram or replace the wordmark with a competing logo.",
+      "Don't turn the landing's near-black composition, square actions, or 16:9/4:5 framing into a global editor rule.",
+      "Don't introduce a feature-grid SaaS layout, card-heavy chrome, or decorative gradients over the photograph.",
+      "Don't imply accounts, remote uploads, or unsupported product claims.",
+      "Don't overwrite the source photograph; edits and exports stay reversible and local."
+    ]
+  }
+}

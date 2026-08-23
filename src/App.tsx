@@ -1,6 +1,8 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent, KeyboardEvent, PointerEvent, ReactNode } from 'react';
 
+import darkroomHeroUrl from './assets/openfilm-darkroom-hero.webp';
+
 import {
   adjustmentDefinitions,
   adjustmentGroups,
@@ -234,6 +236,233 @@ function downloadBlob(blob: Blob, fileName: string): void {
       scheduleObjectUrlRelease(objectUrl);
     }
   }
+}
+
+function LandingPage({
+  importFeedback,
+  isDropActive,
+  isImporting,
+  onChoosePhotograph,
+  onContinueWithoutStorage,
+  onDrop,
+  onReload,
+  onRetryStorage,
+  onSetDropActive,
+  onTrySample,
+  recoveryFeedback,
+  recoveryNeedsSource,
+  rendererMessage,
+  storageFeedback,
+  storageStatus,
+}: {
+  importFeedback: { kind: 'error' | 'success'; message: string } | null;
+  isDropActive: boolean;
+  isImporting: boolean;
+  onChoosePhotograph: () => void;
+  onContinueWithoutStorage: () => void;
+  onDrop: (event: DragEvent<HTMLDivElement>) => void;
+  onReload: () => void;
+  onRetryStorage: () => void;
+  onSetDropActive: (active: boolean) => void;
+  onTrySample: () => void;
+  recoveryFeedback: string | null;
+  recoveryNeedsSource: boolean;
+  rendererMessage: string | null;
+  storageFeedback: string | null;
+  storageStatus: 'available' | 'checking' | 'failed' | 'unavailable';
+}) {
+  const [reveal, setReveal] = useState(58);
+
+  return (
+    <main className="landing">
+      <section
+        aria-busy={isImporting}
+        aria-label="Source photograph import area"
+        className={`landing-hero${isDropActive ? ' landing-hero--drop-active' : ''}`}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          onSetDropActive(true);
+        }}
+        onDragLeave={() => onSetDropActive(false)}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={onDrop}
+        role="group"
+      >
+        <img
+          alt="Analog camera, notebook, and cup on a desk in late-afternoon light"
+          className="landing-hero__image"
+          decoding="async"
+          fetchPriority="high"
+          src={darkroomHeroUrl}
+        />
+        <div aria-hidden="true" className="landing-hero__veil" />
+        <header className="landing-nav">
+          <a aria-label="OpenFilm home" className="landing-brand" href="/">
+            <span aria-hidden="true" className="landing-brand__aperture" />
+            <span>OpenFilm</span>
+          </a>
+          <nav aria-label="Landing page">
+            <a href="#process">How it works</a>
+            <a href="#privacy">Privacy</a>
+          </nav>
+          <button className="landing-nav__action" disabled={isImporting} onClick={onTrySample}>
+            Try the sample
+          </button>
+        </header>
+
+        <div className="landing-hero__copy">
+          <h1>A quieter room for your photographs.</h1>
+          <p>OpenFilm is a browser photo editor for film-inspired color. No account. No upload.</p>
+          <div className="landing-hero__actions">
+            <Button disabled={isImporting} onClick={onChoosePhotograph} variant="primary">
+              {isImporting ? 'Opening photograph…' : 'Choose a photograph'}
+            </Button>
+            <Button disabled={isImporting} onClick={onTrySample} variant="quiet">
+              Start with the sample
+            </Button>
+          </div>
+          <p className="landing-hero__formats">JPEG, PNG, or WebP · up to 20 MB</p>
+        </div>
+
+        <div className="landing-hero__status">
+          <span>Your photographs stay on this device.</span>
+          <span>{isDropActive ? 'Release to open' : 'Drop a photograph anywhere'}</span>
+        </div>
+
+        {recoveryNeedsSource ? (
+          <div className="landing-alert" role="status">
+            <strong>Your latest Edit is ready.</strong>
+            <p>{recoveryFeedback ?? 'Choose its source photograph again to continue.'}</p>
+            <button onClick={onChoosePhotograph} type="button">
+              Choose source photograph
+            </button>
+          </div>
+        ) : importFeedback?.kind === 'error' ? (
+          <div className="landing-alert landing-alert--error" role="alert">
+            <strong>That file could not be opened.</strong>
+            <p>{importFeedback.message}</p>
+            <button onClick={onChoosePhotograph} type="button">
+              Try another file
+            </button>
+          </div>
+        ) : rendererMessage ? (
+          <div className="landing-alert landing-alert--error" role="alert">
+            <strong>The editor cannot start.</strong>
+            <p>{rendererMessage}</p>
+            <button onClick={onReload} type="button">
+              Reload page
+            </button>
+          </div>
+        ) : null}
+      </section>
+
+      <section className="landing-process" id="process">
+        <div className="landing-process__intro">
+          <h2>See the photograph change. Keep every choice reversible.</h2>
+          <p>
+            Shape light, color, texture, and geometry in one focused workspace. Compare the source
+            at any time, then export a new file when the Edit feels right.
+          </p>
+        </div>
+
+        <div className="landing-demo">
+          <div className="landing-demo__frame">
+            <img alt="Example photograph before editing" src={darkroomHeroUrl} />
+            <div
+              aria-hidden="true"
+              className="landing-demo__edited"
+              style={{ clipPath: `inset(0 ${100 - reveal}% 0 0)` }}
+            >
+              <img alt="" src={darkroomHeroUrl} />
+            </div>
+            <span
+              aria-hidden="true"
+              className="landing-demo__divider"
+              style={{ left: `${reveal}%` }}
+            />
+            <input
+              aria-label="Preview before and after"
+              max="100"
+              min="0"
+              onChange={(event) => setReveal(Number(event.target.value))}
+              type="range"
+              value={reveal}
+            />
+            <span className="landing-demo__label landing-demo__label--edited">Film-inspired</span>
+            <span className="landing-demo__label landing-demo__label--source">Source</span>
+          </div>
+          <div className="landing-demo__controls" aria-label="Available editing groups">
+            <span>Light</span>
+            <span>Color</span>
+            <span>Curve</span>
+            <span>Grain</span>
+            <span>Geometry</span>
+            <span>Looks</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="landing-privacy" id="privacy">
+        <div>
+          <h2>The photograph never leaves the room.</h2>
+          <p>
+            OpenFilm reads and renders the source in this browser. Export creates a fresh local file
+            and never overwrites the original.
+          </p>
+        </div>
+        <dl>
+          <div>
+            <dt>Account</dt>
+            <dd>Not required</dd>
+          </div>
+          <div>
+            <dt>Processing</dt>
+            <dd>In this browser</dd>
+          </div>
+          <div>
+            <dt>Photograph upload</dt>
+            <dd>None</dd>
+          </div>
+          <div>
+            <dt>Recovery</dt>
+            <dd>Local when available</dd>
+          </div>
+        </dl>
+        {storageFeedback ? (
+          <div className="landing-storage-notice" role="status">
+            <p>{storageFeedback}</p>
+            <button
+              onClick={storageStatus === 'failed' ? onRetryStorage : onContinueWithoutStorage}
+              type="button"
+            >
+              {storageStatus === 'failed' ? 'Try recovery again' : 'Continue without recovery'}
+            </button>
+          </div>
+        ) : null}
+      </section>
+
+      <section className="landing-close">
+        <img alt="" aria-hidden="true" src={darkroomHeroUrl} />
+        <div>
+          <h2>Open one photograph. Find the version you want to keep.</h2>
+          <div className="landing-close__actions">
+            <Button disabled={isImporting} onClick={onChoosePhotograph} variant="primary">
+              Choose a photograph
+            </Button>
+            <Button disabled={isImporting} onClick={onTrySample} variant="quiet">
+              Try the sample
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <footer className="landing-footer">
+        <span>OpenFilm</span>
+        <span>Private browser photo editing</span>
+        <a href="https://github.com/darshmahadevia/OpenFilm">Source on GitHub</a>
+      </footer>
+    </main>
+  );
 }
 
 function getDuplicateLookTitle(title: string, existingLooks: readonly StoredLook[]): string {
@@ -1734,6 +1963,7 @@ function ExportControls({
 export default function App() {
   const [state, dispatch] = useReducer(editorReducer, initialEditorState);
   const [sourcePhotograph, setSourcePhotograph] = useState<ImportedSourcePhotograph | null>(null);
+  const hasSource = Boolean(sourcePhotograph);
   const [editHistory, dispatchEditHistory] = useReducer(editHistoryReducer, createEditHistory());
   const [rendererStatus, setRendererStatus] = useState<RendererStatus>('unsupported');
   const [rendererError, setRendererError] = useState<string | null>(null);
@@ -1814,7 +2044,6 @@ export default function App() {
     const canvas = canvasRef.current;
 
     if (!canvas) {
-      setRendererStatus('unsupported');
       return;
     }
 
@@ -1857,7 +2086,7 @@ export default function App() {
       renderer.dispose();
       rendererRef.current = null;
     };
-  }, []);
+  }, [hasSource]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2701,7 +2930,6 @@ export default function App() {
   }
 
   const rendererMessage = rendererError ?? describeRendererStatus(rendererStatus);
-  const hasSource = Boolean(sourcePhotograph);
   const sourcePreviewUnavailable =
     hasSource && (rendererStatus !== 'available' || Boolean(rendererError));
   const sourceRecoveryLabel =
@@ -2717,13 +2945,45 @@ export default function App() {
         ? 'Checking browser recovery'
         : 'Browser recovery unavailable';
 
+  if (!hasSource) {
+    return (
+      <>
+        <LandingPage
+          importFeedback={importFeedback}
+          isDropActive={isDropActive}
+          isImporting={isImporting}
+          onChoosePhotograph={openFilePicker}
+          onContinueWithoutStorage={continueWithoutStorage}
+          onDrop={handleSourceDrop}
+          onReload={() => window.location.reload()}
+          onRetryStorage={retryStorage}
+          onSetDropActive={setIsDropActive}
+          onTrySample={importBundledSample}
+          recoveryFeedback={recoveryFeedback}
+          recoveryNeedsSource={recoveryNeedsSource}
+          rendererMessage={null}
+          storageFeedback={storageFeedback}
+          storageStatus={storageStatus}
+        />
+        <div aria-label="Photograph chooser" className="visually-hidden" role="region">
+          <input
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+            aria-label="Choose source photograph"
+            onChange={handleFileSelected}
+            ref={fileInputRef}
+            tabIndex={-1}
+            type="file"
+          />
+        </div>
+      </>
+    );
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
         <a aria-label="OpenFilm home" className="brand" href="/">
-          <span aria-hidden="true" className="brand__mark">
-            OF
-          </span>
+          <span aria-hidden="true" className="brand__mark" />
           <span className="brand__name">OpenFilm</span>
         </a>
         <div className="topbar__actions">
