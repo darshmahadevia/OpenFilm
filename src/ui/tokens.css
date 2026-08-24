@@ -2,29 +2,39 @@
   --color-ink: #f3f1ec;
   --color-ink-soft: #c8c3ba;
   --color-muted: #918c84;
-  --color-paper: #090a0b;
-  --color-chrome: #0b0c0d;
-  --color-control: #0d0e0f;
-  --color-surface: #131415;
-  --color-surface-raised: #1a1b1c;
-  --color-canvas: #050606;
-  --color-line: #292928;
-  --color-line-strong: #3d3b38;
+  --color-paper: #000000;
+  --color-chrome: #050505;
+  --color-control: #080808;
+  --color-surface: #111111;
+  --color-surface-raised: #181818;
+  --color-canvas: #000000;
+  --color-line: #262626;
+  --color-line-strong: #3a3a3a;
   --color-accent: #c6a36f;
   --color-accent-dark: #d5b784;
   --color-focus: #e0c48f;
   --color-accent-ink: #0b0c0d;
   --color-success: #70d7a3;
   --color-warning: #f0bd69;
+  --color-danger: #ffb59f;
 
-  --font-body: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'OpenFilm Bodoni', 'Iowan Old Style', 'Times New Roman', serif;
+  --font-body: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 
-  --type-xs: 0.72rem;
-  --type-sm: 0.84rem;
-  --type-md: 0.96rem;
-  --type-lg: 1.18rem;
-  --type-xl: clamp(1.7rem, 2.5vw, 2.8rem);
-  --type-display: clamp(2.65rem, 4.7vw, 5.6rem);
+  --type-micro: 0.6875rem;
+  --type-caption: 0.75rem;
+  --type-label: 0.8125rem;
+  --type-body: 0.9375rem;
+  --type-title: 1.125rem;
+  --type-heading: clamp(2.5rem, 4.5vw, 4.5rem);
+  --type-display: clamp(3rem, 5.25vw, 5rem);
+  --type-heading-mobile: clamp(2.25rem, 10vw, 3.25rem);
+  --type-display-mobile: clamp(2.75rem, 12vw, 3.75rem);
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -39,11 +49,12 @@
 
   --touch-target: 2.75rem;
 
-  --radius-sm: 0.5rem;
-  --radius-md: 0.8rem;
+  --radius-sm: 0.4rem;
+  --radius-md: 0.5rem;
   --radius-round: 999px;
 
-  --motion-fast: 120ms;
-  --motion-normal: 180ms;
-  --motion-slow: 260ms;
+  --motion-fast: 140ms;
+  --motion-normal: 200ms;
+  --motion-slow: 280ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }

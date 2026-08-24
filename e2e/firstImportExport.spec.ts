@@ -177,6 +177,53 @@ test('keeps useful state changes while removing nonessential motion', async ({ p
   await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
 });
 
+test('keeps button geometry fixed while interaction text changes', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open sample' }).click();
+
+  const compareButton = page.getByRole('button', { name: 'Show before' });
+  const defaultBox = await compareButton.boundingBox();
+  await compareButton.hover();
+  const hoverBox = await compareButton.boundingBox();
+  await compareButton.click();
+  const changedButton = page.getByRole('button', { name: 'Show edited result' });
+  const changedBox = await changedButton.boundingBox();
+
+  expect(defaultBox).not.toBeNull();
+  expect(hoverBox).not.toBeNull();
+  expect(changedBox).not.toBeNull();
+
+  for (const box of [hoverBox, changedBox]) {
+    expect(box?.x).toBeCloseTo(defaultBox?.x ?? 0, 2);
+    expect(box?.y).toBeCloseTo(defaultBox?.y ?? 0, 2);
+    expect(box?.width).toBeCloseTo(defaultBox?.width ?? 0, 2);
+    expect(box?.height).toBeCloseTo(defaultBox?.height ?? 0, 2);
+  }
+});
+
+test('keeps the editor document fixed at desktop, tablet, and phone sizes', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open sample' }).click();
+  await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
+
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 900, height: 820 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+
+    const metrics = await page.evaluate(() => ({
+      clientHeight: document.documentElement.clientHeight,
+      scrollHeight: document.documentElement.scrollHeight,
+      shellHeight: document.querySelector('.app-shell')?.getBoundingClientRect().height,
+    }));
+
+    expect(metrics.scrollHeight).toBe(metrics.clientHeight);
+    expect(metrics.shellHeight).toBeCloseTo(viewport.height, 1);
+  }
+});
+
 test('reports an unsupported file with one recovery action', async ({ page }) => {
   await page.goto('/');
 

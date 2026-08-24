@@ -5,45 +5,46 @@ colors:
   ink: '#f3f1ec'
   ink-soft: '#c8c3ba'
   muted: '#918c84'
-  paper: '#090a0b'
-  chrome: '#0b0c0d'
-  control: '#0d0e0f'
-  surface: '#131415'
-  surface-raised: '#1a1b1c'
-  canvas: '#050606'
-  line: '#292928'
-  line-strong: '#3d3b38'
+  paper: '#000000'
+  chrome: '#050505'
+  control: '#080808'
+  surface: '#111111'
+  surface-raised: '#181818'
+  canvas: '#000000'
+  line: '#262626'
+  line-strong: '#3a3a3a'
   accent: '#c6a36f'
   accent-dark: '#d5b784'
   accent-ink: '#0b0c0d'
   success: '#70d7a3'
   warning: '#f0bd69'
+  danger: '#ffb59f'
 typography:
   display:
-    fontFamily: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif'
-    fontSize: 'clamp(2.65rem, 4.7vw, 5.6rem)'
-    fontWeight: 700
-    lineHeight: 0.94
-    letterSpacing: '-0.04em'
-  title:
-    fontFamily: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif'
-    fontSize: 'clamp(1.7rem, 2.5vw, 2.8rem)'
-    fontWeight: 650
-    lineHeight: 1
-    letterSpacing: '-0.03em'
-  body:
-    fontFamily: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif'
-    fontSize: '0.96rem'
+    fontFamily: 'OpenFilm Bodoni, Iowan Old Style, Times New Roman, serif'
+    fontSize: 'clamp(3rem, 5.25vw, 5rem)'
     fontWeight: 400
-    lineHeight: 1.55
-  label:
-    fontFamily: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif'
-    fontSize: '0.72rem'
+    lineHeight: 0.94
+    letterSpacing: '-0.025em'
+  title:
+    fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif'
+    fontSize: '1.125rem'
     fontWeight: 600
-    lineHeight: 1.45
+    lineHeight: 1.2
+    letterSpacing: '-0.015em'
+  body:
+    fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif'
+    fontSize: '0.9375rem'
+    fontWeight: 400
+    lineHeight: 1.6
+  label:
+    fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif'
+    fontSize: '0.8125rem'
+    fontWeight: 600
+    lineHeight: 1.4
 rounded:
-  sm: '0.5rem'
-  md: '0.8rem'
+  sm: '0.4rem'
+  md: '0.5rem'
   round: '999px'
 spacing:
   space-1: '0.25rem'
@@ -133,8 +134,8 @@ export settings, and the source/status footer. Its middle area scrolls independe
 
 ### Tablet — 721px to 1000px
 
-The canvas and control rail stack. The rail becomes document-height content below the image so the
-full tool set remains available without a cramped split.
+The canvas and control rail stack inside the fixed editor viewport. The canvas gets the upper area;
+the control rail gets the lower area and scrolls internally so the document itself never moves.
 
 ### Phone — 720px and below
 
@@ -163,17 +164,18 @@ history, recovery, and export retain their existing semantics and behavior.
 
 ## Type and color
 
-Use the neutral system sans stack throughout. Landing display type is bold but bounded; section and
-editor headings remain compact. Supporting copy is cool gray and short. The token source of truth is
-`src/ui/tokens.css`.
+Landing display type uses the bundled OpenFilm Bodoni at regular weight to give the public page an
+editorial photographic voice. The editor uses Helvetica Neue with Helvetica and Arial fallbacks for
+stable, compact controls. Standard 400, 500, 600, and 700 weights replace synthesized in-between
+weights. Supporting copy is cool gray and short. The token source of truth is `src/ui/tokens.css`.
 
-- Ground: `#090a0b`
-- Chrome: `#0b0c0d`
-- Control plane: `#0d0e0f`
-- Canvas: `#050606`
+- Ground: `#000000`
+- Chrome: `#050505`
+- Control plane: `#080808`
+- Canvas: `#000000`
 - Foreground: `#f3f1ec`
 - Muted foreground: `#918c84`
-- Separator: `#292928`
+- Separator: `#262626`
 - Interaction cue: `#c6a36f`
 - Focus: `#e0c48f`
 - Success and warning colors are status-only.

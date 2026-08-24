@@ -23,10 +23,10 @@ The first viewport is direct: compact heading and actions followed by one large 
 Below it, a linear workflow and a local-processing fact section provide enough explanation for
 someone who scrolls. There is no feature-card grid, decorative image sequence, or closing CTA repeat.
 
-The editor uses a flat right rail on desktop, a stacked tablet layout, and a mobile `100dvh` image
-workspace with a persistent bottom tool dock. The supplied three-phone image defines mobile topology,
-not literal styling or content. On phones, Adjust, Geometry, and Looks remain visible while active
-controls scroll internally above a persistent status/source footer.
+The editor uses a flat right rail on desktop and a stacked control dock on tablet and phone. Every
+editor size stays inside `100dvh`; only the control region scrolls. The supplied three-phone image
+defines mobile topology, not literal styling or content. On phones, Adjust, Geometry, and Looks
+remain visible while active controls scroll internally above a persistent status/source footer.
 
 ## Implementation commitments
 
