@@ -112,6 +112,14 @@ img {
   text-decoration: none;
   text-transform: uppercase;
 }
+.header-coming-soon {
+  display: none;
+  justify-self: end;
+  color: var(--color-accent);
+  font-size: 0.64rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
 .header-download svg,
 .landing-text-link svg,
 .landing-download svg {
@@ -863,7 +871,10 @@ img {
     min-height: 4.25rem;
   }
   .header-download {
-    font-size: 0.64rem;
+    display: none;
+  }
+  .header-coming-soon {
+    display: block;
   }
   .landing-hero h1,
   .download-hero h1 {

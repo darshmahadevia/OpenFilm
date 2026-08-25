@@ -94,6 +94,7 @@ function SiteHeader({ download = false }: { download?: boolean }) {
       <a className="header-download" href="/download">
         {download ? 'Choose a platform' : 'Download'} <ArrowIcon />
       </a>
+      <span className="header-coming-soon">Coming soon</span>
     </header>
   );
 }
