@@ -4,23 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta
-      name="description"
-      content="OpenFilm is a quiet, browser-based photo editor for reusable film-inspired Looks."
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*; object-src 'none'; base-uri 'none'"
     />
-    <meta name="theme-color" content="#090a0b" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <title>OpenFilm — Browser photo editor</title>
+    <meta
+      name="description"
+      content="OpenFilm is a local-first desktop workstation for reviewing, editing, and exporting a folder of photographs."
+    />
+    <meta name="theme-color" content="#050505" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>OpenFilm — A local-first photography workstation</title>
   </head>
   <body>
     <!--
-      THESIS: Open a photograph immediately, let the photograph do the convincing, and keep the working surface quieter than the image.
-      OWN-WORLD: Matte black and charcoal planes, warm-white type, muted gray copy, one sand interaction cue, fine separators, restrained corners, and quiet depth.
-      STORY: A casual photographer sees the before/after, understands the file stays local, chooses a photo, edits with familiar controls, and exports a fresh file.
-      FIRST VIEWPORT: A slim top bar, compact invitation, one neutral file action, one quiet sample action, and a large interactive before/after; deeper product facts begin below the fold.
-      FORM: Matte proof studio; flat desktop rail and a safe-area-aware mobile bottom dock inspired by the supplied phone editor reference.
-      FINISH: The responsive landing and editor are tested at desktop, phone portrait, and short landscape sizes, with the implementation recorded in DESIGN.md.
+      THESIS: Show the local-first promise beside the real workstation, then make the download action unmistakable.
+      OWN-WORLD: Matte black, precise sans-serif display type, restrained sand, real photography, fine rules, and quiet kinetic depth.
+      STORY: A photographer sees the workstation, follows the folder-to-export workflow, verifies the local-file boundary, and downloads the Mac app.
+      FIRST VIEWPORT: A factual heading and download control share the frame with a darkroom photograph, a moving film rail, and the workstation entering at the fold.
+      FORM: Matte proof studio at editorial scale, with the app interface preserved as product proof and a dedicated coming-soon view through tablet widths.
+      FINISH: Desktop, tablet, and phone layouts are inspected, motion reduction and accessibility are checked, and the packaged Electron shell is smoke-tested.
     -->
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/landing/main.tsx"></script>
   </body>
 </html>
