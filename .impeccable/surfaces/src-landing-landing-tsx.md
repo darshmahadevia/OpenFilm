@@ -13,7 +13,7 @@ separate Operate surface at `app.html` and is outside this page's redesign bound
 ## Audience, action, proof, and constraints
 
 The audience is a photographer deciding whether to install a local-first review workstation. The
-primary action is downloading the universal macOS DMG. Proof comes from the real workstation
+primary action is downloading the macOS or Windows build. Proof comes from the real workstation
 screenshot, the shipped folder-to-Export workflow, and the precise local-file boundary. There are
 no accounts, uploads, analytics, testimonials, invented performance claims, or cloud promises.
 
@@ -34,7 +34,8 @@ sand signal carry the OpenFilm identity.
 soon.` view for phone and tablet visitors.
 - Desktop motion uses one coordinated darkroom system: a film-strip loop, pointer depth, the
   workstation entrance, and progressive scroll reveals. Reduced motion removes every authored move.
-- Download links target the stable GitHub Release asset name `OpenFilm.dmg`.
+- Download links target the stable GitHub Release assets `OpenFilm.dmg` and
+  `OpenFilm-Setup.exe`, with the unsigned preview status stated beside the actions.
 - The same real workstation screenshot supplies hero and detailed proof; no simulated product state
   or fake device frame is introduced.
 

@@ -1,8 +1,11 @@
 # Browser and release limitations
 
-OpenFilm's verified target is current Chromium on macOS. It depends on the File System Access API,
-IndexedDB, Web Workers, Canvas, and WebGL2. A browser without directory-handle support cannot open a
-durable Library. A lost WebGL2 context pauses rendered preview and Export until the browser restores
+OpenFilm's measured release evidence comes from current Chromium on macOS. The desktop shell ships
+the same bundled Chromium runtime on macOS and Windows, but the Windows package has not yet received
+the same hardware-specific performance and assistive-technology pass. OpenFilm depends on the File
+System Access API, IndexedDB, Web Workers, Canvas, and WebGL2. A browser without directory-handle
+support cannot open a durable Library. A lost WebGL2 context pauses rendered preview and Export until
+the browser restores
 the context or the page is reloaded.
 
 ## Formats and color

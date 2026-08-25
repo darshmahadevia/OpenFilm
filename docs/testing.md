@@ -44,14 +44,15 @@ see [limitations](./limitations.md).
 
 ## Manual release pass
 
-Before publishing, repeat these checks in current Chromium on macOS:
+Before publishing, repeat these checks in the packaged Chromium runtime on macOS and Windows. The
+recorded performance baseline remains macOS-specific:
 
 1. Navigate the complete start, Grid, Loupe, Comparison, inspector, groups, Export, and recovery
    surfaces using only keyboard controls. Confirm the focus ring remains visible, focus returns after
    closing the inspector, and Tab cannot escape an open modal surface.
-2. With VoiceOver enabled, confirm the Library heading, save status, scan progress, Grid cells,
-   Active/Selection state, Comparison panes, sliders, numeric fields, dialogs, and recovery alerts
-   have distinct names and useful state announcements.
+2. With VoiceOver on macOS and Narrator on Windows, confirm the Library heading, save status, scan
+   progress, Grid cells, Active/Selection state, Comparison panes, sliders, numeric fields, dialogs,
+   and recovery alerts have distinct names and useful state announcements.
 3. At 1440 × 900, 900 × 760, and 360 × 844, and at 200-percent browser zoom, confirm controls remain
    reachable without document-level horizontal scrolling.
 4. Enable `prefers-reduced-motion: reduce`; confirm selection, mode, save, and recovery changes remain

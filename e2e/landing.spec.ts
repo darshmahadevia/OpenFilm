@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 test.describe('desktop download landing page', () => {
-  test('states the product boundary and links to the macOS release', async ({ page }) => {
+  test('states the product boundary and links to both desktop releases', async ({ page }) => {
     await page.goto('/');
 
     await expect(
@@ -13,6 +13,10 @@ test.describe('desktop download landing page', () => {
     await expect(page.getByRole('link', { name: 'Download for macOS' }).first()).toHaveAttribute(
       'href',
       /releases\/latest\/download\/OpenFilm\.dmg$/,
+    );
+    await expect(page.getByRole('link', { name: 'Download for Windows' }).first()).toHaveAttribute(
+      'href',
+      /releases\/latest\/download\/OpenFilm-Setup\.exe$/,
     );
     await expect(
       page.getByText(/no account system, application backend, analytics/i),
@@ -39,6 +43,7 @@ test.describe('desktop download landing page', () => {
       await expect(page.getByRole('heading', { name: 'Coming soon.' })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Follow the project' })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Download OpenFilm for macOS' })).toBeHidden();
+      await expect(page.getByRole('link', { name: 'Download OpenFilm for Windows' })).toBeHidden();
 
       const accessibility = await new AxeBuilder({ page }).analyze();
       expect(accessibility.violations).toEqual([]);

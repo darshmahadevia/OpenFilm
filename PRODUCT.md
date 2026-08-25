@@ -4,8 +4,10 @@
 
 ## Platform
 
-Web. The workstation ships in a sandboxed Electron desktop shell for macOS, and Vite also produces
-a browser build. The public web root is the desktop download page.
+adaptive
+
+The workstation ships in a sandboxed Electron desktop shell for macOS and Windows, and Vite also
+produces a browser build. The public web root is the desktop download page.
 
 ## Users
 

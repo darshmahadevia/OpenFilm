@@ -3,7 +3,7 @@
 OpenFilm is a local-first desktop workstation for reviewing and editing a folder of JPEG, PNG, and
 WebP photographs. It has no account system, application backend, or runtime upload path.
 
-[Download the desktop app](https://github.com/darshmahadevia/OpenFilm/releases/latest/download/OpenFilm.dmg) · [Visit the site](https://openfilm.vercel.app) · [Repository](https://github.com/darshmahadevia/OpenFilm) · [CI](https://github.com/darshmahadevia/OpenFilm/actions/workflows/ci.yml)
+[Download for macOS](https://github.com/darshmahadevia/OpenFilm/releases/latest/download/OpenFilm.dmg) · [Download for Windows](https://github.com/darshmahadevia/OpenFilm/releases/latest/download/OpenFilm-Setup.exe) · [Visit the site](https://openfilm.vercel.app) · [Repository](https://github.com/darshmahadevia/OpenFilm) · [CI](https://github.com/darshmahadevia/OpenFilm/actions/workflows/ci.yml)
 
 ![OpenFilm workstation at a wide viewport](./docs/screenshots/openfilm-workstation-wide.png)
 
@@ -42,17 +42,20 @@ npm run electron:dev
 
 ```bash
 npm run electron:pack
-npm run electron:dist
+npm run electron:dist:mac # run on macOS
+npm run electron:dist:win # run on Windows
 ```
 
-The first command creates an unpacked local build. The second creates universal macOS DMG and ZIP
-artifacts under `release/`. Public distribution still requires an Apple Developer signing identity
-and notarization credentials.
+The first command creates an unpacked build for the current platform. The platform commands create a
+universal macOS DMG and ZIP or an x64 Windows installer under `release/`.
 
-Pushing a `v*` tag runs the desktop release workflow. Configure `MAC_CERTIFICATE`,
-`MAC_CERTIFICATE_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID` as GitHub
-Actions secrets first. The workflow signs and notarizes the universal build, then publishes
-`OpenFilm.dmg` and `OpenFilm.zip` to GitHub Releases. The landing-page download points at that DMG.
+Pushing a `v*` tag runs verification, builds each package on its native GitHub runner, and publishes
+`OpenFilm.dmg`, `OpenFilm.zip`, and `OpenFilm-Setup.exe` in one GitHub Release. Stable asset names let
+the landing page use `/releases/latest/download/` links for both platforms.
+
+The current preview packages are unsigned. macOS Gatekeeper and Windows SmartScreen may require the
+user to confirm that they want to open the app. Production distribution should add Apple signing and
+notarization plus Windows code signing before removing the preview notice.
 
 ## Verification
 
@@ -81,9 +84,10 @@ See [architecture notes](./docs/architecture.md) and the [Library workspace cont
 
 ## Supported boundary
 
-The desktop shell uses Electron's bundled Chromium runtime on macOS. RAW, HEIC/HEIF, TIFF, archival
-color management, cloud sync, and cross-device Libraries are out of scope. Comparison intentionally
-uses bounded derivatives and labels that limitation. Similarity and sharpness analysis models exist
+The desktop shell uses Electron's bundled Chromium runtime on macOS and Windows. RAW, HEIC/HEIF,
+TIFF, archival color management, cloud sync, and cross-device Libraries are out of scope.
+Comparison intentionally uses bounded derivatives and labels that limitation. Similarity and
+sharpness analysis models exist
 behind tested module boundaries but are not exposed in the shipped interface because a suitable
 rights-cleared validation corpus has not passed the documented quality gate.
 

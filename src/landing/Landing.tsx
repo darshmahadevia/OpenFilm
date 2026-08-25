@@ -6,8 +6,17 @@ import darkroomHero from '../assets/openfilm-darkroom-hero.webp';
 import coastalValley from '../assets/openfilm-landing-coastal-valley.webp';
 import comparisonStreet from '../assets/openfilm-comparison-street.webp';
 
-const releaseUrl =
-  'https://github.com/darshmahadevia/OpenFilm/releases/latest/download/OpenFilm.dmg';
+const releases = [
+  {
+    asset: 'OpenFilm.dmg',
+    platform: 'macOS',
+  },
+  {
+    asset: 'OpenFilm-Setup.exe',
+    platform: 'Windows',
+  },
+] as const;
+const releaseBaseUrl = 'https://github.com/darshmahadevia/OpenFilm/releases/latest/download';
 const repositoryUrl = 'https://github.com/darshmahadevia/OpenFilm';
 
 function DownloadIcon() {
@@ -26,16 +35,32 @@ function ArrowIcon() {
   );
 }
 
-function ReleaseLink({ compact = false }: { compact?: boolean }) {
+function ReleaseLinks({ compact = false }: { compact?: boolean }) {
   return (
-    <a
-      aria-label={compact ? 'Download OpenFilm for macOS' : undefined}
-      className={compact ? 'landing-download landing-download--compact' : 'landing-download'}
-      href={releaseUrl}
+    <div
+      aria-label="OpenFilm desktop downloads"
+      className={`landing-release-links${compact ? ' landing-release-links--compact' : ''}`}
+      role="group"
     >
-      <span>{compact ? 'Download' : 'Download for macOS'}</span>
-      <DownloadIcon />
-    </a>
+      <div className="landing-release-links__actions">
+        {releases.map(({ asset, platform }) => (
+          <a
+            aria-label={compact ? `Download OpenFilm for ${platform}` : undefined}
+            className={compact ? 'landing-download landing-download--compact' : 'landing-download'}
+            href={`${releaseBaseUrl}/${asset}`}
+            key={platform}
+          >
+            <span>{compact ? platform : `Download for ${platform}`}</span>
+            <DownloadIcon />
+          </a>
+        ))}
+      </div>
+      {!compact && (
+        <span className="landing-release-note">
+          Universal macOS / Windows x64 / unsigned preview
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -72,7 +97,10 @@ function ComingSoon() {
       </header>
       <div className="landing-coming-soon__content">
         <h1>Coming soon.</h1>
-        <p>OpenFilm is being shaped for smaller screens. The macOS workstation is available now.</p>
+        <p>
+          OpenFilm is being shaped for smaller screens. The macOS and Windows workstations are
+          available now.
+        </p>
       </div>
       <footer>
         <span>Local-first photography software</span>
@@ -114,7 +142,7 @@ export default function Landing() {
             <a href="#workflow">Workflow</a>
             <a href={repositoryUrl}>Source</a>
           </nav>
-          <ReleaseLink compact />
+          <ReleaseLinks compact />
         </header>
 
         <main id="main-content">
@@ -139,7 +167,7 @@ export default function Landing() {
                   photographs. No account. No upload path.
                 </p>
                 <div>
-                  <ReleaseLink />
+                  <ReleaseLinks />
                   <a className="landing-text-link" href="#workstation">
                     See the workstation <ArrowIcon />
                   </a>
@@ -284,7 +312,7 @@ export default function Landing() {
             <div className="landing-closing__content">
               <h2>The shoot stays yours.</h2>
               <p>Open the folder. Make the decisions. Export the photographs.</p>
-              <ReleaseLink />
+              <ReleaseLinks />
             </div>
           </section>
         </main>

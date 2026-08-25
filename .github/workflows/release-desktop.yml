@@ -1,4 +1,4 @@
-name: Release desktop app
+name: Release desktop apps
 
 on:
   push:
@@ -9,15 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  release-macos:
-    runs-on: macos-14
-    env:
-      CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
-      CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  verify:
+    runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -28,27 +21,87 @@ jobs:
           node-version-file: '.nvmrc'
           cache: npm
 
-      - name: Require signing credentials
-        run: |
-          test -n "$CSC_LINK"
-          test -n "$CSC_KEY_PASSWORD"
-          test -n "$APPLE_ID"
-          test -n "$APPLE_APP_SPECIFIC_PASSWORD"
-          test -n "$APPLE_TEAM_ID"
-
       - name: Install dependencies
         run: npm ci
 
       - name: Verify source
         run: npm run check
 
-      - name: Build, sign, and notarize universal app
-        run: npm run build && npx electron-builder --mac -c.mac.notarize=true
+  build-macos:
+    needs: verify
+    runs-on: macos-14
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build universal macOS release
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npm run build && npx electron-builder --mac -c.mac.notarize=false --publish never
+
+      - name: Upload macOS release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: |
+            release/OpenFilm.dmg
+            release/OpenFilm.zip
+          if-no-files-found: error
+
+  build-windows:
+    needs: verify
+    runs-on: windows-2025
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows installer
+        run: npm run build && npx electron-builder --win --publish never
+
+      - name: Upload Windows release asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: release/OpenFilm-Setup.exe
+          if-no-files-found: error
+
+  publish:
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
 
       - name: Publish GitHub release
         run: >-
           gh release create "$GITHUB_REF_NAME"
-          release/OpenFilm.dmg
-          release/OpenFilm.zip
+          release-assets/OpenFilm.dmg
+          release-assets/OpenFilm.zip
+          release-assets/OpenFilm-Setup.exe
           --generate-notes
+          --repo "$GITHUB_REPOSITORY"
           --title "OpenFilm $GITHUB_REF_NAME"

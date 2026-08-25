@@ -1,6 +1,7 @@
 # OpenFilm Library Workstation
 
-This release replaces the single-photo landing/editor path with the local-first Library workstation.
+This release replaces the single-photo landing/editor path with the local-first Library workstation
+and adds desktop packages for universal macOS and x64 Windows systems.
 
 ## Highlights
 
@@ -20,7 +21,8 @@ This release replaces the single-photo landing/editor path with the local-first 
 Comparison renders bounded derivatives and labels them `Resolution limited · Fit`. Advisory
 Similarity and Sharpness models are implemented and tested but do not appear in the interface until
 a rights-cleared validation corpus meets the documented precision/recall gate. Export assumes sRGB,
-strips Source metadata, and is not an archival or print-fidelity workflow. Current Chromium on macOS
-is the verified target; results do not imply universal browser or device support.
+strips Source metadata, and is not an archival or print-fidelity workflow. Measured performance and
+assistive-technology evidence comes from current Chromium on macOS; results do not imply universal
+browser or device support. The first macOS and Windows preview packages are unsigned.
 
 See [release evidence](./docs/release-evidence.md) and [limitations](./docs/limitations.md).

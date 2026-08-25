@@ -20,7 +20,9 @@
     "dev": "vite",
     "electron:dev": "node scripts/electron-dev.mjs",
     "electron:pack": "npm run build && electron-builder --dir",
-    "electron:dist": "npm run build && electron-builder --mac",
+    "electron:dist": "npm run build && electron-builder",
+    "electron:dist:mac": "npm run build && electron-builder --mac",
+    "electron:dist:win": "npm run build && electron-builder --win",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
@@ -95,6 +97,25 @@
           ]
         }
       ]
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "artifactName": "OpenFilm-Setup.${ext}",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "OpenFilm"
     },
     "dmg": {
       "backgroundColor": "#050505",

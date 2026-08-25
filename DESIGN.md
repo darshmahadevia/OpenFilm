@@ -65,8 +65,8 @@ editorial extension of the product world, not a second app UI or a feature-card 
 
 ### Surface grammar
 
-- **Header:** OpenFilm wordmark, Workstation / Workflow / Source anchors, and a sand download link.
-  The nav disappears below 900 CSS pixels while the download action remains available.
+- **Header:** OpenFilm wordmark, Workstation / Workflow / Source anchors, and compact macOS and
+  Windows download links. The nav disappears below 900 CSS pixels while downloads remain available.
 - **Hero:** A 12-column composition pairs the factual promise with a real workstation frame. The
   frame enters as one vertical reveal; the darkroom photograph sits behind the upper-right edge as
   atmosphere and photographic authority, never as a second panel.
@@ -128,12 +128,11 @@ controls wrap without changing their reading order and overlays use most of the 
 pixels, labels may stack, but every action remains at least 44 CSS pixels on coarse pointers. The
 interface must remain operable at 200-percent zoom without document-level horizontal scrolling.
 
-The download surface uses a 12-column hero and split editorial sections at wide widths. At 900 CSS
-pixels, its navigation hides, the hero and workflow become single-column reading flows, the local
-architecture image moves above its copy, and the footer reduces to two columns. At 620 CSS pixels,
-the compact download link keeps only its icon visually, the facts stack, section gutters tighten,
-and the workstation proof uses a deliberate cropped enlargement rather than a new layout. Its
-explicit accessible name remains `Download OpenFilm for macOS` when the label is visually hidden.
+The download surface uses a 12-column hero and split editorial sections above 1024 CSS pixels. At
+1024 CSS pixels and below, a dedicated image-led view tells phone and tablet visitors that the mobile
+interface is not ready and points them to the project. The macOS and Windows links remain in the
+hidden desktop layout, so their platform-specific accessible names stay correct without adding
+unusable download actions to the smaller-screen view.
 
 Motion is functional and brief. With reduced motion enabled, transitions are removed without hiding
 state changes. The landing workstation frame's single vertical reveal is removed entirely under
@@ -178,9 +177,9 @@ its documented release boundary; atmosphere never stands in for evidence.
 
 ## Landing component grammar
 
-- **Download link:** A sand-filled, squared link with a compact download icon. Hover swaps to the
-  matte ground and sand text; focus uses the shared visible focus treatment. The header variant is
-  compact and icon-only below 620 CSS pixels but keeps an explicit accessible name.
+- **Download links:** Sand-filled, squared macOS and Windows links with compact download icons.
+  Hover swaps to the matte ground and sand text; focus uses the shared visible focus treatment. The
+  header variants remain compact and keep explicit platform-specific accessible names.
 - **Proof frame:** A near-black, fine-rule frame around the real workstation screenshot. The small
   window bar and filename readout are documentary chrome only; do not add controls, gradients, or
   simulated product state.
@@ -208,7 +207,7 @@ source of truth remains `src/ui/tokens.css`.
 - **Do** make local behavior, Library durability, recovery, and export language plain and visible.
 - **Do** preserve the landing reading order: download, proof, workflow, local architecture, final
   download.
-- **Do** keep keyboard focus visible and the compact mobile download link semantically named.
+- **Do** keep keyboard focus visible and compact download links semantically named by platform.
 
 ### Don't:
 
