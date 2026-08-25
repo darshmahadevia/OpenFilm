@@ -71,7 +71,7 @@ test.describe('large Library performance gate', () => {
         value: async () => navigator.storage.getDirectory(),
       });
     });
-    await page.goto('/');
+    await page.goto('/app.html');
     await page.evaluate(async () => {
       const root = await navigator.storage.getDirectory();
       try {

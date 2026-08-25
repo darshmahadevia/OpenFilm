@@ -10,7 +10,7 @@ test.describe('Library-file durability gate', () => {
   test('recovers a verified revision after interruption at every Chromium commit phase', async ({
     page,
   }) => {
-    await page.goto('/');
+    await page.goto('/app.html');
 
     const report = await page.evaluate(async () => {
       const harness = await import('/src/library/durabilityHarness.ts');
@@ -25,7 +25,7 @@ test.describe('Library-file durability gate', () => {
   test('reconciles a mixed-success Export after interruption without overwriting collisions', async ({
     page,
   }) => {
-    await page.goto('/');
+    await page.goto('/app.html');
     const report = await page.evaluate(async () => {
       const harness = await import('/src/library/exportResumeHarness.ts');
       return harness.runExportResumeBrowserHarness();
@@ -41,7 +41,7 @@ test.describe('Library-file durability gate', () => {
   test('reconciles unchanged, restored, changed, moved, missing, new, and ambiguous Sources', async ({
     page,
   }) => {
-    await page.goto('/');
+    await page.goto('/app.html');
     const report = await page.evaluate(async () => {
       const harness = await import('/src/library/reconciliationHarness.ts');
       return harness.runReconciliationBrowserHarness();
@@ -60,7 +60,7 @@ test.describe('Library-file durability gate', () => {
   test('renders two to four bounded derivatives from a controlled high-resolution Source', async ({
     page,
   }) => {
-    await page.goto('/');
+    await page.goto('/app.html');
     const report = await page.evaluate(async () => {
       const harness = await import('/src/library/comparisonHarness.ts');
       return await harness.runComparisonBrowserHarness();

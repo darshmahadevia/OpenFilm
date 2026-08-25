@@ -4,7 +4,8 @@
 
 ## Platform
 
-Static web application; current Chromium on macOS is the verified target.
+Web. The workstation ships in a sandboxed Electron desktop shell for macOS, and Vite also produces
+a browser build. The public web root is the desktop download page.
 
 ## Users
 
@@ -49,6 +50,8 @@ keeps the photographer's decisions explicit and recoverable.
 - Use product vocabulary from `CONTEXT.md` and calm, factual recovery language.
 - Avoid gradients, glass effects, ornamental dashboards, marketing slogans, fake activity, social
   proof, or claims beyond recorded evidence.
+- The download page may use a larger editorial scale than the workstation, but it keeps the same
+  palette, type, photographic authority, and factual product language.
 
 ## Accessibility
 

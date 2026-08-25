@@ -8,16 +8,20 @@ colors:
   paper: '#000000'
   chrome: '#050505'
   control: '#080808'
+  canvas: '#000000'
   surface: '#111111'
   surface-raised: '#181818'
   line: '#262626'
   line-strong: '#3a3a3a'
   accent: '#c6a36f'
+  accent-dark: '#d5b784'
+  accent-ink: '#0b0c0d'
   focus: '#e0c48f'
   success: '#70d7a3'
   warning: '#f0bd69'
   danger: '#ffb59f'
 typography:
+  display: 'OpenFilm Bodoni, Iowan Old Style, Times New Roman, serif'
   heading: 'OpenFilm Bodoni, Iowan Old Style, Times New Roman, serif'
   interface: 'Helvetica Neue, Helvetica, Arial, sans-serif'
   numeric: 'tabular-nums'
@@ -27,13 +31,59 @@ rounded:
   round: '999px'
 spacing:
   touch-target: '2.75rem'
+  page-gutter: 'clamp(1rem, 3vw, 3.25rem)'
+  section-gutter: 'clamp(1rem, 5vw, 6rem)'
 ---
 
 # Design system: Matte Proof Studio
 
-OpenFilm is a working surface, not a marketing page. Near-black chrome, warm-white type, fine rules,
-and one restrained sand signal frame the Source photograph. Density supports repeated review; it is
-never decoration.
+OpenFilm is primarily a working surface. Near-black chrome, warm-white type, fine rules, and one
+restrained sand signal frame the Source photograph. Density supports repeated review; it is never
+decoration.
+
+The download site uses the same Matte Proof Studio world at editorial scale. A real workstation
+screenshot supplies product proof, full-bleed photographs control the major transitions, and the
+copy stays tied to shipped behavior. The hero and final photograph may each carry a download action;
+the workstation itself keeps actions compact and task-specific.
+
+**Key Characteristics:**
+
+- Matte near-black chrome, warm-white type, fine rules, and a restrained sand signal.
+- OpenFilm Bodoni display paired with Helvetica Neue interface copy and tabular numeric values.
+- Photograph-first proof: real workstation screenshots and grounded photographic assets carry the
+  visual authority.
+- Compact, precise workstation controls extended to the landing page at editorial scale.
+- Local-first product language with no ornamental claims, social proof, or cloud/account theatre.
+
+## Download surface
+
+The public download route is the Persuade expression of Matte Proof Studio. It opens with a factual
+local-first promise and two forms of proof: the actual workstation screenshot and a darkroom
+photograph. The visitor path is deliberate and vertical: download, workstation proof, the ordered
+Library workflow, precise local-file architecture, then an image-led final download. This is an
+editorial extension of the product world, not a second app UI or a feature-card wall.
+
+### Surface grammar
+
+- **Header:** OpenFilm wordmark, Workstation / Workflow / Source anchors, and a sand download link.
+  The nav disappears below 900 CSS pixels while the download action remains available.
+- **Hero:** A 12-column composition pairs the factual promise with a real workstation frame. The
+  frame enters as one vertical reveal; the darkroom photograph sits behind the upper-right edge as
+  atmosphere and photographic authority, never as a second panel.
+- **Facts strip:** Three short, ruled statements make folders, durable Library state, and the shared
+  WebGL2 rendering path legible without invented metrics.
+- **Workstation proof:** One wide screenshot follows the hero. A fine-rule caption names Grid,
+  Loupe, and Comparison and explains the continuity of review context.
+- **Workflow:** Four ordered rows keep the shipped sequence visible: Open a Library, Review the
+  Grid, Make the Edit, Export the set.
+- **Local architecture:** A photograph and text pair name `.openfilm/library.json`, in-place Source
+  files, and the MIT license. The copy describes local behavior precisely and makes no account,
+  cloud, analytics, or backup promise.
+- **Closing:** A 90svh photograph, dark veil, centered copy, and one download action provide the
+  final release beat. The image remains the largest object; the CTA is simple and factual.
+
+**The Photograph-First Rule.** Give the image the largest uninterrupted region available. Copy,
+navigation, and controls frame the proof; they do not compete with it.
 
 ## Product hierarchy
 
@@ -78,17 +128,36 @@ controls wrap without changing their reading order and overlays use most of the 
 pixels, labels may stack, but every action remains at least 44 CSS pixels on coarse pointers. The
 interface must remain operable at 200-percent zoom without document-level horizontal scrolling.
 
+The download surface uses a 12-column hero and split editorial sections at wide widths. At 900 CSS
+pixels, its navigation hides, the hero and workflow become single-column reading flows, the local
+architecture image moves above its copy, and the footer reduces to two columns. At 620 CSS pixels,
+the compact download link keeps only its icon visually, the facts stack, section gutters tighten,
+and the workstation proof uses a deliberate cropped enlargement rather than a new layout. Its
+explicit accessible name remains `Download OpenFilm for macOS` when the label is visually hidden.
+
 Motion is functional and brief. With reduced motion enabled, transitions are removed without hiding
-state changes.
+state changes. The landing workstation frame's single vertical reveal is removed entirely under
+`prefers-reduced-motion: reduce`; no state depends on the animation.
+
+**The Single Reveal Rule.** The landing hero may stage one vertical workstation entrance when motion
+is allowed; reduced motion removes it rather than replacing it with another effect.
 
 ## Type, color, and depth
 
-OpenFilm Bodoni is reserved for the compact Library heading. Interface copy uses Helvetica Neue with
-system fallbacks. Primary text is warm white; muted gray is supporting information; sand indicates
-focus, Selection, or direct manipulation. Green, amber, and coral are status-only.
+OpenFilm Bodoni is reserved for the compact Library heading in the workstation and extends to the
+landing promise, section, and closing headings. Interface copy uses Helvetica Neue with system
+fallbacks. Primary text is warm white; muted gray is supporting information; sand indicates focus,
+Selection, direct manipulation, and the landing download action. Green, amber, and coral are
+status-only.
+
+**The One Signal Rule.** Sand is a functional signal for action, focus, Selection, and direct
+manipulation, not a decorative wash; status colors remain status-only.
 
 Depth comes from value changes and one-pixel rules. Shadows are reserved for genuine overlap. Do not
 add gradients, glass effects, blur-backed panels, blobs, glow, or a second accent family.
+
+**The Matte Layer Rule.** Separate surfaces by value before reaching for a shadow; use elevation only
+when an element overlaps content or needs a clear state response.
 
 ## Content rules
 
@@ -100,8 +169,54 @@ unsupported formats, universal performance, archival fidelity, or automatic qual
 Errors state the consequence and the next safe action. Empty states say which filter or Selection
 caused the result. Shortcuts remain discoverable through the `?` dialog as well as visible controls.
 
+Landing copy may state only shipped facts: local folder references, durable Library sidecars, the
+supported JPEG / PNG / WebP boundary, the shared WebGL2 path, and the bounded download behavior.
+Do not turn the page's atmospheric photography into a claim about product performance or quality.
+
+**The Local Fact Rule.** Every download-page claim must be traceable to the shipped workstation or
+its documented release boundary; atmosphere never stands in for evidence.
+
+## Landing component grammar
+
+- **Download link:** A sand-filled, squared link with a compact download icon. Hover swaps to the
+  matte ground and sand text; focus uses the shared visible focus treatment. The header variant is
+  compact and icon-only below 620 CSS pixels but keeps an explicit accessible name.
+- **Proof frame:** A near-black, fine-rule frame around the real workstation screenshot. The small
+  window bar and filename readout are documentary chrome only; do not add controls, gradients, or
+  simulated product state.
+- **Ruled fact / workflow rows:** Use one-pixel charcoal separators, sand indices, short labels, and
+  muted explanatory copy. Rows are content-first and remain readable when stacked.
+- **Local architecture list:** Use a ruled definition list with tabular values for paths and license
+  text. It is an evidence block, not a card or badge.
+- **Photographic CTA:** Let the closing image carry the section. Add only a dark veil, centered copy,
+  and the same download link used above.
+
 ## Asset provenance
 
 Generated raster assets carry adjacent JSON provenance with prompt, creation time, and source.
 Release screenshots are generated by `e2e/visualEvidence.spec.ts` from the shipped app. The token
 source of truth remains `src/ui/tokens.css`.
+
+## Do's and Don'ts
+
+### Do:
+
+- **Do** make a real photograph the strongest object in the landing first viewport, workstation
+  proof, and final CTA.
+- **Do** keep the near-black ground, warm-white type, fine rules, OpenFilm Bodoni display, and one
+  restrained sand interaction signal across workstation and download surfaces.
+- **Do** make local behavior, Library durability, recovery, and export language plain and visible.
+- **Do** preserve the landing reading order: download, proof, workflow, local architecture, final
+  download.
+- **Do** keep keyboard focus visible and the compact mobile download link semantically named.
+
+### Don't:
+
+- **Don't** use gradients, glass effects, blur-backed panels, ornamental dashboards, fake metrics,
+  testimonials, account or cloud claims, or a second accent family.
+- **Don't** replace the OpenFilm wordmark with the old `OF` monogram or redesign the workstation as
+  marketing UI.
+- **Don't** imply archival fidelity, universal performance, automatic quality judgment, or Source
+  backup beyond the recorded product behavior.
+- **Don't** turn every landing section into a rounded card or place a wide shadow beneath a rule by
+  default.

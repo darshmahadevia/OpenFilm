@@ -98,6 +98,17 @@ code {
   gap: 1rem;
   background: var(--color-chrome);
 }
+[data-desktop-shell] .library-start__topbar,
+[data-desktop-shell] .library-workspace__topbar {
+  padding-left: 5.25rem;
+  -webkit-app-region: drag;
+}
+[data-desktop-shell] button,
+[data-desktop-shell] input,
+[data-desktop-shell] select,
+[data-desktop-shell] summary {
+  -webkit-app-region: no-drag;
+}
 .library-start__brand {
   color: var(--color-ink);
   font-family: var(--font-display);

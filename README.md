@@ -1,9 +1,9 @@
 # OpenFilm
 
-OpenFilm is a local-first browser workstation for reviewing and editing a folder of JPEG, PNG, and
+OpenFilm is a local-first desktop workstation for reviewing and editing a folder of JPEG, PNG, and
 WebP photographs. It has no account system, application backend, or runtime upload path.
 
-[Try the live app](https://openfilm.vercel.app) · [Repository](https://github.com/darshmahadevia/OpenFilm) · [CI](https://github.com/darshmahadevia/OpenFilm/actions/workflows/ci.yml)
+[Download the desktop app](https://github.com/darshmahadevia/OpenFilm/releases/latest/download/OpenFilm.dmg) · [Visit the site](https://openfilm.vercel.app) · [Repository](https://github.com/darshmahadevia/OpenFilm) · [CI](https://github.com/darshmahadevia/OpenFilm/actions/workflows/ci.yml)
 
 ![OpenFilm workstation at a wide viewport](./docs/screenshots/openfilm-workstation-wide.png)
 
@@ -33,8 +33,26 @@ OpenFilm uses Node.js `22.20.0` and npm `11.19.0`.
 ```bash
 nvm install
 npm ci
-npm run dev
+npm run electron:dev
 ```
+
+`npm run dev` serves the download site at `/` and the browser workstation at `/app.html`.
+
+## Package the desktop app
+
+```bash
+npm run electron:pack
+npm run electron:dist
+```
+
+The first command creates an unpacked local build. The second creates universal macOS DMG and ZIP
+artifacts under `release/`. Public distribution still requires an Apple Developer signing identity
+and notarization credentials.
+
+Pushing a `v*` tag runs the desktop release workflow. Configure `MAC_CERTIFICATE`,
+`MAC_CERTIFICATE_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID` as GitHub
+Actions secrets first. The workflow signs and notarizes the universal build, then publishes
+`OpenFilm.dmg` and `OpenFilm.zip` to GitHub Releases. The landing-page download points at that DMG.
 
 ## Verification
 
@@ -53,18 +71,19 @@ See [testing](./docs/testing.md), [release evidence](./docs/release-evidence.md)
 
 ## Architecture and privacy
 
-OpenFilm is a React and Vite static application. Browser directory handles, IndexedDB working
-copies, Web Workers, and WebGL2 provide the local workspace; there is no application server. Source
-files stay in the selected folder and are read only when needed for metadata, visible derivatives,
-Loupe, or Export. Browser storage and sidecars are recovery mechanisms, not backups.
+OpenFilm is a React and Vite application packaged in a sandboxed Electron shell. Chromium directory
+handles, IndexedDB working copies, Web Workers, and WebGL2 provide the local workspace; there is no
+application server. Source files stay in the selected folder and are read only when needed for
+metadata, visible derivatives, Loupe, or Export. Browser storage and sidecars are recovery
+mechanisms, not backups.
 
 See [architecture notes](./docs/architecture.md) and the [Library workspace contract](./docs/library-workspace.md).
 
 ## Supported boundary
 
-The verified browser target is current Chromium on macOS. RAW, HEIC/HEIF, TIFF, archival color
-management, cloud sync, and cross-device Libraries are out of scope. Comparison intentionally uses
-bounded derivatives and labels that limitation. Similarity and sharpness analysis models exist
+The desktop shell uses Electron's bundled Chromium runtime on macOS. RAW, HEIC/HEIF, TIFF, archival
+color management, cloud sync, and cross-device Libraries are out of scope. Comparison intentionally
+uses bounded derivatives and labels that limitation. Similarity and sharpness analysis models exist
 behind tested module boundaries but are not exposed in the shipped interface because a suitable
 rights-cleared validation corpus has not passed the documented quality gate.
 

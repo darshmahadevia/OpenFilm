@@ -7,6 +7,10 @@ import './app.css';
 
 const rootElement = document.getElementById('root');
 
+if (new URLSearchParams(window.location.search).has('desktop')) {
+  document.documentElement.dataset.desktopShell = '';
+}
+
 if (!rootElement) {
   throw new Error('OpenFilm could not find its root element.');
 }

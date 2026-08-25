@@ -2,13 +2,13 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 test('has no automated accessibility violations on the Library start state', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/app.html');
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });
 
-test('ships the workstation as the only default product path', async ({ page }) => {
-  await page.goto('/');
+test('ships the workstation without legacy product paths', async ({ page }) => {
+  await page.goto('/app.html');
   await expect(page.getByRole('heading', { name: 'Open a Library.' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open folder' })).toBeVisible();
   await expect(page.getByRole('button', { name: /sample/i })).toHaveCount(0);
@@ -17,7 +17,7 @@ test('ships the workstation as the only default product path', async ({ page }) 
 });
 
 test('stays within the viewport at wide, medium, and 200 percent zoom widths', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/app.html');
   for (const viewport of [
     { width: 1440, height: 900 },
     { width: 1024, height: 768 },
@@ -35,7 +35,7 @@ test('stays within the viewport at wide, medium, and 200 percent zoom widths', a
 
 test('removes nonessential motion without hiding state', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
+  await page.goto('/app.html');
   const style = await page.getByRole('button', { name: 'Open folder' }).evaluate((button) => {
     const computed = getComputedStyle(button);
     return {
