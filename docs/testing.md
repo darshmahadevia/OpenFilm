@@ -8,7 +8,7 @@
 | `npm run check:ui-slop`                                                      | Reject gradients, glass effects, social-proof copy, and generic slogans in the shipped UI   |
 | `npm run test:e2e`                                                           | Chromium workflow, durability, accessibility, and responsive tests                          |
 | `npm run perf:generate`                                                      | Build the deterministic 2,000-record logical corpus                                         |
-| `npx playwright test e2e/performance.spec.ts`                                | Measure the browser performance gate and write `.artifacts/browser-performance-report.json` |
+| `npm run test:e2e:performance`                                               | Measure the browser performance gate and write `.artifacts/browser-performance-report.json` |
 | `OPENFILM_CAPTURE_EVIDENCE=1 npx playwright test e2e/visualEvidence.spec.ts` | Refresh tracked wide, medium, and 200-percent-zoom screenshots                              |
 
 Install the Playwright browser once with `npx playwright install chromium`. The suite starts Vite on
@@ -16,8 +16,8 @@ port `4187` unless `PLAYWRIGHT_BASE_URL` is set. Durability and performance fixt
 Private File System and therefore run only against the local server.
 
 The top-level `npm run test:release` executes the main static, browser, anti-slop, and synthetic
-performance checks. The stricter browser scale gate remains an explicit command because it produces
-machine-specific evidence.
+performance checks. The general browser suite excludes the `@performance` test. Run that stricter
+browser scale gate explicitly because it produces machine-specific evidence.
 
 ## What is covered
 

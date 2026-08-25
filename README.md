@@ -64,7 +64,7 @@ npm run check
 npm run check:ui-slop
 npm run test:e2e
 npm run perf:generate
-npx playwright test e2e/performance.spec.ts
+npm run test:e2e:performance
 ```
 
 The performance gate uses a deterministic 2,000-record Library and records the measured browser

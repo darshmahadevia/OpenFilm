@@ -60,7 +60,7 @@ async function measureInteractions(page: Page) {
   });
 }
 
-test.describe('large Library performance gate', () => {
+test.describe('large Library performance gate', { tag: '@performance' }, () => {
   test.skip(Boolean(process.env.PLAYWRIGHT_BASE_URL), 'The performance gate uses an OPFS fixture.');
   test.setTimeout(120_000);
 
