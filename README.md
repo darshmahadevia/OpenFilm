@@ -95,6 +95,7 @@ for recovery behavior, export details, and formats that are out of scope.
 OpenFilm is a React and Vite app that builds to static files. The main code is grouped by behavior:
 
 - `src/editor` owns Looks, Edits, geometry, adjustments, tone curves, presets, and edit history.
+- `src/library` owns the versioned Library-file durability prototype and its browser harness.
 - `src/import` validates and decodes source photographs.
 - `src/rendering` owns the WebGL2 preview, histogram, geometry, and export path.
 - `src/storage` owns IndexedDB recovery and custom Looks.

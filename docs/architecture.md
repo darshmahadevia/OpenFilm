@@ -14,6 +14,9 @@ directory. There is no server route, API client, analytics script, or general-pu
 - `src/rendering` contains the bounded WebGL2 preview renderer, geometry transforms, tone-curve
   lookup texture, vignette, deterministic grain, deferred luminance histogram, export sizing and
   encoding, resize handling, and context-loss recovery.
+- `src/library` contains the versioned Library-file envelope, checksum verification, browser file
+  gateway, Web Locks coordination, recoverable commit sequence, session outcomes, and the browser
+  durability harness for the first v2 gate.
 - `src/storage` contains the IndexedDB adapter for custom Looks and the latest recoverable Edit. It
   also maps storage failures to product-language messages. Source bytes stay in the recovery record
   and never enter a reusable Look.
@@ -45,9 +48,13 @@ Key Vitest and component tests are grouped by behavior:
 - `src/editor/toneCurve.test.ts` covers the RGB tone curve.
 - `src/import/sourcePhotograph.test.ts` covers source-photograph validation and decoding.
 - `src/storage/browserStorage.test.ts` covers browser and memory storage adapters.
+- `src/library/libraryFile.test.ts` covers canonical JSON, checksums, parent revisions, and invalid files.
+- `src/library/libraryFilePersistence.test.ts` covers commit phases, recovery, conflicts, permission
+  loss, Retry, Save a copy, Revert, and unsaved mutation blocking.
 - `src/rendering/export.test.ts` covers format and export sizing.
 - `src/rendering/renderer.test.ts` covers renderer capability, geometry helpers, preview, and export.
 - `src/ui/components/components.test.tsx` covers the reusable UI components.
 
 Playwright runs Chromium journeys at desktop and phone widths and uses axe-core on the landing and
-loaded editor states.
+loaded editor states. `e2e/libraryDurability.spec.ts` runs the Library commit harness against the
+Chromium Origin Private File System.
