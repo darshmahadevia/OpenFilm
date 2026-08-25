@@ -1,58 +1,65 @@
 ---
-version: 2
+version: 3
 slug: 'src-app-tsx'
 primary_target: 'src/App.tsx'
-related_targets: ['index.html', 'src/app.css', 'src/ui/components/Slider.tsx', 'src/ui/tokens.css']
+related_targets:
+  [
+    'src/app.css',
+    'src/library/AdaptiveLibraryWorkspace.tsx',
+    'src/updates/DesktopUpdateNotice.tsx',
+    'electron/main.mjs',
+  ]
 ---
 
 ## Scope and mode
 
-Production landing page and responsive editor shell. Refined from the earlier category-standard
-concept to remove AI-SaaS visual tells while keeping the proven dark creative-tool vocabulary.
+Production Library start screen and adaptive workstation. Operate mode. The public download page is
+a separate Persuade surface.
 
 ## Audience, job, action, proof, constraints
 
-The audience is a casual photographer deciding whether to open one local image. The primary action
-is choosing a photograph; the sample is secondary. Proof is the real interactive before/after and
-the functioning editor. Processing stays in the browser. No accounts, uploads, analytics, invented
-claims, HEIC support, or destructive source changes.
+The photographer needs to open or resume one local Library, review a shoot, make non-destructive
+Edits, and Export a finished set. Source photographs stay in place. The UI must preserve every
+shipped command while keeping secondary controls out of the main reading path. There are no
+accounts, uploads, analytics, or cloud storage. The installed app may contact GitHub Releases only
+for update checks and installer downloads.
 
 ## Current direction
 
-The first viewport is direct: compact heading and actions followed by one large comparison image.
-Below it, a linear workflow and a local-processing fact section provide enough explanation for
-someone who scrolls. There is no feature-card grid, decorative image sequence, or closing CTA repeat.
+The start screen has one dominant action, `Open folder`, beside a quiet recent-Library list. Format
+and sidecar details remain supporting copy. Recovery appears only when it needs action.
 
-The editor uses a flat right rail on desktop and a stacked control dock on tablet and phone. Every
-editor size stays inside `100dvh`; only the control region scrolls. The supplied three-phone image
-defines mobile topology, not literal styling or content. On phones, Adjust, Geometry, and Looks
-remain visible while active controls scroll internally above a persistent status/source footer.
+The workstation keeps Library identity, modes, save state, and Export in the top bar. Filters and
+secondary Library actions use disclosures. The command bar keeps only ordering, Auto-advance,
+Selection, history, Edit, and Grid density visible. The photograph stage receives the space removed
+from chrome.
+
+Desktop updates are consent-based. OpenFilm asks before downloading, shows progress, then opens the
+downloaded disk image on macOS or installer on Windows. The manual replacement flow stays honest
+about unsigned distribution and does not pretend one-click installation can work.
 
 ## Implementation commitments
 
-| Ingredient         | Commitment                                                                       |
-| ------------------ | -------------------------------------------------------------------------------- |
-| Import             | One “Choose a photo” input; the supporting line names Photos, Files, and formats |
-| Hero proof         | Coastal valley comparison, dominant and edge-to-edge                             |
-| Supporting content | One ruled workflow and one local-processing fact section                         |
-| Editor chrome      | Compact top bar with wordmark, filename on phone, help, and Export               |
-| Desktop controls   | Flat `22rem` right rail with one internally scrolling content area               |
-| Mobile controls    | Safe-area-aware bottom dock around `40dvh`, persistent tabs and footer           |
-| Slider values      | One visible editable number; formatted `aria-valuetext`; compact row reset       |
-| Accessibility      | `2.75rem` coarse-pointer targets, visible focus, keyboard tools, reduced motion  |
+| Ingredient        | Commitment                                                                      |
+| ----------------- | ------------------------------------------------------------------------------- |
+| Start action      | One sand `Open folder` button with formats adjacent and sidecar detail below    |
+| Recent Libraries  | Ruled rows with one status and one contextual action                            |
+| Workstation bar   | Grid / Loupe / Comparison, save state, Export, and one secondary-action menu    |
+| Filters           | One disclosure with an active-filter count and clear action                     |
+| Command bar       | Order, Auto-advance, Selection, history, Edit, and contextual Grid density      |
+| Updates           | Ask, download progress, then open the platform installer                        |
+| Accessibility     | Visible focus, semantic status, keyboard-complete menus, and reduced motion     |
+| Responsive layout | No document overflow at wide, medium, 200-percent zoom, or compact browser size |
 
 ## Review decisions
 
-- Removed the oversized slogan, six-cell pseudo-feature strip, extra lifestyle image, coastal close,
-  repeated actions, and ornamental status chrome.
-- Replaced the broad violet-blue treatment with warm-white actions and a sparse sand interaction cue.
-- The landing comparison uses a coastal valley at dawn. The bundled editor sample uses a separate alpine-lake photograph. Both are quiet, natural scenes with no people and enough tonal range to make the edit visible.
-- Reduced Looks to one visible Apply action per row; file and management actions use disclosures.
-- Preserved image aspect ratio, all editor tools, recovery, local status, help, and export behavior.
-- Native Photos versus Files presentation is owned by the mobile operating system; the web input
-  cannot truthfully force two separate native picker modes.
+- Removed duplicate recent-Library status copy.
+- Moved Review groups, Refresh, keyboard help, and Library exit into `More`.
+- Moved the four filters into one counted disclosure and moved Grid density into the command bar.
+- Kept Export visible because it closes the primary workflow.
+- Kept update checks outside the renderer and exposed only four updater commands through preload.
 
 ## Unresolved decisions
 
-None. Native picker wording and available providers vary by device and browser and require physical
-iOS/Android verification outside automated browser emulation.
+Apple Developer ID signing and notarization are not configured. The app opens the downloaded `.dmg`
+instead of modifying the installed application.

@@ -1,8 +1,9 @@
 # Architecture
 
-OpenFilm is one React tree built by Vite into static files. There is no application server, API
-client, analytics path, or Source-photo upload. The browser owns the directory handle, durable
-sidecars, transient image resources, and rendering context.
+OpenFilm is one React tree built by Vite into static files. There is no application server,
+analytics path, or Source-photo upload. The browser owns the directory handle, durable sidecars,
+transient image resources, and rendering context. The installed Electron shell separately contacts
+GitHub Releases for update metadata and installer downloads.
 
 ## Boundaries
 
@@ -31,8 +32,11 @@ sidecars, transient image resources, and rendering context.
   snapshots. `src/rendering` owns the shared WebGL2 preview/export pipeline and context lifecycle.
 - `src/storage` owns recent handles and recoverable working copies in IndexedDB. The Library sidecar
   remains authoritative.
-- `src/library/AdaptiveLibraryWorkspace.tsx` composes the start surface, Grid, Loupe, Comparison,
-  inspector, groups, Export, recovery surfaces, and shortcuts. `src/ui` supplies tokens and controls.
+- `src/App.tsx` owns the Library start surface. `src/library/AdaptiveLibraryWorkspace.tsx` composes
+  Grid, Loupe, Comparison, inspector, groups, Export, recovery surfaces, and shortcuts. `src/ui`
+  supplies tokens and controls.
+- `electron/updater.mjs` owns update checks, consent-based downloads, progress, and installer launch. A
+  sandboxed preload bridge exposes only updater commands and state; the renderer has no general IPC.
 
 ## State and command flow
 
@@ -76,6 +80,7 @@ concurrency and retry; caches enforce byte budgets rather than entry counts.
 - Rendering: `src/rendering/renderer.test.ts`, `src/rendering/export.test.ts`, and Loupe browser paths
 - Product workflow and accessibility: `e2e/firstImportExport.spec.ts` and
   `e2e/libraryWorkspace.spec.ts`
+- Desktop updates: `electron/updater.test.mjs` and `src/updates/DesktopUpdateNotice.test.tsx`
 - Scale: `e2e/performance.spec.ts` plus `scripts/generate-performance-corpus.mjs`
 - Visual evidence: `e2e/visualEvidence.spec.ts` and tracked screenshots under `docs/screenshots/`
 

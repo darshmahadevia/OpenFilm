@@ -8,6 +8,12 @@ support cannot open a durable Library. A lost WebGL2 context pauses rendered pre
 the browser restores
 the context or the page is reloaded.
 
+## Desktop updates
+
+Version 0.1.0 cannot update itself and needs one manual replacement. Version 0.2.0 and later can
+check GitHub Releases, ask before downloading, and open the downloaded platform installer. The app
+does not replace itself. Gatekeeper or SmartScreen may ask the user to confirm unsigned installers.
+
 ## Formats and color
 
 Source discovery accepts JPEG, PNG, and WebP by extension or supported MIME type. Decoding,

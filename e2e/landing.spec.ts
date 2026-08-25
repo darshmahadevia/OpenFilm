@@ -19,7 +19,7 @@ test.describe('desktop download landing page', () => {
       /releases\/latest\/download\/OpenFilm-Setup\.exe$/,
     );
     await expect(
-      page.getByText(/no account system, application backend, analytics/i),
+      page.getByText(/contacts GitHub Releases only to check for updates/i),
     ).toBeVisible();
 
     const accessibility = await new AxeBuilder({ page }).analyze();

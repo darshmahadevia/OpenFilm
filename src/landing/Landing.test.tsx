@@ -21,7 +21,7 @@ describe('OpenFilm download landing page', () => {
       'https://github.com/darshmahadevia/OpenFilm/releases/latest/download/OpenFilm-Setup.exe',
     );
     expect(
-      screen.getByText(/no account system, application backend, analytics/i),
+      screen.getByText(/contacts GitHub Releases only to check for updates/i),
     ).toBeInTheDocument();
     expect(screen.getByText('.openfilm/library.json')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Coming soon.' })).toBeInTheDocument();

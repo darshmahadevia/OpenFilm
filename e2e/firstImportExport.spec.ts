@@ -9,11 +9,11 @@ test('has no automated accessibility violations on the Library start state', asy
 
 test('ships the workstation without legacy product paths', async ({ page }) => {
   await page.goto('/app.html');
-  await expect(page.getByRole('heading', { name: 'Open a Library.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Open a Library' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open folder' })).toBeVisible();
   await expect(page.getByRole('button', { name: /sample/i })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /choose a photo/i })).toHaveCount(0);
-  await expect(page.getByText(/no upload or runtime network request/i)).toBeVisible();
+  await expect(page.getByText(/no account or upload/i)).toBeVisible();
 });
 
 test('stays within the viewport at wide, medium, and 200 percent zoom widths', async ({ page }) => {

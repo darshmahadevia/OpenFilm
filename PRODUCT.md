@@ -43,6 +43,8 @@ keeps the photographer's decisions explicit and recoverable.
   documented validation gate can be met.
 - Export assumes sRGB, strips Source metadata, and makes no archival or print-fidelity promise.
 - RAW, HEIC/HEIF, TIFF, cloud sync, accounts, analytics, and cross-device Libraries are out of scope.
+- Installed builds may contact GitHub Releases for update checks and installer downloads. They ask
+  before downloading, and this network path never receives Source photographs or Library state.
 
 ## Brand commitments
 

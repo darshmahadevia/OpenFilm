@@ -69,6 +69,7 @@ test.describe('Library start and recovery journey', () => {
     expect(savedFile.library.schemaVersion).toBe(1);
     expect(savedFile.library.photographs).toEqual([]);
 
+    await page.locator('.workstation-more summary').click();
     await page.getByRole('button', { name: 'Libraries' }).click();
     await expect(page.getByText('ready', { exact: true }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Open Library' })).toBeVisible();
@@ -103,6 +104,7 @@ test.describe('Library start and recovery journey', () => {
       });
       database.close();
     });
+    await page.locator('.workstation-more summary').click();
     await page.getByRole('button', { name: 'Libraries' }).click();
     await expect(page.getByText('unsaved recovery', { exact: true }).first()).toBeVisible();
     await page.getByRole('button', { name: 'Open Library' }).click();
@@ -120,6 +122,7 @@ test.describe('Library start and recovery journey', () => {
       await writable.write(new TextEncoder().encode('{"not":"a Library"}'));
       await writable.close();
     });
+    await page.locator('.workstation-more summary').click();
     await page.getByRole('button', { name: 'Libraries' }).click();
     await expect(page.getByText('read only', { exact: true }).first()).toBeVisible();
     await page.getByRole('button', { name: 'Open Library' }).click();
@@ -325,6 +328,7 @@ test.describe('Library start and recovery journey', () => {
     await inspector.getByRole('button', { name: 'Close' }).click();
     await expect(editButton).toBeFocused();
 
+    await page.locator('.workstation-more summary').click();
     const groupsButton = page.getByRole('button', { name: 'Review groups' });
     await groupsButton.focus();
     await page.keyboard.press('Enter');

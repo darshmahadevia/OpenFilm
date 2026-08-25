@@ -17,8 +17,11 @@ colors:
   accent-dark: '#d5b784'
   accent-ink: '#0b0c0d'
   focus: '#e0c48f'
+  update: '#2563eb'
+  update-hover: '#1d4ed8'
   success: '#70d7a3'
   warning: '#f0bd69'
+  warning-surface: '#171109'
   danger: '#ffb59f'
 typography:
   display: 'OpenFilm Bodoni, Iowan Old Style, Times New Roman, serif'
@@ -91,7 +94,8 @@ The start surface does one job: create a Library, reopen a folder, or recover a 
 workstation then keeps this order stable:
 
 1. Library identity, save state, and Export in the top bar.
-2. Filters, ordering, Selection count, history, Edit, and shortcuts in the command strip.
+2. Ordering, Selection count, history, Edit, and Grid density in the command strip. Filters and
+   secondary Library actions stay in named disclosures until needed.
 3. Grid, Loupe, or Comparison in the central stage.
 4. Scan jobs and concise feedback at the lower edge.
 5. Inspector and sheets as true overlays, with contained focus and explicit Close actions.
@@ -121,6 +125,10 @@ Review groups and Export use the same full-height sheet vocabulary. Destructive 
 implications are stated before the action. Progress, cancellation, partial failure, and retry are
 visible text, never color alone.
 
+Desktop update notices sit above the lower-right edge without interrupting Library work. A blue
+button is reserved for downloading or opening an available app update; it does not replace sand for
+ordinary workstation actions. Download progress uses the same blue and includes a numeric label.
+
 ## Responsive behavior
 
 At wide widths the command surface is compact and the stage dominates. Below 900 CSS pixels,
@@ -134,8 +142,9 @@ interface is not ready and points them to the project. The macOS and Windows lin
 hidden desktop layout, so their platform-specific accessible names stay correct without adding
 unusable download actions to the smaller-screen view.
 
-Motion is functional and brief. With reduced motion enabled, transitions are removed without hiding
-state changes. The landing workstation frame's single vertical reveal is removed entirely under
+Motion is functional and brief. The landing hero has no looping film strip or pointer parallax. With
+reduced motion enabled, transitions are removed without hiding state changes. The landing
+workstation frame's single vertical reveal is removed entirely under
 `prefers-reduced-motion: reduce`; no state depends on the animation.
 
 **The Single Reveal Rule.** The landing hero may stage one vertical workstation entrance when motion
@@ -166,10 +175,11 @@ for those domain terms. Describe local behavior precisely; never imply cloud bac
 unsupported formats, universal performance, archival fidelity, or automatic quality judgment.
 
 Errors state the consequence and the next safe action. Empty states say which filter or Selection
-caused the result. Shortcuts remain discoverable through the `?` dialog as well as visible controls.
+caused the result. Shortcuts remain discoverable through the `?` key and the More menu.
 
 Landing copy may state only shipped facts: local folder references, durable Library sidecars, the
-supported JPEG / PNG / WebP boundary, the shared WebGL2 path, and the bounded download behavior.
+supported JPEG / PNG / WebP boundary, the shared WebGL2 path, bounded download behavior, and the
+GitHub Releases update check.
 Do not turn the page's atmospheric photography into a claim about product performance or quality.
 
 **The Local Fact Rule.** Every download-page claim must be traceable to the shipped workstation or

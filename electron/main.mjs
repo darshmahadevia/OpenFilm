@@ -1,7 +1,9 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, net, shell } from 'electron';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath, URL } from 'node:url';
+
+import { registerUpdater } from './updater.mjs';
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const isDevelopment = !app.isPackaged;
@@ -27,6 +29,12 @@ async function loadWorkstation(window) {
   });
 }
 
+function sendToRenderers(channel, state) {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) window.webContents.send(channel, state);
+  }
+}
+
 function createMainWindow() {
   const window = new BrowserWindow({
     width: 1440,
@@ -40,6 +48,7 @@ function createMainWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      preload: path.join(currentDirectory, 'preload.cjs'),
       sandbox: true,
       webviewTag: false,
     },
@@ -61,13 +70,22 @@ function createMainWindow() {
   void loadWorkstation(window);
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   app.setAboutPanelOptions({
     applicationName: 'OpenFilm',
     applicationVersion: app.getVersion(),
     copyright: 'OpenFilm is released under the MIT License.',
   });
+  const updater = registerUpdater({
+    app,
+    fetchImpl: (...arguments_) => net.fetch(...arguments_),
+    ipcMain,
+    openPath: (filePath) => shell.openPath(filePath),
+    platform: process.platform,
+    sendToRenderers,
+  });
   createMainWindow();
+  updater.schedule();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();

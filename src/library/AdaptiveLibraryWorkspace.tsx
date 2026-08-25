@@ -748,7 +748,15 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
       photograph.reconciliationCandidates.some((candidate) => typeof candidate === 'string'),
   );
   const saveStatus = statusLabel(props.snapshot.status);
+  const statusMessage = props.feedback ?? (message === 'The Library is Saved.' ? null : message);
   const canMutate = props.snapshot.status === 'saved' || props.snapshot.status === 'saving';
+  const activeFilterCount = [
+    context.filter.disposition,
+    context.filter.minimumRating,
+    context.filter.sourceState,
+    context.filter.unsupportedOnly,
+    context.filter.analysisComplete,
+  ].filter((value) => value !== undefined).length;
 
   async function commit(
     next: OpenFilmLibraryDocument,
@@ -1186,31 +1194,51 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
           >
             {saveStatus}
           </span>
-          <Button onClick={() => openSheet(() => setShowGroups(true))} size="small" variant="quiet">
-            Review groups
-          </Button>
-          <Button onClick={() => openSheet(() => setShowExport(true))} size="small" variant="quiet">
+          <Button
+            onClick={() => openSheet(() => setShowExport(true))}
+            size="small"
+            variant="primary"
+          >
             Export
           </Button>
-          <Button
-            disabled={
-              props.snapshot.scan.status === 'scanning' || props.snapshot.status !== 'saved'
-            }
-            onClick={props.onRefresh}
-            size="small"
-            variant="quiet"
-          >
-            Refresh
-          </Button>
-          <Button onClick={props.onClose} size="small" variant="quiet">
-            Libraries
-          </Button>
+          <details className="workstation-more">
+            <summary>More</summary>
+            <div>
+              <Button
+                onClick={() => openSheet(() => setShowGroups(true))}
+                size="small"
+                variant="quiet"
+              >
+                Review groups
+              </Button>
+              <Button
+                disabled={
+                  props.snapshot.scan.status === 'scanning' || props.snapshot.status !== 'saved'
+                }
+                onClick={props.onRefresh}
+                size="small"
+                variant="quiet"
+              >
+                Refresh
+              </Button>
+              <Button
+                onClick={() => openSheet(() => setShowShortcuts(true))}
+                size="small"
+                variant="quiet"
+              >
+                Keyboard shortcuts
+              </Button>
+              <Button onClick={props.onClose} size="small" variant="quiet">
+                Libraries
+              </Button>
+            </div>
+          </details>
         </div>
       </header>
 
       <div className="workstation-status-row" data-workstation-background>
         <p aria-live="polite" role="status">
-          {props.feedback ?? message}
+          {statusMessage}
         </p>
         <ScanSummary
           key={context.mode}
@@ -1222,95 +1250,116 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
       </div>
 
       <div className="workstation-toolbar" data-workstation-background>
-        <label>
-          Disposition
-          <select
-            aria-label="Disposition filter"
-            onChange={(event) =>
-              setFilter({
-                disposition: event.currentTarget.value
-                  ? (event.currentTarget.value as LibraryPhotographRecord['disposition'])
-                  : undefined,
-              })
-            }
-            value={context.filter.disposition ?? ''}
-          >
-            <option value="">All</option>
-            <option value="unmarked">Unmarked</option>
-            <option value="pick">Picks</option>
-            <option value="reject">Rejects</option>
-          </select>
-        </label>
-        <label>
-          Rating
-          <select
-            aria-label="Minimum Rating filter"
-            onChange={(event) =>
-              setFilter({
-                minimumRating: event.currentTarget.value
-                  ? Number(event.currentTarget.value)
-                  : undefined,
-              })
-            }
-            value={context.filter.minimumRating ?? ''}
-          >
-            <option value="">Any</option>
-            {[1, 2, 3, 4, 5].map((rating) => (
-              <option key={rating} value={rating}>
-                {rating}+ stars
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Source
-          <select
-            aria-label="Source state filter"
-            onChange={(event) => {
-              const value = event.currentTarget.value;
-              setFilter({
-                sourceState: value === 'available' || value === 'missing' ? value : undefined,
-                unsupportedOnly: value === 'unsupported' ? true : undefined,
-              });
-            }}
-            value={
-              context.filter.unsupportedOnly ? 'unsupported' : (context.filter.sourceState ?? '')
-            }
-          >
-            <option value="">All</option>
-            <option value="available">Available</option>
-            <option value="missing">Missing</option>
-            <option value="unsupported">Unsupported scan results</option>
-          </select>
-        </label>
-        <label>
-          Analysis
-          <select
-            aria-label="Analysis completion filter"
-            onChange={(event) =>
-              setFilter({
-                analysisComplete:
-                  event.currentTarget.value === 'complete'
-                    ? true
-                    : event.currentTarget.value === 'pending'
-                      ? false
+        <details className="workstation-filters">
+          <summary>Filters{activeFilterCount ? <span>{activeFilterCount}</span> : null}</summary>
+          <div className="workstation-filters__panel">
+            <label>
+              Disposition
+              <select
+                aria-label="Disposition filter"
+                onChange={(event) =>
+                  setFilter({
+                    disposition: event.currentTarget.value
+                      ? (event.currentTarget.value as LibraryPhotographRecord['disposition'])
                       : undefined,
-              })
-            }
-            value={
-              context.filter.analysisComplete === true
-                ? 'complete'
-                : context.filter.analysisComplete === false
-                  ? 'pending'
-                  : ''
-            }
-          >
-            <option value="">Any</option>
-            <option value="complete">Complete</option>
-            <option value="pending">Not complete</option>
-          </select>
-        </label>
-        <label>
+                  })
+                }
+                value={context.filter.disposition ?? ''}
+              >
+                <option value="">All</option>
+                <option value="unmarked">Unmarked</option>
+                <option value="pick">Picks</option>
+                <option value="reject">Rejects</option>
+              </select>
+            </label>
+            <label>
+              Rating
+              <select
+                aria-label="Minimum Rating filter"
+                onChange={(event) =>
+                  setFilter({
+                    minimumRating: event.currentTarget.value
+                      ? Number(event.currentTarget.value)
+                      : undefined,
+                  })
+                }
+                value={context.filter.minimumRating ?? ''}
+              >
+                <option value="">Any</option>
+                {[1, 2, 3, 4, 5].map((rating) => (
+                  <option key={rating} value={rating}>
+                    {rating}+ stars
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Source
+              <select
+                aria-label="Source state filter"
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setFilter({
+                    sourceState: value === 'available' || value === 'missing' ? value : undefined,
+                    unsupportedOnly: value === 'unsupported' ? true : undefined,
+                  });
+                }}
+                value={
+                  context.filter.unsupportedOnly
+                    ? 'unsupported'
+                    : (context.filter.sourceState ?? '')
+                }
+              >
+                <option value="">All</option>
+                <option value="available">Available</option>
+                <option value="missing">Missing</option>
+                <option value="unsupported">Unsupported scan results</option>
+              </select>
+            </label>
+            <label>
+              Analysis
+              <select
+                aria-label="Analysis completion filter"
+                onChange={(event) =>
+                  setFilter({
+                    analysisComplete:
+                      event.currentTarget.value === 'complete'
+                        ? true
+                        : event.currentTarget.value === 'pending'
+                          ? false
+                          : undefined,
+                  })
+                }
+                value={
+                  context.filter.analysisComplete === true
+                    ? 'complete'
+                    : context.filter.analysisComplete === false
+                      ? 'pending'
+                      : ''
+                }
+              >
+                <option value="">Any</option>
+                <option value="complete">Complete</option>
+                <option value="pending">Not complete</option>
+              </select>
+            </label>
+            {activeFilterCount ? (
+              <Button
+                onClick={() =>
+                  setContext((current) => ({
+                    ...current,
+                    filter: {},
+                  }))
+                }
+                size="small"
+                variant="quiet"
+              >
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+        </details>
+        <label className="workstation-order">
           Order
           <select
             aria-label="Library ordering"
@@ -1339,6 +1388,7 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
         <span aria-label={`Selection count: ${context.selection.length}`}>
           Selection {context.selection.length}
         </span>
+        <span className="workstation-toolbar__spacer" />
         <Button
           disabled={!props.historyStatus.canUndo}
           onClick={() => void undo()}
@@ -1363,13 +1413,20 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
         >
           Edit
         </Button>
-        <Button
-          onClick={() => openSheet(() => setShowShortcuts(true))}
-          size="small"
-          variant="quiet"
-        >
-          ?
-        </Button>
+        {context.mode === 'grid' ? (
+          <div className="library-grid-density" role="group" aria-label="Grid density">
+            {LIBRARY_GRID_DENSITIES.map((option) => (
+              <button
+                aria-pressed={density === option}
+                key={option}
+                onClick={() => setDensity(option)}
+                type="button"
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <section
@@ -1379,18 +1436,6 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
       >
         {context.mode === 'grid' ? (
           <>
-            <div className="library-grid-density" role="group" aria-label="Grid density">
-              {LIBRARY_GRID_DENSITIES.map((option) => (
-                <button
-                  aria-pressed={density === option}
-                  key={option}
-                  onClick={() => setDensity(option)}
-                  type="button"
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
             {ambiguousSources.length ? (
               <section aria-label="Source identity choices" className="reconciliation-banner">
                 {ambiguousSources.map((discovered) => (
@@ -1497,7 +1542,7 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
                 scrollRestoreRevision={gridRestoreRevision}
               />
             )}
-            {!context.filter.unsupportedOnly && visible.length === 0 ? (
+            {!context.filter.unsupportedOnly && photographs.length > 0 && visible.length === 0 ? (
               <p className="workstation-no-matches">
                 No more matches. Change the filter or undo the last review command.
               </p>

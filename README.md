@@ -51,11 +51,23 @@ universal macOS DMG and ZIP or an x64 Windows installer under `release/`.
 
 Pushing a `v*` tag runs verification, builds each package on its native GitHub runner, and publishes
 `OpenFilm.dmg`, `OpenFilm.zip`, and `OpenFilm-Setup.exe` in one GitHub Release. Stable asset names let
-the landing page use `/releases/latest/download/` links for both platforms.
+the landing page and desktop updater find the current platform package. Increment `package.json`
+before every release so the updater can distinguish versions.
 
 The current preview packages are unsigned. macOS Gatekeeper and Windows SmartScreen may require the
 user to confirm that they want to open the app. Production distribution should add Apple signing and
 notarization plus Windows code signing before removing the preview notice.
+
+## Desktop updates
+
+Installed builds from version 0.2.0 onward check GitHub Releases after startup and every four hours.
+When an update is available, OpenFilm asks before downloading it and reports progress. It then opens
+the DMG on macOS or launches the NSIS installer on Windows. Source photographs and Library state
+remain in their existing folder.
+
+The 0.1.0 app has no updater, so it needs one manual upgrade to 0.2.0 or later. The updater launches
+the platform installer instead of modifying the installed app, so it also works for unsigned preview
+packages. Gatekeeper or SmartScreen may still ask the user to confirm the installer.
 
 ## Verification
 
@@ -78,7 +90,8 @@ OpenFilm is a React and Vite application packaged in a sandboxed Electron shell.
 handles, IndexedDB working copies, Web Workers, and WebGL2 provide the local workspace; there is no
 application server. Source files stay in the selected folder and are read only when needed for
 metadata, visible derivatives, Loupe, or Export. Browser storage and sidecars are recovery
-mechanisms, not backups.
+mechanisms, not backups. The installed app contacts GitHub Releases only for update checks and
+installer downloads.
 
 See [architecture notes](./docs/architecture.md) and the [Library workspace contract](./docs/library-workspace.md).
 
@@ -87,8 +100,8 @@ See [architecture notes](./docs/architecture.md) and the [Library workspace cont
 The desktop shell uses Electron's bundled Chromium runtime on macOS and Windows. RAW, HEIC/HEIF,
 TIFF, archival color management, cloud sync, and cross-device Libraries are out of scope.
 Comparison intentionally uses bounded derivatives and labels that limitation. Similarity and
-sharpness analysis models exist
-behind tested module boundaries but are not exposed in the shipped interface because a suitable
+sharpness analysis models exist behind tested module boundaries but are not exposed in the shipped
+interface because a suitable
 rights-cleared validation corpus has not passed the documented quality gate.
 
 ## License

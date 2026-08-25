@@ -17,6 +17,7 @@ import {
   type LegacyMigrationState,
 } from './library/libraryMigration';
 import type { LibraryThumbnail } from './library/libraryThumbnail';
+import { DesktopUpdateNotice } from './updates/DesktopUpdateNotice';
 import {
   createBrowserStorage,
   createMemoryStorage,
@@ -126,16 +127,19 @@ function StartWorkspace({
       </header>
       <div className="library-start__body">
         <section aria-labelledby="library-start-title" className="library-start__intro">
-          <h1 id="library-start-title">Open a Library.</h1>
+          <h1 id="library-start-title">Open a Library</h1>
           <p>
-            Choose one shoot folder. OpenFilm references Source photographs in place and saves
-            review and Edit state in <code>.openfilm/library.json</code>.
+            Choose a shoot folder. Your Source photographs stay in place, and OpenFilm saves your
+            review beside them.
           </p>
-          <Button disabled={isOpening} onClick={onOpen} variant="primary">
-            {isOpening ? 'Opening Library…' : 'Open folder'}
-          </Button>
+          <div className="library-start__primary-action">
+            <Button disabled={isOpening} onClick={onOpen} variant="primary">
+              {isOpening ? 'Opening Library…' : 'Open folder'}
+            </Button>
+            <span>JPEG, PNG, or WebP</span>
+          </div>
           <p className="library-start__format-note">
-            JPEG, PNG, and WebP. Static, local-first, with no upload or runtime network request.
+            Library state is stored in <code>.openfilm/library.json</code>. No account or upload.
           </p>
         </section>
 
@@ -147,16 +151,13 @@ function StartWorkspace({
           {isLoading ? (
             <p className="library-recent__empty">Checking recent Libraries…</p>
           ) : recent.length === 0 ? (
-            <p className="library-recent__empty">
-              No recent Libraries. Open a folder to create one.
-            </p>
+            <p className="library-recent__empty">Recent Libraries will appear here.</p>
           ) : (
             <ul className="library-recent__list">
               {recent.map((entry) => (
                 <li className="library-recent__row" key={entry.libraryId}>
                   <div className="library-recent__identity">
                     <strong>{entry.rootName}</strong>
-                    <span>{entry.status.replaceAll('-', ' ')}</span>
                   </div>
                   <span className={`library-status library-status--${entry.status}`}>
                     {entry.status.replaceAll('-', ' ')}
@@ -372,103 +373,109 @@ export default function App() {
 
   if (!snapshot) {
     return (
-      <StartWorkspace
-        feedback={feedback}
-        isLoading={loading}
-        isOpening={opening}
-        migration={migration}
-        onOpen={() => void open(() => applicationRef.current!.openPickedFolder())}
-        onOpenRecent={(id) => void open(() => applicationRef.current!.openRecentLibrary(id))}
-        onReauthorize={(id) =>
-          void open(() => applicationRef.current!.reauthorizeRecentLibrary(id))
-        }
-        onResolveMigration={(action) => void resolveMigration(action)}
-        recent={recent}
-        storageAvailable={storageAvailable}
-      />
+      <>
+        <StartWorkspace
+          feedback={feedback}
+          isLoading={loading}
+          isOpening={opening}
+          migration={migration}
+          onOpen={() => void open(() => applicationRef.current!.openPickedFolder())}
+          onOpenRecent={(id) => void open(() => applicationRef.current!.openRecentLibrary(id))}
+          onReauthorize={(id) =>
+            void open(() => applicationRef.current!.reauthorizeRecentLibrary(id))
+          }
+          onResolveMigration={(action) => void resolveMigration(action)}
+          recent={recent}
+          storageAvailable={storageAvailable}
+        />
+        <DesktopUpdateNotice />
+      </>
     );
   }
 
   const application = applicationRef.current;
   return (
-    <AdaptiveLibraryWorkspace
-      customLooks={customLooks}
-      feedback={feedback}
-      historyStatus={historyStatus}
-      key={snapshot.libraryId ?? 'library'}
-      onCancelScan={() => application?.cancelScan()}
-      onClose={() => {
-        application?.close();
-        setSnapshot(null);
-        setFeedback(null);
-        void refreshRecent();
-      }}
-      onCommit={async (library, message) => {
-        if (!application) return false;
-        const result = await application.commitCommand(() => library, message);
-        await applyAction(Promise.resolve(result));
-        return result.kind === 'updated' && result.snapshot.status === 'saved';
-      }}
-      onLoadSource={loadSource}
-      onLoadComparisonThumbnail={loadComparisonThumbnail}
-      onLoadThumbnail={loadThumbnail}
-      onPickExportDestination={async () => {
-        if (!application) throw new Error('Open a Library first.');
-        return await application.pickExportDestination();
-      }}
-      onReauthorize={() => {
-        if (snapshot.libraryId && application)
-          void open(() => application.reauthorizeRecentLibrary(snapshot.libraryId!));
-      }}
-      onReauthorizeScan={async () => {
-        if (!snapshot.libraryId || !application) return;
-        const result = await application.reauthorizeRecentLibrary(snapshot.libraryId);
-        applyOpenResult(result);
-        if (result.kind === 'opened' && result.snapshot.status === 'saved') {
-          await application.scanLibrary(setSnapshot, { cacheContentHashes: true });
-        }
-        await refreshRecent();
-      }}
-      onReadExportFile={async (destination, path) => {
-        if (!application) throw new Error('Open a Library first.');
-        return await application.readExportFile(destination, path);
-      }}
-      onRenderExport={async (photograph, options, signal) => {
-        if (!application) throw new Error('Open a Library first.');
-        return await application.renderExportPhotograph(photograph, options, signal);
-      }}
-      onRedo={async () => {
-        if (!application) return false;
-        const result = await application.redo();
-        await applyAction(Promise.resolve(result));
-        return result.kind === 'updated' && result.snapshot.status === 'saved';
-      }}
-      onRefresh={() => {
-        if (application)
-          void application
-            .scanLibrary(setSnapshot, { cacheContentHashes: true })
-            .then(() => refreshRecent());
-      }}
-      onRevert={() => {
-        if (application) void applyAction(application.revert());
-      }}
-      onRetry={() => {
-        if (application) void applyAction(application.retry());
-      }}
-      onSaveCopy={() => {
-        if (application) void applyAction(application.saveCopy());
-      }}
-      onUndo={async () => {
-        if (!application) return false;
-        const result = await application.undo();
-        await applyAction(Promise.resolve(result));
-        return result.kind === 'updated' && result.snapshot.status === 'saved';
-      }}
-      onWriteExportFile={async (destination, path, bytes, options) => {
-        if (!application) throw new Error('Open a Library first.');
-        await application.writeExportFile(destination, path, bytes, options);
-      }}
-      snapshot={snapshot}
-    />
+    <>
+      <AdaptiveLibraryWorkspace
+        customLooks={customLooks}
+        feedback={feedback}
+        historyStatus={historyStatus}
+        key={snapshot.libraryId ?? 'library'}
+        onCancelScan={() => application?.cancelScan()}
+        onClose={() => {
+          application?.close();
+          setSnapshot(null);
+          setFeedback(null);
+          void refreshRecent();
+        }}
+        onCommit={async (library, message) => {
+          if (!application) return false;
+          const result = await application.commitCommand(() => library, message);
+          await applyAction(Promise.resolve(result));
+          return result.kind === 'updated' && result.snapshot.status === 'saved';
+        }}
+        onLoadSource={loadSource}
+        onLoadComparisonThumbnail={loadComparisonThumbnail}
+        onLoadThumbnail={loadThumbnail}
+        onPickExportDestination={async () => {
+          if (!application) throw new Error('Open a Library first.');
+          return await application.pickExportDestination();
+        }}
+        onReauthorize={() => {
+          if (snapshot.libraryId && application)
+            void open(() => application.reauthorizeRecentLibrary(snapshot.libraryId!));
+        }}
+        onReauthorizeScan={async () => {
+          if (!snapshot.libraryId || !application) return;
+          const result = await application.reauthorizeRecentLibrary(snapshot.libraryId);
+          applyOpenResult(result);
+          if (result.kind === 'opened' && result.snapshot.status === 'saved') {
+            await application.scanLibrary(setSnapshot, { cacheContentHashes: true });
+          }
+          await refreshRecent();
+        }}
+        onReadExportFile={async (destination, path) => {
+          if (!application) throw new Error('Open a Library first.');
+          return await application.readExportFile(destination, path);
+        }}
+        onRenderExport={async (photograph, options, signal) => {
+          if (!application) throw new Error('Open a Library first.');
+          return await application.renderExportPhotograph(photograph, options, signal);
+        }}
+        onRedo={async () => {
+          if (!application) return false;
+          const result = await application.redo();
+          await applyAction(Promise.resolve(result));
+          return result.kind === 'updated' && result.snapshot.status === 'saved';
+        }}
+        onRefresh={() => {
+          if (application)
+            void application
+              .scanLibrary(setSnapshot, { cacheContentHashes: true })
+              .then(() => refreshRecent());
+        }}
+        onRevert={() => {
+          if (application) void applyAction(application.revert());
+        }}
+        onRetry={() => {
+          if (application) void applyAction(application.retry());
+        }}
+        onSaveCopy={() => {
+          if (application) void applyAction(application.saveCopy());
+        }}
+        onUndo={async () => {
+          if (!application) return false;
+          const result = await application.undo();
+          await applyAction(Promise.resolve(result));
+          return result.kind === 'updated' && result.snapshot.status === 'saved';
+        }}
+        onWriteExportFile={async (destination, path, bytes, options) => {
+          if (!application) throw new Error('Open a Library first.');
+          await application.writeExportFile(destination, path, bytes, options);
+        }}
+        snapshot={snapshot}
+      />
+      <DesktopUpdateNotice />
+    </>
   );
 }

@@ -13,9 +13,12 @@
   --color-accent: #c6a36f;
   --color-accent-dark: #d5b784;
   --color-focus: #e0c48f;
+  --color-update: #2563eb;
+  --color-update-hover: #1d4ed8;
   --color-accent-ink: #0b0c0d;
   --color-success: #70d7a3;
   --color-warning: #f0bd69;
+  --color-warning-surface: #171109;
   --color-danger: #ffb59f;
 
   --font-display: 'OpenFilm Bodoni', 'Iowan Old Style', 'Times New Roman', serif;

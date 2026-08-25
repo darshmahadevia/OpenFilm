@@ -21,8 +21,8 @@ no accounts, uploads, analytics, testimonials, invented performance claims, or c
 
 Matte Proof Studio at editorial scale with a restrained kinetic-darkroom composition. A clean,
 tightly set sans serif now carries landing headings while Bodoni remains in the OpenFilm wordmark.
-The desktop hero pairs the factual local-first promise with a darkroom photograph, a moving film
-strip, pointer depth, and the real workstation entering at the fold. The visitor then sees
+The desktop hero pairs the factual local-first promise with a static darkroom photograph and the
+real workstation entering once at the fold. The visitor then sees
 workstation proof, the ordered Library workflow, local architecture, and one final image-led
 download. Photography remains the strongest material; near-black, warm white, fine rules, and one
 sand signal carry the OpenFilm identity.
@@ -32,8 +32,8 @@ sand signal carry the OpenFilm identity.
 - The site root is the download page; `app.html` remains the browser workstation and Electron entry.
 - At 1024 CSS pixels and below, the download page is replaced by a dedicated, image-led `Coming
 soon.` view for phone and tablet visitors.
-- Desktop motion uses one coordinated darkroom system: a film-strip loop, pointer depth, the
-  workstation entrance, and progressive scroll reveals. Reduced motion removes every authored move.
+- The hero removes the decorative film strip and pointer parallax. The workstation entrance remains
+  the single first-viewport reveal; reduced motion removes it.
 - Download links target the stable GitHub Release assets `OpenFilm.dmg` and
   `OpenFilm-Setup.exe`, with the unsigned preview status stated beside the actions.
 - The same real workstation screenshot supplies hero and detailed proof; no simulated product state

@@ -1,5 +1,3 @@
-import type { PointerEvent as ReactPointerEvent } from 'react';
-
 import workstationScreenshot from '../../docs/screenshots/openfilm-workstation-wide.png';
 import closingCoast from '../assets/openfilm-closing-coast.webp';
 import darkroomHero from '../assets/openfilm-darkroom-hero.webp';
@@ -64,28 +62,6 @@ function ReleaseLinks({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function FilmStrip() {
-  const frames = [
-    { alt: 'A darkroom print under warm light', src: darkroomHero },
-    { alt: 'A street photograph at dusk', src: comparisonStreet },
-    { alt: 'A quiet coast under an open sky', src: closingCoast },
-    { alt: 'A coastal valley in soft morning light', src: coastalValley },
-  ];
-
-  return (
-    <div aria-hidden="true" className="landing-film-strip">
-      <div className="landing-film-strip__track">
-        {[...frames, ...frames].map((frame, index) => (
-          <figure key={`${frame.src}-${index}`}>
-            <span>{String((index % frames.length) + 1).padStart(2, '0')}</span>
-            <img alt="" src={frame.src} />
-          </figure>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function ComingSoon() {
   return (
     <main className="landing-coming-soon">
@@ -111,20 +87,6 @@ function ComingSoon() {
 }
 
 export default function Landing() {
-  function moveHero(event: ReactPointerEvent<HTMLElement>) {
-    if (event.pointerType === 'touch') return;
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const x = (event.clientX - bounds.left) / bounds.width - 0.5;
-    const y = (event.clientY - bounds.top) / bounds.height - 0.5;
-    event.currentTarget.style.setProperty('--pointer-x', x.toFixed(3));
-    event.currentTarget.style.setProperty('--pointer-y', y.toFixed(3));
-  }
-
-  function resetHero(event: ReactPointerEvent<HTMLElement>) {
-    event.currentTarget.style.setProperty('--pointer-x', '0');
-    event.currentTarget.style.setProperty('--pointer-y', '0');
-  }
-
   return (
     <div className="landing-page">
       <ComingSoon />
@@ -146,12 +108,7 @@ export default function Landing() {
         </header>
 
         <main id="main-content">
-          <section
-            className="landing-hero"
-            id="top"
-            onPointerLeave={resetHero}
-            onPointerMove={moveHero}
-          >
+          <section className="landing-hero" id="top">
             <div className="landing-hero__photograph" aria-hidden="true">
               <img alt="" src={darkroomHero} />
             </div>
@@ -187,12 +144,6 @@ export default function Landing() {
                 src={workstationScreenshot}
               />
             </figure>
-
-            <div className="landing-hero__meta" aria-hidden="true">
-              <span>OPENFILM / 0.1</span>
-              <span>LOCAL WORKSTATION</span>
-            </div>
-            <FilmStrip />
           </section>
 
           <section aria-label="Product facts" className="landing-facts">
@@ -281,9 +232,9 @@ export default function Landing() {
             <div className="landing-local__copy">
               <h2>Your files never need to leave the machine.</h2>
               <p>
-                OpenFilm has no account system, application backend, analytics, or runtime network
-                request. It reads Source photographs only for metadata, a visible derivative, Loupe,
-                or Export.
+                OpenFilm has no account system, application backend, or analytics. The installed app
+                contacts GitHub Releases only to check for updates. Source photographs are read only
+                for metadata, a visible derivative, Loupe, or Export.
               </p>
               <dl>
                 <div>

@@ -5,12 +5,14 @@ import App from './App';
 describe('OpenFilm workstation entry', () => {
   it('starts at the local Library workspace with no legacy editor or marketing path', async () => {
     render(<App />);
-    expect(screen.getByRole('heading', { name: 'Open a Library.' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Open a Library' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open folder' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Recent Libraries' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /sample/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /choose a photo/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/no upload or runtime network request/i)).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText(/No recent Libraries/)).toBeInTheDocument());
+    expect(screen.getByText(/no account or upload/i)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(/Recent Libraries will appear here/)).toBeInTheDocument(),
+    );
   });
 });
