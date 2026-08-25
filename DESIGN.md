@@ -25,7 +25,7 @@ colors:
   danger: '#ffb59f'
 typography:
   display: 'OpenFilm Bodoni, Iowan Old Style, Times New Roman, serif'
-  heading: 'OpenFilm Bodoni, Iowan Old Style, Times New Roman, serif'
+  heading: 'Helvetica Neue, Avenir Next, Helvetica, Arial, sans-serif'
   interface: 'Helvetica Neue, Helvetica, Arial, sans-serif'
   numeric: 'tabular-nums'
 rounded:
@@ -52,7 +52,8 @@ the workstation itself keeps actions compact and task-specific.
 **Key Characteristics:**
 
 - Matte near-black chrome, warm-white type, fine rules, and a restrained sand signal.
-- OpenFilm Bodoni display paired with Helvetica Neue interface copy and tabular numeric values.
+- OpenFilm Bodoni wordmark paired with Helvetica Neue headings, interface copy, and tabular numeric
+  values.
 - Photograph-first proof: real workstation screenshots and grounded photographic assets carry the
   visual authority.
 - Compact, precise workstation controls extended to the landing page at editorial scale.
@@ -152,11 +153,11 @@ is allowed; reduced motion removes it rather than replacing it with another effe
 
 ## Type, color, and depth
 
-OpenFilm Bodoni is reserved for the compact Library heading in the workstation and extends to the
-landing promise, section, and closing headings. Interface copy uses Helvetica Neue with system
-fallbacks. Primary text is warm white; muted gray is supporting information; sand indicates focus,
-Selection, direct manipulation, and the landing download action. Green, amber, and coral are
-status-only.
+OpenFilm Bodoni is reserved for the wordmark and compact Library heading in the workstation.
+Landing, download, section, and closing headings use a tightly set Helvetica Neue with system
+fallbacks. Interface copy uses the same sans-serif family at a smaller scale. Primary text is warm
+white; muted gray is supporting information; sand indicates focus, Selection, direct manipulation,
+and the landing download action. Green, amber, and coral are status-only.
 
 **The One Signal Rule.** Sand is a functional signal for action, focus, Selection, and direct
 manipulation, not a decorative wash; status colors remain status-only.
@@ -212,8 +213,8 @@ source of truth remains `src/ui/tokens.css`.
 
 - **Do** make a real photograph the strongest object in the landing first viewport, workstation
   proof, and final CTA.
-- **Do** keep the near-black ground, warm-white type, fine rules, OpenFilm Bodoni display, and one
-  restrained sand interaction signal across workstation and download surfaces.
+- **Do** keep the near-black ground, warm-white type, fine rules, Bodoni wordmark, precise sans-serif
+  headings, and one restrained sand interaction signal across workstation and download surfaces.
 - **Do** make local behavior, Library durability, recovery, and export language plain and visible.
 - **Do** preserve the landing reading order: download, proof, workflow, local architecture, final
   download.

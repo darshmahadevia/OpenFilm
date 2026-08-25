@@ -8,6 +8,7 @@
 :root {
   color-scheme: dark;
   background: #050505;
+  --landing-display: 'Helvetica Neue', 'Avenir Next', Helvetica, Arial, sans-serif;
   --landing-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 * {
@@ -142,15 +143,16 @@ img {
 .download-notes h2,
 .download-proof h2 {
   margin: 0;
-  font-family: var(--font-display);
-  font-weight: 400;
-  letter-spacing: -0.035em;
-  line-height: 0.98;
+  font-family: var(--landing-display);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 0.92;
   text-wrap: balance;
 }
 .landing-hero h1 {
   max-width: 10.5ch;
   font-size: clamp(3.4rem, 5.6vw, 5.75rem);
+  line-height: 0.88;
 }
 .landing-hero__copy > p {
   max-width: 34rem;
@@ -585,9 +587,10 @@ img {
 }
 .download-option h2 {
   margin: 0;
-  font-family: var(--font-display);
+  font-family: var(--landing-display);
   font-size: clamp(1.8rem, 2.5vw, 2.6rem);
-  font-weight: 400;
+  font-weight: 500;
+  letter-spacing: -0.03em;
 }
 .recommended-label {
   color: var(--color-accent);
