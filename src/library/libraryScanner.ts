@@ -219,6 +219,14 @@ function upsertPhotographRecord(
     };
   }
 
+  const changedAtSamePath = existingPhotographs.some(
+    (record) => !claimedIds.has(record.id) && record.relativePath === source.relativePath,
+  );
+  if (changedAtSamePath) {
+    const created = createPhotographRecord(source, mimeType, metadata, fingerprint, createRecordId);
+    return { photographs: [...photographs, created], recordId: created.id };
+  }
+
   const hash = fingerprint.contentHash;
   const moveCandidates = hash
     ? existingPhotographs.filter(

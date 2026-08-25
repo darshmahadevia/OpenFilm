@@ -72,4 +72,24 @@ describe('Library work scheduler', () => {
     ).rejects.toThrow(/stale/);
     scheduler.dispose();
   });
+
+  it('bounds queued work and admits higher priority by releasing background work', async () => {
+    const scheduler = new LibraryWorkScheduler(1, 2);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const running = scheduler.enqueue('scan', async () => await gate);
+    const evictedBackground = scheduler.enqueue('background', async () => undefined);
+    const remainingBackground = scheduler.enqueue('background', async () => undefined);
+    const active = scheduler.enqueue('active-comparison', async () => 'active');
+
+    const eviction = expect(evictedBackground).rejects.toThrow(/queue pressure/);
+    expect(scheduler.snapshot()).toMatchObject({ queueLimit: 2, queued: 2 });
+    release();
+    await eviction;
+    await expect(active).resolves.toBe('active');
+    await Promise.all([running, remainingBackground]);
+    scheduler.dispose();
+  });
 });

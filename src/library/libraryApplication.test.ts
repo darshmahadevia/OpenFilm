@@ -92,6 +92,7 @@ describe('Library application boundary', () => {
     }
 
     expect(opened.snapshot.status).toBe('saved');
+    expect(opened.created).toBe(true);
     expect(opened.snapshot.library?.photographs).toEqual([]);
     expect(directory.store.bytes('library.json')).not.toBeNull();
 
@@ -105,6 +106,7 @@ describe('Library application boundary', () => {
     app.close();
     const reopened = await app.openRecentLibrary(opened.snapshot.libraryId ?? '');
     expect(reopened).toMatchObject({
+      created: false,
       kind: 'opened',
       snapshot: { libraryId: opened.snapshot.libraryId, status: 'saved' },
     });
@@ -336,6 +338,85 @@ describe('Library application boundary', () => {
     const bytes = directory.store.bytes('library.json');
     expect(bytes).not.toBeNull();
     await expect(verifySerializedLibraryFile(bytes!)).resolves.toMatchObject({ revision: 4 });
+  });
+
+  it('serializes rapid undo and redo behind the durable command queue', async () => {
+    const { app } = createApplication();
+    await app.openPickedFolder();
+    await app.commitCommand((document) => ({ ...document, reviewNote: 'queued' }), 'Saved review.');
+
+    const undo = app.undo();
+    const redo = app.redo();
+    await expect(undo).resolves.toMatchObject({ kind: 'updated' });
+    await expect(redo).resolves.toMatchObject({ kind: 'updated' });
+    expect(app.snapshot()?.library).toHaveProperty('reviewNote', 'queued');
+  });
+
+  it('renders Export work through the application scheduler boundary', async () => {
+    const directory = createDirectory('Export shoot');
+    directory.sourceFiles = [
+      {
+        file: new File(['source'], 'frame.jpg', { type: 'image/jpeg' }),
+        relativePath: 'frame.jpg',
+      },
+    ];
+    const renderExport = vi.fn(async () => new Blob(['rendered'], { type: 'image/jpeg' }));
+    const app = new LibraryApplication(createGateway(directory), createMemoryStorage(), {
+      lock: createMemoryLibraryLock(),
+      now: () => 100,
+      renderExport,
+    });
+    await app.openPickedFolder();
+
+    await expect(
+      app.renderExportPhotograph(
+        {
+          cameraSerial: null,
+          captureTime: null,
+          disposition: 'pick',
+          fileName: 'frame.jpg',
+          fingerprint: { byteSize: 6, lastModified: 0 },
+          id: 'frame',
+          mimeType: 'image/jpeg',
+          orientation: null,
+          rating: null,
+          relativePath: 'frame.jpg',
+          sourceState: 'available',
+        },
+        { format: 'jpeg', quality: 0.9 },
+      ),
+    ).resolves.toBeInstanceOf(Blob);
+    expect(renderExport).toHaveBeenCalledOnce();
+    expect(app.resourceStatus()?.fullResolutionReads).toBe(1);
+  });
+
+  it('reuses Grid derivatives under an observable byte budget and releases them on close', async () => {
+    const directory = createDirectory('Cached shoot');
+    directory.sourceFiles = [
+      {
+        file: new File(['source'], 'frame.jpg', { type: 'image/jpeg' }),
+        relativePath: 'frame.jpg',
+      },
+    ];
+    const gateway = createGateway(directory);
+    const readSource = vi.spyOn(gateway, 'readSourcePhotograph');
+    const createObjectUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:cached');
+    const revokeObjectUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const app = new LibraryApplication(gateway, createMemoryStorage(), {
+      lock: createMemoryLibraryLock(),
+      now: () => 100,
+    });
+    await app.openPickedFolder();
+
+    await app.loadLibraryThumbnail('frame.jpg', 640);
+    await app.loadLibraryThumbnail('frame.jpg', 640);
+
+    expect(readSource).toHaveBeenCalledOnce();
+    expect(app.resourceStatus()?.thumbnailCache).toMatchObject({ count: 1, bytes: 6 });
+    app.close();
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:cached');
+    createObjectUrl.mockRestore();
+    revokeObjectUrl.mockRestore();
   });
 
   it('blocks another command while a failed command waits for Retry', async () => {

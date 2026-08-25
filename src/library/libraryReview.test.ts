@@ -1,4 +1,8 @@
-import { createEmptyLibraryDocument, type LibraryPhotographRecord } from './libraryModel';
+import {
+  createEmptyLibraryDocument,
+  type LibraryPhotographRecord,
+  type OpenFilmLibraryDocument,
+} from './libraryModel';
 import {
   applyLibraryReviewCommand,
   copyActiveLookToSelection,
@@ -93,5 +97,33 @@ describe('Library review commands', () => {
     });
     expect(getLibraryEdit(copied.photographs[2]).adjustments.exposure).toBe(1.25);
     expect(document.photographs[1]).not.toHaveProperty('edit');
+  });
+
+  it('rejects an empty, stale, or Look-less Selection without changing the Library', () => {
+    const document = library();
+    expect(() => copyActiveLookToSelection(document, '1', ['2'])).toThrow(/current Look/);
+    const withLook = updateLibraryEdit(document, '1', (edit) => edit);
+    expect(() => copyActiveLookToSelection(withLook, '1', [])).toThrow(/Select at least one/);
+    expect(() => copyActiveLookToSelection(withLook, '1', ['missing'])).toThrow(/no longer/);
+    expect(document.photographs.every((item) => !item.edit)).toBe(true);
+  });
+
+  it('copies one Look atomically across a large Selection', () => {
+    let document: OpenFilmLibraryDocument = {
+      ...createEmptyLibraryDocument('Large review'),
+      photographs: Array.from({ length: 500 }, (_, index) => photograph(String(index))),
+    };
+    document = updateLibraryEdit(document, '0', (edit) => ({
+      ...edit,
+      adjustments: { ...edit.adjustments, exposure: 1.5 },
+    }));
+    const selection = document.photographs.slice(1).map((item) => item.id);
+    const copied = copyActiveLookToSelection(document, '0', selection);
+    expect(
+      copied.photographs
+        .slice(1)
+        .every((item) => getLibraryEdit(item).adjustments.exposure === 1.5),
+    ).toBe(true);
+    expect(document.photographs[1].edit).toBeUndefined();
   });
 });

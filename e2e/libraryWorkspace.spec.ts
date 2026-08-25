@@ -280,6 +280,23 @@ test.describe('Library start and recovery journey', () => {
 
     await page.keyboard.press('Enter');
     await expect(page.getByLabel('Nearby photographs')).toBeVisible();
+    const sourceDimensions = await page.evaluate(async () => {
+      const root = await navigator.storage.getDirectory();
+      const file = await (await root.getFileHandle('fifth.jpg')).getFile();
+      const bitmap = await createImageBitmap(file);
+      const dimensions = { height: bitmap.height, width: bitmap.width };
+      bitmap.close();
+      return dimensions;
+    });
+    await page.getByRole('button', { name: '100%' }).click();
+    await expect
+      .poll(() =>
+        page.getByLabel(/Rendered Edit/).evaluate((canvas) => ({
+          height: (canvas as HTMLCanvasElement).clientHeight,
+          width: (canvas as HTMLCanvasElement).clientWidth,
+        })),
+      )
+      .toEqual(sourceDimensions);
     await page.keyboard.press('Escape');
     await expect(page.getByRole('grid', { name: 'Library Grid' })).toBeVisible();
 
@@ -289,6 +306,13 @@ test.describe('Library start and recovery journey', () => {
     await expect(page.getByLabel(/Selection count: 2/)).toBeVisible();
     await page.keyboard.press('c');
     await expect(page.locator('.comparison-pane')).toHaveCount(2);
+    await expect(page.locator('.comparison-pane canvas')).toHaveCount(2);
+    await page.locator('.comparison-pane canvas').first().dispatchEvent('webglcontextlost');
+    await expect(page.getByText('Graphics context lost').first()).toBeVisible();
+    await page.locator('.comparison-pane canvas').first().dispatchEvent('webglcontextrestored');
+    await expect(page.getByText('Graphics context lost')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Source', pressed: false }).click();
+    await expect(page.getByText(/Source derivative/).first()).toBeVisible();
     await page.keyboard.press('Escape');
 
     const editButton = page.getByRole('button', { name: 'Edit' });
@@ -322,6 +346,16 @@ test.describe('Library start and recovery journey', () => {
     await expect(exportDialog.locator('.export-manifest-preview li')).toHaveCount(2);
     await page.keyboard.press('Escape');
     await expect(exportButton).toBeFocused();
+
+    await page.evaluate(async () => {
+      const root = await navigator.storage.getDirectory();
+      await root.removeEntry('fifth.jpg');
+    });
+    await page.getByRole('button', { name: 'Refresh' }).click();
+    await expect(page.getByLabel('Background jobs: complete')).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /fifth\.jpg.*Missing photograph/ }),
+    ).toBeVisible();
 
     const results = await new AxeBuilder({ page }).analyze();
     expect(results.violations).toEqual([]);

@@ -115,4 +115,40 @@ describe('browser Library gateway', () => {
       type: 'image/jpeg',
     });
   });
+
+  it('serializes no-overwrite Export writes so concurrent callers cannot claim one path', async () => {
+    let exists = false;
+    const writable = {
+      abort: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      write: vi.fn(async () => undefined),
+    };
+    const file = {
+      createWritable: vi.fn(async () => writable),
+      getFile: vi.fn(),
+      isSameEntry: vi.fn(),
+      kind: 'file' as const,
+      name: 'frame.jpg',
+    } as unknown as FileSystemFileHandle;
+    const root = createDirectoryHandle('Export') as unknown as FileSystemDirectoryHandle & {
+      getFileHandle: ReturnType<typeof vi.fn>;
+    };
+    root.getFileHandle = vi.fn(async (_name: string, options?: { create?: boolean }) => {
+      if (!options?.create && !exists) {
+        throw Object.assign(new Error('Missing'), { name: 'NotFoundError' });
+      }
+      if (options?.create) exists = true;
+      return file;
+    });
+    const gateway = createBrowserLibraryDirectoryGateway()!;
+
+    const results = await Promise.allSettled([
+      gateway.writeExportFile!(root, 'frame.jpg', new Uint8Array([1])),
+      gateway.writeExportFile!(root, 'frame.jpg', new Uint8Array([2])),
+    ]);
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    expect(writable.write).toHaveBeenCalledOnce();
+  });
 });

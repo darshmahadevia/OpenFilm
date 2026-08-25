@@ -1,6 +1,6 @@
 import { neutralAdjustments } from '../editor/adjustments';
 import { createEditHistory } from '../editor/editHistory';
-import { inspectLegacyState, resolveLegacyMigration } from './libraryMigration';
+import { importLegacyLooks, inspectLegacyState, resolveLegacyMigration } from './libraryMigration';
 
 describe('v1 migration', () => {
   it('keeps valid Looks and quarantines a recoverable Edit until an explicit resolution', () => {
@@ -42,5 +42,23 @@ describe('v1 migration', () => {
 
   it('does not invent a migration on a clean upgrade', () => {
     expect(inspectLegacyState([], null, null).kind).toBe('clean');
+  });
+
+  it('imports every validated Look through the v2 storage boundary', async () => {
+    const look = {
+      adjustments: neutralAdjustments,
+      createdAt: 1,
+      description: 'Warm portrait preset',
+      id: 'look-1',
+      title: 'Portra',
+      updatedAt: 1,
+    };
+    const migration = inspectLegacyState([look], null, null);
+    const saveCustomLook = vi.fn(async () => undefined);
+
+    await expect(importLegacyLooks(migration, { saveCustomLook })).resolves.toMatchObject([
+      { id: 'look-1', title: 'Portra' },
+    ]);
+    expect(saveCustomLook).toHaveBeenCalledWith(expect.objectContaining({ id: 'look-1' }));
   });
 });

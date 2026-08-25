@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { neutralAdjustments } from '../editor/adjustments';
 
 import {
   AdaptiveLibraryWorkspace,
@@ -30,25 +31,29 @@ function props(
     photographs: [photo('1'), photo('2'), photo('3')],
   };
   return {
+    customLooks: [],
     feedback: null,
     historyStatus: { canRedo: false, canUndo: false },
     onCancelScan: vi.fn(),
     onClose: vi.fn(),
-    onCommit: vi.fn(async () => undefined),
+    onCommit: vi.fn(async () => true),
     onLoadSource: vi.fn(async () => new File(['image'], 'photo.jpg', { type: 'image/jpeg' })),
+    onLoadComparisonThumbnail: vi.fn(() => new Promise<never>(() => undefined)),
     onLoadThumbnail: vi.fn(() => new Promise<never>(() => undefined)),
     onPickExportDestination: vi.fn(async () => ({
       handle: {} as FileSystemDirectoryHandle,
       paths: [],
     })),
     onReadExportFile: vi.fn(async () => null),
+    onRenderExport: vi.fn(async () => new Blob()),
     onReauthorize: vi.fn(),
-    onRedo: vi.fn(async () => undefined),
+    onReauthorizeScan: vi.fn(async () => undefined),
+    onRedo: vi.fn(async () => true),
     onRefresh: vi.fn(),
     onRevert: vi.fn(),
     onRetry: vi.fn(),
     onSaveCopy: vi.fn(),
-    onUndo: vi.fn(async () => undefined),
+    onUndo: vi.fn(async () => true),
     onWriteExportFile: vi.fn(async () => undefined),
     snapshot: {
       library,
@@ -116,7 +121,9 @@ describe('Adaptive Library workstation', () => {
     render(<AdaptiveLibraryWorkspace {...options} />);
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.click(screen.getByRole('button', { name: 'Curve' }));
-    fireEvent.change(screen.getByRole('slider', { name: 'Midtone output' }), {
+    const midtone = screen.getByRole('slider', { name: 'Midtone output' });
+    expect(midtone).toHaveValue('0.5');
+    fireEvent.change(midtone, {
       target: { value: '0.63' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Geometry' }));
@@ -144,5 +151,62 @@ describe('Adaptive Library workstation', () => {
       'role',
       'status',
     );
+  });
+
+  it('restores Grid scroll context after Loupe and bounds the nearby filmstrip', () => {
+    const options = props();
+    const many = Array.from({ length: 100 }, (_, index) => photo(String(index).padStart(3, '0')));
+    options.snapshot = {
+      ...options.snapshot,
+      library: { ...options.snapshot.library!, photographs: many },
+    };
+    render(<AdaptiveLibraryWorkspace {...options} />);
+    const grid = screen.getByRole('grid', { name: 'Library Grid' });
+    Object.defineProperty(grid, 'scrollTop', { configurable: true, value: 600, writable: true });
+    fireEvent.scroll(grid);
+    fireEvent.keyDown(screen.getByRole('main'), { key: 'Enter' });
+    expect(
+      screen.getByLabelText('Nearby photographs').querySelectorAll('button').length,
+    ).toBeLessThanOrEqual(21);
+    fireEvent.keyDown(screen.getByRole('main'), { key: 'Escape' });
+    expect(screen.getByRole('grid', { name: 'Library Grid' }).scrollTop).toBe(600);
+  });
+
+  it('exposes imported legacy Looks as usable inspector actions', async () => {
+    const options = props({
+      customLooks: [
+        {
+          adjustments: {
+            ...neutralAdjustments,
+            exposure: 1,
+          },
+          createdAt: 1,
+          description: '',
+          id: 'legacy-look',
+          title: 'Legacy Portra',
+          updatedAt: 1,
+        },
+      ],
+    });
+    render(<AdaptiveLibraryWorkspace {...options} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Looks' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Legacy Portra' }));
+    await waitFor(() => expect(options.onCommit).toHaveBeenCalled());
+  });
+
+  it('offers reauthorization and resume when Refresh loses folder permission', () => {
+    const options = props();
+    options.snapshot = {
+      ...options.snapshot,
+      scan: {
+        ...options.snapshot.scan,
+        error: 'OpenFilm lost permission to read the Library folder.',
+        status: 'failed',
+      },
+    };
+    render(<AdaptiveLibraryWorkspace {...options} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Reauthorize and resume' }));
+    expect(options.onReauthorizeScan).toHaveBeenCalledOnce();
   });
 });

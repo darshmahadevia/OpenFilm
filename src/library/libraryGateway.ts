@@ -20,6 +20,48 @@ type IterableDirectoryHandle = FileSystemDirectoryHandle & {
   entries: () => AsyncIterableIterator<[string, FileSystemHandle]>;
 };
 
+const exportWriteTails = new WeakMap<FileSystemDirectoryHandle, Map<string, Promise<void>>>();
+
+async function serializeExportWriteLocally<T>(
+  root: FileSystemDirectoryHandle,
+  relativePath: string,
+  write: () => Promise<T>,
+): Promise<T> {
+  let rootTails = exportWriteTails.get(root);
+  if (!rootTails) {
+    rootTails = new Map();
+    exportWriteTails.set(root, rootTails);
+  }
+  const previous = rootTails.get(relativePath) ?? Promise.resolve();
+  const task = previous.then(write, write);
+  const tail = task.then(
+    () => undefined,
+    () => undefined,
+  );
+  rootTails.set(relativePath, tail);
+  try {
+    return await task;
+  } finally {
+    if (rootTails.get(relativePath) === tail) rootTails.delete(relativePath);
+  }
+}
+
+async function serializeExportWrite<T>(
+  root: FileSystemDirectoryHandle,
+  relativePath: string,
+  write: () => Promise<T>,
+): Promise<T> {
+  const run = async () => await serializeExportWriteLocally(root, relativePath, write);
+  const locks = typeof navigator === 'undefined' ? undefined : navigator.locks;
+  return locks
+    ? await locks.request(
+        `openfilm-export:${root.name}:${relativePath}`,
+        { mode: 'exclusive' },
+        run,
+      )
+    : await run();
+}
+
 export type LibraryDirectoryAvailability = 'available' | 'missing' | 'permission-denied';
 
 export interface LibrarySourceFile {
@@ -278,32 +320,34 @@ export function createBrowserLibraryDirectoryGateway(): LibraryDirectoryGateway 
       }
     },
     async writeExportFile(root, relativePath, bytes, options) {
-      const parts = normalizeRelativePath(relativePath);
-      let directory = root;
-      for (const part of parts.slice(0, -1))
-        directory = await directory.getDirectoryHandle(part, { create: true });
-      if (!options?.overwrite) {
-        try {
-          await directory.getFileHandle(parts.at(-1)!, { create: false });
-          throw new LibraryGatewayError(
-            'different-folder',
-            `Export stopped because ${relativePath} already exists.`,
-          );
-        } catch (error) {
-          if (!isDomException(error, 'NotFoundError')) throw error;
+      await serializeExportWrite(root, relativePath, async () => {
+        const parts = normalizeRelativePath(relativePath);
+        let directory = root;
+        for (const part of parts.slice(0, -1))
+          directory = await directory.getDirectoryHandle(part, { create: true });
+        if (!options?.overwrite) {
+          try {
+            await directory.getFileHandle(parts.at(-1)!, { create: false });
+            throw new LibraryGatewayError(
+              'different-folder',
+              `Export stopped because ${relativePath} already exists.`,
+            );
+          } catch (error) {
+            if (!isDomException(error, 'NotFoundError')) throw error;
+          }
         }
-      }
-      const handle = await directory.getFileHandle(parts.at(-1)!, { create: true });
-      const writable = await handle.createWritable({ keepExistingData: false });
-      try {
-        await writable.write(
-          bytes instanceof Uint8Array ? (bytes.slice().buffer as ArrayBuffer) : bytes,
-        );
-        await writable.close();
-      } catch (error) {
-        await writable.abort();
-        throwDirectoryError(error);
-      }
+        const handle = await directory.getFileHandle(parts.at(-1)!, { create: true });
+        const writable = await handle.createWritable({ keepExistingData: false });
+        try {
+          await writable.write(
+            bytes instanceof Uint8Array ? (bytes.slice().buffer as ArrayBuffer) : bytes,
+          );
+          await writable.close();
+        } catch (error) {
+          await writable.abort();
+          throwDirectoryError(error);
+        }
+      });
     },
     async readSourcePhotograph(root, relativePath) {
       const parts = normalizeRelativePath(relativePath);

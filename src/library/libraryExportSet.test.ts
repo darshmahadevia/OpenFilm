@@ -81,4 +81,24 @@ describe('resumable final-set Export', () => {
       }).entries[0].state,
     ).toBe('pending');
   });
+
+  it('rejects a resume manifest when any required entry binding is missing', () => {
+    const manifest = createExportPlan([photo('1', 'frame.jpg')], {
+      existingDestinationPaths: new Set(),
+      format: 'jpeg',
+      preserveSourceFolders: false,
+      quality: 0.9,
+    });
+    for (const field of [
+      'failure',
+      'format',
+      'outputChecksum',
+      'quality',
+      'sourceFingerprint',
+    ] as const) {
+      const invalid = JSON.parse(JSON.stringify(manifest));
+      delete invalid.entries[0][field];
+      expect(isFinalSetExportManifest(invalid), field).toBe(false);
+    }
+  });
 });

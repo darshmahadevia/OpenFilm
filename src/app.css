@@ -492,7 +492,7 @@ code {
 }
 .library-grid__cell--missing,
 .library-grid__cell:has(.library-grid__state:first-child) {
-  opacity: 0.65;
+  background: #151412;
 }
 .library-grid__photograph {
   width: 100%;
@@ -520,7 +520,7 @@ code {
   object-fit: contain;
 }
 .library-grid__placeholder {
-  color: var(--color-muted);
+  color: var(--color-ink);
   font-size: var(--type-caption);
 }
 .library-grid__metadata {
@@ -591,8 +591,8 @@ code {
   background: #000;
 }
 .library-photo-view canvas {
-  width: min(100%, calc(100% * var(--library-photo-zoom)));
-  height: min(100%, calc(100% * var(--library-photo-zoom)));
+  width: var(--library-photo-width);
+  height: var(--library-photo-height);
   display: block;
 }
 .library-photo-view__message {
@@ -658,7 +658,8 @@ code {
   overflow: hidden;
   background: #000;
 }
-.comparison-pane__image img {
+.comparison-pane__image img,
+.comparison-pane__image canvas {
   width: 100%;
   height: 100%;
   object-fit: contain;

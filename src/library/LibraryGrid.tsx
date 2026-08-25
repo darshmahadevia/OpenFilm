@@ -19,15 +19,19 @@ interface GridGeometry {
 interface LibraryGridProps {
   activePhotographId: string | null;
   density: LibraryGridDensity;
+  initialScrollTop?: number;
   onActivate: (photographId: string) => void;
   onLoadThumbnail: (
     relativePath: string,
     maxWidth: number,
     signal?: AbortSignal,
+    cacheRevision?: string,
   ) => Promise<LibraryThumbnail>;
+  onScrollTopChange?: (scrollTop: number) => void;
   onToggleSelection: (photographId: string) => void;
   photographs: readonly LibraryPhotographRecord[];
   selectedPhotographIds: ReadonlySet<string>;
+  scrollRestoreRevision?: number;
 }
 
 function calculateGridGeometry(width: number, viewportHeight: number, density: LibraryGridDensity) {
@@ -92,6 +96,7 @@ function GridPhotographCell({
     relativePath: string,
     maxWidth: number,
     signal?: AbortSignal,
+    cacheRevision?: string,
   ) => Promise<LibraryThumbnail>;
   onToggleSelection: (photographId: string) => void;
   photograph: LibraryPhotographRecord;
@@ -117,6 +122,7 @@ function GridPhotographCell({
       photograph.relativePath,
       LIBRARY_GRID_THUMBNAIL_MAX_WIDTH,
       controller.signal,
+      `${photograph.fingerprint.byteSize}:${photograph.fingerprint.lastModified}`,
     )
       .then((nextThumbnail) => {
         if (disposed) {
@@ -140,7 +146,13 @@ function GridPhotographCell({
       thumbnailRef.current?.dispose();
       thumbnailRef.current = null;
     };
-  }, [isMissing, onLoadThumbnail, photograph.relativePath]);
+  }, [
+    isMissing,
+    onLoadThumbnail,
+    photograph.fingerprint.byteSize,
+    photograph.fingerprint.lastModified,
+    photograph.relativePath,
+  ]);
 
   return (
     <div
@@ -175,13 +187,11 @@ function GridPhotographCell({
                 src={thumbnail.url}
               />
               {!imageReady ? (
-                <span className="library-grid__placeholder" role="img">
-                  Reading Source photograph
-                </span>
+                <span className="library-grid__placeholder">Reading Source photograph</span>
               ) : null}
             </>
           ) : (
-            <span className="library-grid__placeholder" role="img">
+            <span className="library-grid__placeholder">
               {isMissing
                 ? 'Missing photograph'
                 : imageError
@@ -207,17 +217,21 @@ function GridPhotographCell({
 export function LibraryGrid({
   activePhotographId,
   density,
+  initialScrollTop = 0,
   onActivate,
   onLoadThumbnail,
+  onScrollTopChange,
   onToggleSelection,
   photographs,
   selectedPhotographIds,
+  scrollRestoreRevision = 0,
 }: LibraryGridProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const initialScrollTopRef = useRef(initialScrollTop);
   const [geometry, setGeometry] = useState<GridGeometry>(() =>
     calculateGridGeometry(0, 0, density),
   );
-  const [scrollTop, setScrollTop] = useState(0);
+  const [scrollTop, setScrollTop] = useState(initialScrollTop);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -231,6 +245,7 @@ export function LibraryGrid({
     };
 
     measure();
+    viewport.scrollTop = initialScrollTopRef.current;
 
     if (typeof ResizeObserver === 'undefined') {
       return;
@@ -241,6 +256,13 @@ export function LibraryGrid({
 
     return () => observer.disconnect();
   }, [density]);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || scrollRestoreRevision === 0) return;
+    viewport.scrollTop = initialScrollTop;
+    setScrollTop(initialScrollTop);
+  }, [initialScrollTop, scrollRestoreRevision]);
 
   const rowCount = Math.ceil(photographs.length / geometry.columns);
   const firstVisibleRow = Math.max(0, Math.floor(scrollTop / geometry.cellHeight) - 2);
@@ -303,6 +325,7 @@ export function LibraryGrid({
       onScroll={(event) => {
         const { clientHeight, scrollTop: nextScrollTop } = event.currentTarget;
         setScrollTop(nextScrollTop);
+        onScrollTopChange?.(nextScrollTop);
         setGeometry((current) => ({
           ...current,
           viewportHeight: Math.max(clientHeight, 240),

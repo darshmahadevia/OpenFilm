@@ -12,6 +12,7 @@ import {
 import { createBrowserLibraryDirectoryGateway } from './library/libraryGateway';
 import {
   inspectLegacyState,
+  importLegacyLooks,
   resolveLegacyMigration,
   type LegacyMigrationState,
 } from './library/libraryMigration';
@@ -20,6 +21,8 @@ import {
   createBrowserStorage,
   createMemoryStorage,
   hasBrowserStorage,
+  type BrowserStorage,
+  type StoredLook,
 } from './storage/browserStorage';
 
 const MIGRATION_RESOLUTION_KEY = 'openfilm.v2.legacy-resolution';
@@ -211,6 +214,8 @@ export default function App() {
   const [opening, setOpening] = useState(false);
   const [migration, setMigration] = useState<LegacyMigrationState | null>(null);
   const [historyStatus, setHistoryStatus] = useState({ canRedo: false, canUndo: false });
+  const [customLooks, setCustomLooks] = useState<StoredLook[]>([]);
+  const storageRef = useRef<BrowserStorage | null>(null);
   const storageAvailable = hasBrowserStorage();
 
   const refreshRecent = useCallback(async () => {
@@ -228,14 +233,23 @@ export default function App() {
     const gateway = createBrowserLibraryDirectoryGateway();
     const browserStorage = createBrowserStorage();
     const storage = browserStorage ?? createMemoryStorage();
-    if (gateway) applicationRef.current = new LibraryApplication(gateway, storage);
+    storageRef.current = storage;
+    if (gateway) {
+      applicationRef.current = new LibraryApplication(gateway, storage);
+      (window as Window & { __openfilmLibraryMetrics?: () => unknown }).__openfilmLibraryMetrics =
+        () => applicationRef.current?.resourceStatus() ?? null;
+    }
     void (async () => {
       try {
         const [looks, edit] = await Promise.all([
           storage.listCustomLooks(),
           storage.loadLatestEdit(),
         ]);
-        if (!cancelled) setMigration(inspectLegacyState(looks, edit, readMigrationResolution()));
+        if (!cancelled) {
+          const inspected = inspectLegacyState(looks, edit, readMigrationResolution());
+          setMigration(inspected);
+          setCustomLooks(inspected.kind === 'resolved' ? looks : []);
+        }
         await refreshRecent();
       } catch {
         if (!cancelled)
@@ -248,6 +262,9 @@ export default function App() {
       cancelled = true;
       applicationRef.current?.close();
       applicationRef.current = null;
+      storageRef.current = null;
+      delete (window as Window & { __openfilmLibraryMetrics?: () => unknown })
+        .__openfilmLibraryMetrics;
     };
   }, [refreshRecent]);
 
@@ -261,6 +278,7 @@ export default function App() {
       );
       if (
         result.kind === 'opened' &&
+        result.created &&
         result.snapshot.status === 'saved' &&
         result.snapshot.scan.status === 'idle'
       ) {
@@ -304,23 +322,43 @@ export default function App() {
   }
 
   const loadThumbnail = useCallback(
-    (path: string, maxWidth: number, signal?: AbortSignal): Promise<LibraryThumbnail> =>
-      applicationRef.current?.loadLibraryThumbnail(path, maxWidth, signal) ??
+    (
+      path: string,
+      maxWidth: number,
+      signal?: AbortSignal,
+      cacheRevision?: string,
+    ): Promise<LibraryThumbnail> =>
+      applicationRef.current?.loadLibraryThumbnail(path, maxWidth, signal, cacheRevision) ??
+      Promise.reject(new Error('Open a Library first.')),
+    [],
+  );
+  const loadComparisonThumbnail = useCallback(
+    (
+      path: string,
+      maxWidth: number,
+      signal?: AbortSignal,
+      cacheRevision?: string,
+    ): Promise<LibraryThumbnail> =>
+      applicationRef.current?.loadComparisonThumbnail(path, maxWidth, signal, cacheRevision) ??
       Promise.reject(new Error('Open a Library first.')),
     [],
   );
   const loadSource = useCallback(
-    (path: string): Promise<File> =>
-      applicationRef.current?.readSourcePhotograph(path) ??
+    (path: string, signal?: AbortSignal): Promise<File> =>
+      applicationRef.current?.readSourcePhotograph(path, signal) ??
       Promise.reject(new Error('Open a Library first.')),
     [],
   );
 
-  function resolveMigration(action: 'discard' | 'export-edit' | 'import-looks') {
+  async function resolveMigration(action: 'discard' | 'export-edit' | 'import-looks') {
     if (!migration || migration.kind !== 'action-required') return;
     const resolution = resolveLegacyMigration(migration, action);
     if (action === 'export-edit' && migration.quarantinedEdit)
       downloadJson(migration.quarantinedEdit, 'openfilm-v1-recovery.json');
+    if (action === 'import-looks') {
+      if (!storageRef.current) throw new Error('Browser storage is unavailable.');
+      setCustomLooks(await importLegacyLooks(migration, storageRef.current));
+    }
     saveMigrationResolution(resolution.fingerprint);
     setMigration({ ...migration, kind: 'resolved' });
     setFeedback(
@@ -344,7 +382,7 @@ export default function App() {
         onReauthorize={(id) =>
           void open(() => applicationRef.current!.reauthorizeRecentLibrary(id))
         }
-        onResolveMigration={resolveMigration}
+        onResolveMigration={(action) => void resolveMigration(action)}
         recent={recent}
         storageAvailable={storageAvailable}
       />
@@ -354,6 +392,7 @@ export default function App() {
   const application = applicationRef.current;
   return (
     <AdaptiveLibraryWorkspace
+      customLooks={customLooks}
       feedback={feedback}
       historyStatus={historyStatus}
       key={snapshot.libraryId ?? 'library'}
@@ -365,9 +404,13 @@ export default function App() {
         void refreshRecent();
       }}
       onCommit={async (library, message) => {
-        if (application) await applyAction(application.commitCommand(() => library, message));
+        if (!application) return false;
+        const result = await application.commitCommand(() => library, message);
+        await applyAction(Promise.resolve(result));
+        return result.kind === 'updated' && result.snapshot.status === 'saved';
       }}
       onLoadSource={loadSource}
+      onLoadComparisonThumbnail={loadComparisonThumbnail}
       onLoadThumbnail={loadThumbnail}
       onPickExportDestination={async () => {
         if (!application) throw new Error('Open a Library first.');
@@ -377,12 +420,28 @@ export default function App() {
         if (snapshot.libraryId && application)
           void open(() => application.reauthorizeRecentLibrary(snapshot.libraryId!));
       }}
+      onReauthorizeScan={async () => {
+        if (!snapshot.libraryId || !application) return;
+        const result = await application.reauthorizeRecentLibrary(snapshot.libraryId);
+        applyOpenResult(result);
+        if (result.kind === 'opened' && result.snapshot.status === 'saved') {
+          await application.scanLibrary(setSnapshot, { cacheContentHashes: true });
+        }
+        await refreshRecent();
+      }}
       onReadExportFile={async (destination, path) => {
         if (!application) throw new Error('Open a Library first.');
         return await application.readExportFile(destination, path);
       }}
+      onRenderExport={async (photograph, options, signal) => {
+        if (!application) throw new Error('Open a Library first.');
+        return await application.renderExportPhotograph(photograph, options, signal);
+      }}
       onRedo={async () => {
-        if (application) await applyAction(application.redo());
+        if (!application) return false;
+        const result = await application.redo();
+        await applyAction(Promise.resolve(result));
+        return result.kind === 'updated' && result.snapshot.status === 'saved';
       }}
       onRefresh={() => {
         if (application)
@@ -400,7 +459,10 @@ export default function App() {
         if (application) void applyAction(application.saveCopy());
       }}
       onUndo={async () => {
-        if (application) await applyAction(application.undo());
+        if (!application) return false;
+        const result = await application.undo();
+        await applyAction(Promise.resolve(result));
+        return result.kind === 'updated' && result.snapshot.status === 'saved';
       }}
       onWriteExportFile={async (destination, path, bytes, options) => {
         if (!application) throw new Error('Open a Library first.');

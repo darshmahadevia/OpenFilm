@@ -64,6 +64,26 @@ describe('Library source reconciliation', () => {
     expect(result.summary.moved).toBe(1);
   });
 
+  it('never transfers another record state onto changed bytes at an occupied path', () => {
+    const result = reconcileLibrarySources(
+      [record('occupied', 'same.jpg', 10, 'old'), record('other', 'other.jpg', 10, 'match')],
+      [
+        {
+          fingerprint: { byteSize: 20, lastModified: 2, contentHash: 'match' },
+          mimeType: 'image/jpeg',
+          relativePath: 'same.jpg',
+        },
+      ],
+      () => 'new',
+    );
+    expect(result.photographs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'new', relativePath: 'same.jpg', sourceState: 'available' }),
+        expect.objectContaining({ id: 'other', relativePath: 'other.jpg', sourceState: 'missing' }),
+      ]),
+    );
+  });
+
   it('keeps ambiguous identities separate for an explicit choice', () => {
     const result = reconcileLibrarySources(
       [record('one', 'one.jpg', 10, 'same'), record('two', 'two.jpg', 10, 'same')],

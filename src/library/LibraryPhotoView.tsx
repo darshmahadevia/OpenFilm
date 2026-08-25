@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { neutralGeometry } from '../editor/geometry';
 import {
   createRenderer,
+  MAX_PREVIEW_DIMENSION,
   neutralRendererAdjustments,
   type PreviewRenderer,
 } from '../rendering/renderer';
@@ -11,8 +12,10 @@ import type { LibraryPhotographRecord } from './libraryModel';
 
 interface LibraryPhotoViewProps {
   photograph: LibraryPhotographRecord;
-  onLoadSource: (relativePath: string) => Promise<File>;
+  onLoadSource: (relativePath: string, signal?: AbortSignal) => Promise<File>;
+  onSourceZoomAvailability: (available: boolean) => void;
   sourceView: boolean;
+  renderGeneration: number;
   zoomScale: number;
 }
 
@@ -28,12 +31,23 @@ function readImageSize(objectUrl: string): Promise<{ height: number; width: numb
 export function LibraryPhotoView({
   photograph,
   onLoadSource,
+  onSourceZoomAvailability,
   sourceView,
+  renderGeneration,
   zoomScale,
 }: LibraryPhotoViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<PreviewRenderer | null>(null);
+  const zoomScaleRef = useRef(zoomScale);
   const [message, setMessage] = useState('Reading Source photograph.');
+  const [sourceDimensions, setSourceDimensions] = useState<{
+    height: number;
+    width: number;
+  } | null>(null);
+
+  useEffect(() => {
+    zoomScaleRef.current = zoomScale;
+  }, [zoomScale]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -45,6 +59,7 @@ export function LibraryPhotoView({
           setMessage(
             'Graphics context lost. OpenFilm will restore this view when the browser recovers it.',
           );
+        else if (status === 'available') setMessage('');
       },
     });
     if (!renderer) {
@@ -53,7 +68,11 @@ export function LibraryPhotoView({
     }
     rendererRef.current = renderer;
     const resize = () =>
-      renderer.resize(canvas.clientWidth, canvas.clientHeight, window.devicePixelRatio);
+      renderer.resize(
+        canvas.clientWidth,
+        canvas.clientHeight,
+        zoomScaleRef.current === 2 ? 1 : window.devicePixelRatio,
+      );
     resize();
     window.addEventListener('resize', resize);
     return () => {
@@ -70,13 +89,20 @@ export function LibraryPhotoView({
       return;
     }
     let cancelled = false;
+    const controller = new AbortController();
     let objectUrl: string | null = null;
     setMessage('Reading Source photograph.');
-    void onLoadSource(photograph.relativePath)
+    setSourceDimensions(null);
+    onSourceZoomAvailability(false);
+    void onLoadSource(photograph.relativePath, controller.signal)
       .then(async (file) => {
         objectUrl = URL.createObjectURL(file);
         const dimensions = await readImageSize(objectUrl);
         if (cancelled) return;
+        setSourceDimensions(dimensions);
+        onSourceZoomAvailability(
+          Math.max(dimensions.width, dimensions.height) <= MAX_PREVIEW_DIMENSION,
+        );
         await renderer.replaceImage({ ...dimensions, objectUrl });
         if (!cancelled) setMessage('');
       })
@@ -90,9 +116,23 @@ export function LibraryPhotoView({
       });
     return () => {
       cancelled = true;
+      controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [onLoadSource, photograph.relativePath, photograph.sourceState]);
+  }, [onLoadSource, onSourceZoomAvailability, photograph.relativePath, photograph.sourceState]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const renderer = rendererRef.current;
+    if (!canvas || !renderer) return;
+    requestAnimationFrame(() =>
+      renderer.resize(
+        canvas.clientWidth,
+        canvas.clientHeight,
+        zoomScale === 2 ? 1 : window.devicePixelRatio,
+      ),
+    );
+  }, [sourceDimensions, zoomScale]);
 
   useEffect(() => {
     const renderer = rendererRef.current;
@@ -101,12 +141,19 @@ export function LibraryPhotoView({
     renderer.setAdjustments(sourceView ? neutralRendererAdjustments : edit.adjustments);
     renderer.setGeometry(sourceView ? neutralGeometry : edit.geometry);
     renderer.setGrainSeed(edit.grainSeed);
-  }, [photograph, sourceView]);
+  }, [photograph, renderGeneration, sourceView]);
 
   return (
     <div
       className="library-photo-view"
-      style={{ '--library-photo-zoom': zoomScale } as CSSProperties}
+      style={
+        {
+          '--library-photo-height':
+            zoomScale === 2 && sourceDimensions ? `${sourceDimensions.height}px` : '100%',
+          '--library-photo-width':
+            zoomScale === 2 && sourceDimensions ? `${sourceDimensions.width}px` : '100%',
+        } as CSSProperties
+      }
     >
       <canvas
         aria-label={`${photograph.fileName} ${sourceView ? 'Source view' : 'Rendered Edit'}`}

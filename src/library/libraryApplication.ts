@@ -27,6 +27,10 @@ import {
 } from './libraryScanner';
 import { createLibraryGridThumbnail, type LibraryThumbnail } from './libraryThumbnail';
 import { createLibraryWorkScheduler, type LibraryWorkScheduler } from './libraryScheduler';
+import { renderLibraryPhotograph } from './libraryRenderedExport';
+import type { ExportFormat } from '../rendering/export';
+import type { LibraryPhotographRecord } from './libraryModel';
+import { ByteBudgetedResourceCache } from './libraryResourceCache';
 import {
   LibraryGatewayError,
   LibraryPickerCancelledError,
@@ -64,7 +68,7 @@ export interface LibraryWorkspaceSnapshot {
 export type LibraryOpenResult =
   | { kind: 'cancelled' }
   | { kind: 'missing-folder'; libraryId: string; rootName: string }
-  | { kind: 'opened'; snapshot: LibraryWorkspaceSnapshot }
+  | { created: boolean; kind: 'opened'; snapshot: LibraryWorkspaceSnapshot }
   | { kind: 'reauthorize'; libraryId: string; rootName: string; message: string }
   | { kind: 'read-only'; snapshot: LibraryWorkspaceSnapshot };
 
@@ -75,6 +79,8 @@ export type LibraryActionResult =
   | { kind: 'failed'; message: string };
 
 interface ActiveLibrary {
+  fullResolutionReads: number;
+  fullResolutionTail: Promise<unknown>;
   handle: FileSystemDirectoryHandle;
   libraryId: string;
   pendingFromIndexedDb: boolean;
@@ -83,12 +89,14 @@ interface ActiveLibrary {
   scanPromise: Promise<LibraryScanResult> | null;
   session: LibraryFileSession;
   snapshot: LibraryWorkspaceSnapshot;
+  thumbnailCache: ByteBudgetedResourceCache<LibraryThumbnail>;
   workScheduler: LibraryWorkScheduler;
 }
 
 interface LibraryApplicationOptions {
   lock?: LibraryLock | null;
   now?: () => number;
+  renderExport?: typeof renderLibraryPhotograph;
 }
 
 function asOpenFilmLibraryDocument(value: LibraryDocument | null): OpenFilmLibraryDocument | null {
@@ -131,6 +139,8 @@ function describeStoredStatus(status: StoredLibraryStatus): RecentLibraryStatus 
   return 'ready';
 }
 
+const LIBRARY_HISTORY_LIMIT = 50;
+
 export class LibraryApplication {
   private active: ActiveLibrary | null = null;
   private readonly undoStack: OpenFilmLibraryDocument[] = [];
@@ -139,6 +149,7 @@ export class LibraryApplication {
   private commandTail: Promise<unknown> = Promise.resolve();
   private readonly lock: LibraryLock | null;
   private readonly now: () => number;
+  private readonly renderExport: typeof renderLibraryPhotograph;
 
   constructor(
     private readonly gateway: LibraryDirectoryGateway,
@@ -147,6 +158,7 @@ export class LibraryApplication {
   ) {
     this.lock = options.lock === undefined ? createBrowserLibraryLock() : options.lock;
     this.now = options.now ?? (() => Date.now());
+    this.renderExport = options.renderExport ?? renderLibraryPhotograph;
   }
 
   snapshot(): LibraryWorkspaceSnapshot | null {
@@ -155,6 +167,21 @@ export class LibraryApplication {
 
   historyStatus(): { canRedo: boolean; canUndo: boolean } {
     return { canRedo: this.redoStack.length > 0, canUndo: this.undoStack.length > 0 };
+  }
+
+  resourceStatus(): {
+    fullResolutionReads: number;
+    scheduler: ReturnType<LibraryWorkScheduler['snapshot']>;
+    thumbnailCache: ReturnType<ByteBudgetedResourceCache<LibraryThumbnail>['snapshot']>;
+  } | null {
+    const active = this.active;
+    return active
+      ? {
+          fullResolutionReads: active.fullResolutionReads,
+          scheduler: active.workScheduler.snapshot(),
+          thumbnailCache: active.thumbnailCache.snapshot(),
+        }
+      : null;
   }
 
   async commitCommand(
@@ -216,6 +243,18 @@ export class LibraryApplication {
   }
 
   async undo(): Promise<LibraryActionResult> {
+    const task = this.commandTail.then(
+      () => this.undoNow(),
+      () => this.undoNow(),
+    );
+    this.commandTail = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    return await task;
+  }
+
+  private async undoNow(): Promise<LibraryActionResult> {
     const active = this.active;
     const previous = this.undoStack.at(-1);
     if (!active?.snapshot.library || !previous || active.snapshot.status !== 'saved') {
@@ -235,6 +274,18 @@ export class LibraryApplication {
   }
 
   async redo(): Promise<LibraryActionResult> {
+    const task = this.commandTail.then(
+      () => this.redoNow(),
+      () => this.redoNow(),
+    );
+    this.commandTail = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    return await task;
+  }
+
+  private async redoNow(): Promise<LibraryActionResult> {
     const active = this.active;
     const next = this.redoStack.at(-1);
     if (!active?.snapshot.library || !next || active.snapshot.status !== 'saved') {
@@ -253,12 +304,43 @@ export class LibraryApplication {
     return action;
   }
 
-  async readSourcePhotograph(relativePath: string): Promise<File> {
-    if (!this.active) {
+  async readSourcePhotograph(relativePath: string, signal?: AbortSignal): Promise<File> {
+    const active = this.active;
+    if (!active) {
       throw new Error('Open a Library before reading a Source photograph.');
     }
+    return await active.workScheduler.enqueue(
+      'active-comparison',
+      async () =>
+        await this.runFullResolution(active, async () => {
+          active.fullResolutionReads += 1;
+          return await this.gateway.readSourcePhotograph(active.handle, relativePath);
+        }),
+      signal,
+    );
+  }
 
-    return await this.gateway.readSourcePhotograph(this.active.handle, relativePath);
+  async renderExportPhotograph(
+    photograph: LibraryPhotographRecord,
+    options: { format: ExportFormat; quality: number },
+    signal?: AbortSignal,
+  ): Promise<Blob> {
+    const active = this.active;
+    if (!active) throw new Error('Open a Library before rendering an Export.');
+    return await active.workScheduler.enqueue(
+      'background',
+      async () => {
+        return await this.runFullResolution(active, async () => {
+          active.fullResolutionReads += 1;
+          return await this.renderExport(
+            await this.gateway.readSourcePhotograph(active.handle, photograph.relativePath),
+            photograph,
+            options,
+          );
+        });
+      },
+      signal,
+    );
   }
 
   async pickExportDestination(): Promise<{ handle: FileSystemDirectoryHandle; paths: string[] }> {
@@ -295,6 +377,38 @@ export class LibraryApplication {
     relativePath: string,
     maxWidth: number,
     signal?: AbortSignal,
+    cacheRevision = '',
+  ): Promise<LibraryThumbnail> {
+    return await this.loadThumbnail(
+      relativePath,
+      maxWidth,
+      'visible-thumbnail',
+      signal,
+      cacheRevision,
+    );
+  }
+
+  async loadComparisonThumbnail(
+    relativePath: string,
+    maxWidth: number,
+    signal?: AbortSignal,
+    cacheRevision = '',
+  ): Promise<LibraryThumbnail> {
+    return await this.loadThumbnail(
+      relativePath,
+      maxWidth,
+      'active-comparison',
+      signal,
+      cacheRevision,
+    );
+  }
+
+  private async loadThumbnail(
+    relativePath: string,
+    maxWidth: number,
+    priority: 'active-comparison' | 'visible-thumbnail',
+    signal?: AbortSignal,
+    cacheRevision = '',
   ): Promise<LibraryThumbnail> {
     const active = this.active;
 
@@ -302,13 +416,24 @@ export class LibraryApplication {
       throw new Error('Open a Library before reading a Source photograph.');
     }
 
+    const cacheKey = `${relativePath}\u0000${maxWidth}\u0000${cacheRevision}`;
+    const cached = active.thumbnailCache.get(cacheKey);
+    if (cached) return { ...cached, dispose: () => undefined };
+
     return await active.workScheduler.enqueue(
-      'visible-thumbnail',
-      async () =>
-        await createLibraryGridThumbnail(
+      priority,
+      async () => {
+        const thumbnail = await createLibraryGridThumbnail(
           await this.gateway.readSourcePhotograph(active.handle, relativePath),
           { maxWidth, signal },
-        ),
+        );
+        active.thumbnailCache.admit(cacheKey, {
+          bytes: thumbnail.bytes,
+          dispose: thumbnail.dispose,
+          value: thumbnail,
+        });
+        return { ...thumbnail, dispose: () => undefined };
+      },
       signal,
     );
   }
@@ -610,6 +735,7 @@ export class LibraryApplication {
   close(): void {
     this.active?.scanAbortController?.abort();
     this.active?.workScheduler.dispose();
+    this.active?.thumbnailCache.dispose();
     this.active = null;
     this.clearHistory();
   }
@@ -653,7 +779,7 @@ export class LibraryApplication {
           'OpenFilm recovered a working Library copy from browser storage. Retry, Save a copy, or Revert before making another change.',
         );
         await this.activate(root, session, snapshot, true);
-        return { kind: 'opened', snapshot };
+        return { created: false, kind: 'opened', snapshot };
       }
 
       if (!createWhenEmpty) {
@@ -680,7 +806,7 @@ export class LibraryApplication {
         await this.activate(root, session, snapshot, false);
         return snapshot.status === 'read-only'
           ? { kind: 'read-only', snapshot }
-          : { kind: 'opened', snapshot };
+          : { created: true, kind: 'opened', snapshot };
       }
 
       const snapshot = this.createSnapshot(
@@ -691,7 +817,7 @@ export class LibraryApplication {
         'The Library is Saved.',
       );
       await this.activate(root, session, snapshot, false);
-      return { kind: 'opened', snapshot };
+      return { created: true, kind: 'opened', snapshot };
     }
 
     const loadedLibrary = asOpenFilmLibraryDocument(loaded.revision?.library ?? null);
@@ -754,7 +880,7 @@ export class LibraryApplication {
       return { kind: 'read-only', snapshot };
     }
 
-    return { kind: 'opened', snapshot };
+    return { created: false, kind: 'opened', snapshot };
   }
 
   private createSnapshot(
@@ -786,8 +912,11 @@ export class LibraryApplication {
   ): Promise<void> {
     this.active?.scanAbortController?.abort();
     this.active?.workScheduler.dispose();
+    this.active?.thumbnailCache.dispose();
     this.clearHistory();
     this.active = {
+      fullResolutionReads: 0,
+      fullResolutionTail: Promise.resolve(),
       handle,
       libraryId: snapshot.libraryId ?? `unknown-${this.now()}`,
       pendingFromIndexedDb,
@@ -796,6 +925,7 @@ export class LibraryApplication {
       scanPromise: null,
       session,
       snapshot,
+      thumbnailCache: new ByteBudgetedResourceCache<LibraryThumbnail>(96 * 1024 * 1024),
       workScheduler: createLibraryWorkScheduler(),
     };
     await this.persistActive();
@@ -808,9 +938,19 @@ export class LibraryApplication {
     this.commandTail = Promise.resolve();
   }
 
+  private async runFullResolution<T>(active: ActiveLibrary, run: () => Promise<T>): Promise<T> {
+    const task = active.fullResolutionTail.then(run, run);
+    active.fullResolutionTail = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    return await task;
+  }
+
   private finishPendingHistory(): void {
     if (!this.pendingUndoSnapshot) return;
     this.undoStack.push(this.pendingUndoSnapshot);
+    this.undoStack.splice(0, Math.max(0, this.undoStack.length - LIBRARY_HISTORY_LIMIT));
     this.redoStack.splice(0);
     this.pendingUndoSnapshot = null;
   }

@@ -142,7 +142,22 @@ export function isFinalSetExportManifest(value: unknown): value is FinalSetExpor
         typeof entry.photographId === 'string' &&
         typeof entry.sourcePath === 'string' &&
         typeof entry.editRevision === 'number' &&
+        Number.isSafeInteger(entry.editRevision) &&
+        entry.editRevision >= 0 &&
+        (entry.failure === null || typeof entry.failure === 'string') &&
+        (entry.format === 'jpeg' || entry.format === 'png' || entry.format === 'webp') &&
+        (entry.outputChecksum === null || typeof entry.outputChecksum === 'string') &&
+        typeof entry.quality === 'number' &&
+        Number.isFinite(entry.quality) &&
+        entry.quality >= 0 &&
+        entry.quality <= 1 &&
         entry.rendererVersion === EXPORT_RENDERER_VERSION &&
+        entry.sourceFingerprint &&
+        Number.isSafeInteger(entry.sourceFingerprint.byteSize) &&
+        entry.sourceFingerprint.byteSize >= 0 &&
+        Number.isFinite(entry.sourceFingerprint.lastModified) &&
+        (entry.sourceFingerprint.contentHash === undefined ||
+          typeof entry.sourceFingerprint.contentHash === 'string') &&
         (entry.state === 'cancelled' ||
           entry.state === 'complete' ||
           entry.state === 'failed' ||

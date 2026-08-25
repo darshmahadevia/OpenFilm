@@ -96,7 +96,13 @@ export function reconcileLibrarySources(
       continue;
     }
 
-    if (samePath) summary.changed += 1;
+    if (samePath) {
+      summary.changed += 1;
+      const created = createRecord(source, createRecordId());
+      photographs.push(created);
+      claimed.add(created.id);
+      continue;
+    }
     const hash = source.fingerprint.contentHash;
     const moveCandidates = hash
       ? photographs.filter(
@@ -116,11 +122,7 @@ export function reconcileLibrarySources(
     const created = createRecord(source, createRecordId());
     photographs.push(created);
     claimed.add(created.id);
-    if (samePath) {
-      // Counted above as a changed Source at the same path.
-    } else {
-      summary.new += 1;
-    }
+    summary.new += 1;
     if (moveCandidates.length > 1) {
       ambiguous.push({
         candidatePhotographIds: moveCandidates.map((record) => record.id),

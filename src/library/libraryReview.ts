@@ -233,6 +233,7 @@ export function copyActiveLookToSelection(
 ): OpenFilmLibraryDocument {
   const active = document.photographs.find((photograph) => photograph.id === activePhotographId);
   if (!active) throw new Error('Choose an Active photograph with a Look first.');
+  if (!active.edit) throw new Error('The Active photograph does not have a current Look yet.');
   if (selection.length === 0) throw new Error('Select at least one photograph to copy this Look.');
   const selected = selection.map((id) =>
     document.photographs.find((photograph) => photograph.id === id),

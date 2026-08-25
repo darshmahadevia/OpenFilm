@@ -3,6 +3,7 @@ import {
   normalizeStoredLook,
   type StoredEdit,
   type StoredLook,
+  type BrowserStorage,
 } from '../storage/browserStorage';
 
 export type LegacyMigrationAction = 'discard' | 'export-edit' | 'import-looks';
@@ -63,4 +64,16 @@ export function resolveLegacyMigration(
 ): { action: LegacyMigrationAction; fingerprint: string; resolved: true } {
   if (state.kind !== 'action-required') throw new Error('There is no unresolved v1 state.');
   return { action, fingerprint: state.fingerprint, resolved: true };
+}
+
+export async function importLegacyLooks(
+  state: LegacyMigrationState,
+  storage: Pick<BrowserStorage, 'saveCustomLook'>,
+): Promise<StoredLook[]> {
+  if (state.kind !== 'action-required') throw new Error('There is no unresolved v1 state.');
+  await Promise.all(state.looks.map((look) => storage.saveCustomLook(look)));
+  return state.looks.map((look) => ({
+    ...look,
+    adjustments: JSON.parse(JSON.stringify(look.adjustments)),
+  }));
 }

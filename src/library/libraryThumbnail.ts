@@ -1,6 +1,7 @@
 export const LIBRARY_GRID_THUMBNAIL_MAX_WIDTH = 640;
 
 export interface LibraryThumbnail {
+  bytes: number;
   dispose: () => void;
   url: string;
 }
@@ -37,6 +38,7 @@ export async function createLibraryGridThumbnail(
     const url = URL.createObjectURL(file);
 
     return {
+      bytes: Math.min(file.size, maxWidth * maxWidth * 4),
       dispose: () => URL.revokeObjectURL(url),
       url,
     };
@@ -73,6 +75,7 @@ export async function createLibraryGridThumbnail(
     const url = URL.createObjectURL(blob);
 
     return {
+      bytes: blob.size,
       dispose: () => URL.revokeObjectURL(url),
       url,
     };

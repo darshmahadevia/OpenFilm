@@ -27,7 +27,7 @@ describe('Library Grid', () => {
     const onActivate = vi.fn();
     const onToggleSelection = vi.fn();
     const dispose = vi.fn();
-    const thumbnail: LibraryThumbnail = { dispose, url: 'blob:grid-photo' };
+    const thumbnail: LibraryThumbnail = { bytes: 1, dispose, url: 'blob:grid-photo' };
 
     const { container, unmount } = render(
       <LibraryGrid
@@ -86,7 +86,7 @@ describe('Library Grid', () => {
           activePhotographId="photo-0"
           density="standard"
           onActivate={vi.fn()}
-          onLoadThumbnail={async () => ({ dispose: vi.fn(), url: 'blob:grid-photo' })}
+          onLoadThumbnail={async () => ({ bytes: 1, dispose: vi.fn(), url: 'blob:grid-photo' })}
           onToggleSelection={vi.fn()}
           photographs={photographs}
           selectedPhotographIds={new Set()}
@@ -103,7 +103,7 @@ describe('Library Grid', () => {
           activePhotographId="photo-0"
           density="overview"
           onActivate={vi.fn()}
-          onLoadThumbnail={async () => ({ dispose: vi.fn(), url: 'blob:grid-photo' })}
+          onLoadThumbnail={async () => ({ bytes: 1, dispose: vi.fn(), url: 'blob:grid-photo' })}
           onToggleSelection={vi.fn()}
           photographs={photographs}
           selectedPhotographIds={new Set()}

@@ -41,9 +41,15 @@ export class LibraryWorkScheduler {
   private disposed = false;
   private generation = 0;
 
-  constructor(private readonly concurrency = 2) {
+  constructor(
+    private readonly concurrency = 2,
+    private readonly queueLimit = 256,
+  ) {
     if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
       throw new Error('The Library work scheduler needs at least one worker slot.');
+    }
+    if (!Number.isSafeInteger(queueLimit) || queueLimit < 1) {
+      throw new Error('The Library work scheduler needs a positive queue limit.');
     }
   }
 
@@ -63,6 +69,25 @@ export class LibraryWorkScheduler {
 
     if (options.generation !== undefined && options.generation !== this.generation) {
       return Promise.reject(new Error('The Library work result is stale.'));
+    }
+
+    if (this.queue.length >= this.queueLimit) {
+      const incomingRank = PRIORITY_RANK[priority];
+      let evictionIndex = -1;
+      let worstRank = incomingRank;
+      for (let index = 0; index < this.queue.length; index += 1) {
+        const rank = PRIORITY_RANK[this.queue[index].priority];
+        if (rank > worstRank) {
+          worstRank = rank;
+          evictionIndex = index;
+        }
+      }
+      if (evictionIndex < 0) {
+        return Promise.reject(new Error('The Library work queue reached its byte-safe limit.'));
+      }
+      this.queue
+        .splice(evictionIndex, 1)[0]
+        .reject(new Error('Lower-priority Library work was released under queue pressure.'));
     }
 
     return new Promise<T>((resolve, reject) => {
@@ -88,10 +113,17 @@ export class LibraryWorkScheduler {
     return this.generation;
   }
 
-  snapshot(): { generation: number; queued: number; running: number; workerLimit: number } {
+  snapshot(): {
+    generation: number;
+    queued: number;
+    queueLimit: number;
+    running: number;
+    workerLimit: number;
+  } {
     return {
       generation: this.generation,
       queued: this.queue.length,
+      queueLimit: this.queueLimit,
       running: this.running,
       workerLimit: this.concurrency,
     };

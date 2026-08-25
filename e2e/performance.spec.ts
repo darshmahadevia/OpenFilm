@@ -10,6 +10,15 @@ function p95(values: number[]): number {
 
 async function measureInteractions(page: Page) {
   return await page.evaluate(async () => {
+    const metrics = (
+      window as Window & {
+        __openfilmLibraryMetrics?: () => {
+          fullResolutionReads: number;
+          scheduler: { queued: number; running: number };
+          thumbnailCache: { bytes: number; budget: number; count: number };
+        } | null;
+      }
+    ).__openfilmLibraryMetrics?.();
     const workstation = document.querySelector<HTMLElement>('.library-workstation')!;
     const grid = document.querySelector<HTMLElement>('.library-grid')!;
     const selection: number[] = [];
@@ -46,6 +55,7 @@ async function measureInteractions(page: Page) {
       liveBitmaps: document.querySelectorAll('.library-grid__image').length,
       liveDomCells: document.querySelectorAll('[role="gridcell"]').length,
       selection,
+      metrics,
     };
   });
 }
@@ -121,6 +131,13 @@ test.describe('large Library performance gate', () => {
     await expect(page.getByRole('grid', { name: 'Library Grid' })).toBeVisible();
     await expect(page.getByLabel(/Library save state:/)).toBeVisible();
     const firstUsableGridMs = performance.now() - started;
+    const openingMetrics = await page.evaluate(() =>
+      (
+        window as Window & {
+          __openfilmLibraryMetrics?: () => { fullResolutionReads: number } | null;
+        }
+      ).__openfilmLibraryMetrics?.(),
+    );
 
     const first = page.getByRole('button', { name: /frame-0000\.webp/ });
     await first.click();
@@ -136,6 +153,7 @@ test.describe('large Library performance gate', () => {
     await page.keyboard.press('c');
     await expect(page.locator('.comparison-pane')).toHaveCount(2);
     const comparisonReadyMs = performance.now() - modeStarted;
+    const liveComparisonTextures = await page.locator('.comparison-pane canvas').count();
     await page.getByRole('button', { name: 'Grid' }).click();
     const baseline = await measureInteractions(page);
     const cdp = await page.context().newCDPSession(page);
@@ -149,10 +167,11 @@ test.describe('large Library performance gate', () => {
         logicalBytesPerSource: 24_000_000,
         sourceDimensions: { height: 5_625, width: 8_000 },
       },
-      cacheBytes: 0,
+      cacheBytes: baseline.metrics?.thumbnailCache.bytes ?? null,
+      cacheBudgetBytes: baseline.metrics?.thumbnailCache.budget ?? null,
       comparisonReadyMs,
       firstUsableGridMs,
-      fullResolutionReadsDuringOpen: 0,
+      fullResolutionReadsDuringOpen: openingMetrics?.fullResolutionReads ?? null,
       loupeReadyMs,
       profiles: [
         {
@@ -161,9 +180,10 @@ test.describe('large Library performance gate', () => {
           heapBytes: baseline.heapBytes,
           liveBitmaps: baseline.liveBitmaps,
           liveDomCells: baseline.liveDomCells,
-          liveTextures: 0,
+          liveTextures: liveComparisonTextures,
           name: 'Chromium baseline',
-          queueDepth: 0,
+          queueDepth:
+            (baseline.metrics?.scheduler.queued ?? 0) + (baseline.metrics?.scheduler.running ?? 0),
           selectionLatencyP95Ms: p95(baseline.selection),
         },
         {
@@ -172,9 +192,11 @@ test.describe('large Library performance gate', () => {
           heapBytes: throttled.heapBytes,
           liveBitmaps: throttled.liveBitmaps,
           liveDomCells: throttled.liveDomCells,
-          liveTextures: 0,
+          liveTextures: liveComparisonTextures,
           name: 'Chromium 4x CPU throttling',
-          queueDepth: 0,
+          queueDepth:
+            (throttled.metrics?.scheduler.queued ?? 0) +
+            (throttled.metrics?.scheduler.running ?? 0),
           selectionLatencyP95Ms: p95(throttled.selection),
         },
       ],

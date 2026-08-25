@@ -6,11 +6,15 @@ import {
   type AdjustmentKey,
 } from '../editor/adjustments';
 import { neutralGeometry, type GeometryRotation } from '../editor/geometry';
+import { interpolateToneCurve } from '../editor/toneCurve';
+import { createRenderer, neutralRendererAdjustments } from '../rendering/renderer';
 import { Button } from '../ui/components';
+import type { ExportFormat } from '../rendering/export';
 import { LibraryGrid } from './LibraryGrid';
 import { LibraryPhotoView } from './LibraryPhotoView';
 import {
   createComparisonState,
+  mapSourceFocalPointToPane,
   removeComparisonPane,
   setComparisonZoom,
   toggleComparisonPaneLink,
@@ -51,33 +55,47 @@ import {
   type LibraryFilter,
   type LibraryReviewContext,
 } from './libraryReview';
-import { renderLibraryPhotograph } from './libraryRenderedExport';
 import { resolveLibrarySourceChoice } from './libraryReconciliation';
+import type { StoredLook } from '../storage/browserStorage';
 
 export interface AdaptiveLibraryWorkspaceProps {
+  customLooks: readonly StoredLook[];
   feedback: string | null;
   historyStatus: { canRedo: boolean; canUndo: boolean };
   onCancelScan: () => void;
   onClose: () => void;
-  onCommit: (document: OpenFilmLibraryDocument, message: string) => Promise<void>;
-  onLoadSource: (relativePath: string) => Promise<File>;
+  onCommit: (document: OpenFilmLibraryDocument, message: string) => Promise<boolean>;
+  onLoadSource: (relativePath: string, signal?: AbortSignal) => Promise<File>;
+  onLoadComparisonThumbnail: (
+    relativePath: string,
+    maxWidth: number,
+    signal?: AbortSignal,
+    cacheRevision?: string,
+  ) => Promise<LibraryThumbnail>;
   onLoadThumbnail: (
     relativePath: string,
     maxWidth: number,
     signal?: AbortSignal,
+    cacheRevision?: string,
   ) => Promise<LibraryThumbnail>;
   onPickExportDestination: () => Promise<{ handle: FileSystemDirectoryHandle; paths: string[] }>;
   onReadExportFile: (
     destination: FileSystemDirectoryHandle,
     relativePath: string,
   ) => Promise<File | null>;
+  onRenderExport: (
+    photograph: LibraryPhotographRecord,
+    options: { format: ExportFormat; quality: number },
+    signal?: AbortSignal,
+  ) => Promise<Blob>;
   onReauthorize: () => void;
-  onRedo: () => Promise<void>;
+  onReauthorizeScan: () => Promise<void>;
+  onRedo: () => Promise<boolean>;
   onRefresh: () => void;
   onRevert: () => void;
   onRetry: () => void;
   onSaveCopy: () => void;
-  onUndo: () => Promise<void>;
+  onUndo: () => Promise<boolean>;
   onWriteExportFile: (
     destination: FileSystemDirectoryHandle,
     relativePath: string,
@@ -89,7 +107,13 @@ export interface AdaptiveLibraryWorkspaceProps {
 
 const editSections = ['light', 'color', 'curve', 'finish', 'geometry', 'looks'] as const;
 const EXPORT_MANIFEST_PATH = 'openfilm-export-manifest.json';
+const HISTORY_LIMIT = 50;
+const FILMSTRIP_WINDOW = 21;
 type EditSection = (typeof editSections)[number];
+interface ReviewHistoryEntry {
+  context: LibraryReviewContext;
+  gridScrollTop: number;
+}
 const sectionLabels: Record<EditSection, string> = {
   color: 'Color',
   curve: 'Curve',
@@ -126,10 +150,12 @@ function ScanSummary({
   snapshot,
   onCancel,
   onRefresh,
+  onReauthorize,
 }: {
   snapshot: LibraryWorkspaceSnapshot;
   onCancel: () => void;
   onRefresh: () => void;
+  onReauthorize: () => void;
 }) {
   const { progress, status, unsupportedFiles } = snapshot.scan;
   const copy = `${progress.processedFiles.toLocaleString()} read · ${progress.supportedFiles.toLocaleString()} supported · ${progress.unsupportedFiles.toLocaleString()} unsupported`;
@@ -152,7 +178,11 @@ function ScanSummary({
             Cancel
           </Button>
         ) : null}
-        {status === 'failed' || status === 'cancelled' ? (
+        {status === 'failed' && snapshot.scan.error?.toLowerCase().includes('permission') ? (
+          <Button onClick={onReauthorize} size="small" variant="primary">
+            Reauthorize and resume
+          </Button>
+        ) : status === 'failed' || status === 'cancelled' ? (
           <Button onClick={onRefresh} size="small" variant="quiet">
             Retry scan
           </Button>
@@ -172,29 +202,75 @@ function ScanSummary({
 function ComparisonPreview({
   photograph,
   onLoadThumbnail,
+  sourceView,
+  renderGeneration,
 }: {
   photograph: LibraryPhotographRecord;
   onLoadThumbnail: AdaptiveLibraryWorkspaceProps['onLoadThumbnail'];
+  sourceView: boolean;
+  renderGeneration: number;
 }) {
-  const [thumbnail, setThumbnail] = useState<LibraryThumbnail | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [message, setMessage] = useState('Reading derivative');
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
     const controller = new AbortController();
     let current: LibraryThumbnail | null = null;
-    void onLoadThumbnail(photograph.relativePath, 640, controller.signal)
-      .then((loaded) => {
+    const renderer = createRenderer(canvas, {
+      onError: (error) => setMessage(error.message),
+      onStatusChange: (status) => {
+        if (status === 'context-lost') setMessage('Graphics context lost');
+        else if (status === 'available') setMessage('');
+      },
+    });
+    if (!renderer) {
+      setMessage('WebGL2 unavailable');
+      return () => controller.abort();
+    }
+    const resize = () => renderer.resize(canvas.clientWidth, canvas.clientHeight, 1);
+    resize();
+    window.addEventListener('resize', resize);
+    const edit = getLibraryEdit(photograph);
+    renderer.setAdjustments(sourceView ? neutralRendererAdjustments : edit.adjustments);
+    renderer.setGeometry(sourceView ? neutralGeometry : edit.geometry);
+    renderer.setGrainSeed(edit.grainSeed);
+    void onLoadThumbnail(
+      photograph.relativePath,
+      640,
+      controller.signal,
+      `${photograph.fingerprint.byteSize}:${photograph.fingerprint.lastModified}`,
+    )
+      .then(async (loaded) => {
         current = loaded;
-        setThumbnail(loaded);
+        const dimensions = await new Promise<{ height: number; width: number }>(
+          (resolve, reject) => {
+            const image = new Image();
+            image.onload = () =>
+              resolve({ height: image.naturalHeight, width: image.naturalWidth });
+            image.onerror = () => reject(new Error('Derivative unavailable'));
+            image.src = loaded.url;
+          },
+        );
+        if (controller.signal.aborted) return;
+        await renderer.replaceImage({ ...dimensions, objectUrl: loaded.url });
+        if (!controller.signal.aborted) setMessage('');
       })
-      .catch(() => setThumbnail(null));
+      .catch(() => {
+        if (!controller.signal.aborted) setMessage('Derivative unavailable');
+      });
     return () => {
       controller.abort();
+      window.removeEventListener('resize', resize);
+      renderer.dispose();
       current?.dispose();
     };
-  }, [onLoadThumbnail, photograph.relativePath]);
-  return thumbnail ? (
-    <img alt="" src={thumbnail.url} />
-  ) : (
-    <span role="status">Reading derivative</span>
+  }, [onLoadThumbnail, photograph, renderGeneration, sourceView]);
+  return (
+    <>
+      <canvas aria-hidden="true" ref={canvasRef} />
+      {message ? <span role="status">{message}</span> : null}
+    </>
   );
 }
 
@@ -202,6 +278,7 @@ function EditInspector({
   active,
   canMutate,
   document,
+  customLooks,
   expanded,
   onChange,
   onClose,
@@ -212,6 +289,7 @@ function EditInspector({
   active: LibraryPhotographRecord;
   canMutate: boolean;
   document: OpenFilmLibraryDocument;
+  customLooks: readonly StoredLook[];
   expanded: EditSection;
   onChange: (next: OpenFilmLibraryDocument) => void;
   onClose: () => void;
@@ -220,6 +298,7 @@ function EditInspector({
   selectionCount: number;
 }) {
   const edit = getLibraryEdit(active);
+  const midtoneOutput = interpolateToneCurve(edit.adjustments.toneCurve, 0.5);
   return (
     <aside
       aria-label="Edit inspector"
@@ -315,7 +394,7 @@ function EditInspector({
                 <label className="edit-inspector__control">
                   <span>
                     Midtone output
-                    <output>{Math.round((edit.adjustments.toneCurve[1]?.y ?? 0.5) * 100)}</output>
+                    <output>{Math.round(midtoneOutput * 100)}</output>
                   </span>
                   <input
                     aria-label="Midtone output"
@@ -329,7 +408,7 @@ function EditInspector({
                     }
                     step="0.01"
                     type="range"
-                    value={edit.adjustments.toneCurve[1]?.y ?? 0.5}
+                    value={midtoneOutput}
                   />
                   <span className="edit-inspector__number-row">
                     <input
@@ -344,10 +423,10 @@ function EditInspector({
                       }
                       step="0.01"
                       type="number"
-                      value={edit.adjustments.toneCurve[1]?.y ?? 0.5}
+                      value={midtoneOutput}
                     />
                     <button
-                      disabled={!canMutate || (edit.adjustments.toneCurve[1]?.y ?? 0.5) === 0.5}
+                      disabled={!canMutate || midtoneOutput === 0.5}
                       onClick={() => onChange(updateLibraryCurve(document, active, 0.5))}
                       type="button"
                     >
@@ -441,8 +520,26 @@ function EditInspector({
                   >
                     Neutral Look
                   </Button>
+                  {customLooks.map((look) => (
+                    <Button
+                      disabled={!canMutate}
+                      key={look.id}
+                      onClick={() =>
+                        onChange(
+                          updateLibraryEdit(document, active.id, (current) => ({
+                            ...current,
+                            adjustments: JSON.parse(JSON.stringify(look.adjustments)),
+                          })),
+                        )
+                      }
+                      size="small"
+                      variant="outline"
+                    >
+                      {look.title}
+                    </Button>
+                  ))}
                   <Button
-                    disabled={!canMutate || selectionCount === 0}
+                    disabled={!canMutate || selectionCount === 0 || !active.edit}
                     onClick={onCopy}
                     size="small"
                     variant="primary"
@@ -541,6 +638,10 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
   const [comparison, setComparison] = useState<LibraryComparisonState | null>(null);
   const [sourceView, setSourceView] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
+  const [sourceZoomAvailable, setSourceZoomAvailable] = useState(false);
+  const [gridScrollTop, setGridScrollTop] = useState(0);
+  const [gridRestoreRevision, setGridRestoreRevision] = useState(0);
+  const [renderGeneration, setRenderGeneration] = useState(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showGroups, setShowGroups] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -554,8 +655,8 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
   const exportCancelledRef = useRef(false);
   const focusBeforeOverlay = useRef<HTMLElement | null>(null);
   const workstationRef = useRef<HTMLElement>(null);
-  const contextUndo = useRef<LibraryReviewContext[]>([]);
-  const contextRedo = useRef<LibraryReviewContext[]>([]);
+  const contextUndo = useRef<ReviewHistoryEntry[]>([]);
+  const contextRedo = useRef<ReviewHistoryEntry[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -588,22 +689,24 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
   useEffect(() => {
     if (!overlayOpen) return;
     const dialog = globalThis.document.querySelector<HTMLElement>('[data-openfilm-modal="true"]');
-    const controls = dialog
-      ? Array.from(
-          dialog.querySelectorAll<HTMLElement>(
-            'button, input, select, [tabindex]:not([tabindex="-1"])',
-          ),
-        ).filter((item) => !item.hasAttribute('disabled'))
-      : [];
+    const controls = () =>
+      dialog
+        ? Array.from(
+            dialog.querySelectorAll<HTMLElement>(
+              'button, input, select, [tabindex]:not([tabindex="-1"])',
+            ),
+          ).filter((item) => !item.hasAttribute('disabled'))
+        : [];
     const background = Array.from(
       globalThis.document.querySelectorAll<HTMLElement>('[data-workstation-background]'),
     );
     for (const element of background) element.inert = true;
-    controls[0]?.focus();
+    controls()[0]?.focus();
     const trapFocus = (event: KeyboardEvent) => {
-      if (event.key !== 'Tab' || controls.length === 0) return;
-      const first = controls[0];
-      const last = controls.at(-1)!;
+      const currentControls = controls();
+      if (event.key !== 'Tab' || currentControls.length === 0) return;
+      const first = currentControls[0];
+      const last = currentControls.at(-1)!;
       if (event.shiftKey && globalThis.document.activeElement === first) {
         event.preventDefault();
         last.focus();
@@ -612,9 +715,16 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
         first.focus();
       }
     };
+    const containFocus = (event: FocusEvent) => {
+      if (dialog && event.target instanceof Node && !dialog.contains(event.target)) {
+        controls()[0]?.focus();
+      }
+    };
     globalThis.document.addEventListener('keydown', trapFocus);
+    globalThis.document.addEventListener('focusin', containFocus);
     return () => {
       globalThis.document.removeEventListener('keydown', trapFocus);
+      globalThis.document.removeEventListener('focusin', containFocus);
       for (const element of background) element.inert = false;
     };
   }, [overlayOpen]);
@@ -650,12 +760,15 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
       return;
     }
     if (rememberContext) {
-      contextUndo.current.push(context);
+      contextUndo.current.push({ context, gridScrollTop });
+      contextUndo.current.splice(0, Math.max(0, contextUndo.current.length - HISTORY_LIMIT));
       contextRedo.current = [];
     }
     setDocumentState(next);
     setMessage(nextMessage);
-    await props.onCommit(next, nextMessage);
+    if (await props.onCommit(next, nextMessage)) {
+      setRenderGeneration((current) => current + 1);
+    }
   }
 
   function review(command: Parameters<typeof applyLibraryReviewCommand>[2]) {
@@ -666,12 +779,15 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
     }
     try {
       const result = applyLibraryReviewCommand(document, context, command);
-      contextUndo.current.push(context);
+      contextUndo.current.push({ context, gridScrollTop });
+      contextUndo.current.splice(0, Math.max(0, contextUndo.current.length - HISTORY_LIMIT));
       contextRedo.current = [];
       setContext(result.context);
       setDocumentState(result.document);
       setMessage(result.message);
-      void props.onCommit(result.document, result.message);
+      void props.onCommit(result.document, result.message).then((saved) => {
+        if (saved) setRenderGeneration((current) => current + 1);
+      });
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : 'OpenFilm could not change review state.',
@@ -683,20 +799,26 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
     if (!canMutate) return;
     const previous = contextUndo.current.pop();
     if (previous) {
-      contextRedo.current.push(context);
-      setContext(previous);
+      contextRedo.current.push({ context, gridScrollTop });
+      contextRedo.current.splice(0, Math.max(0, contextRedo.current.length - HISTORY_LIMIT));
+      setContext(previous.context);
+      setGridScrollTop(previous.gridScrollTop);
+      setGridRestoreRevision((current) => current + 1);
     }
-    await props.onUndo();
+    if (await props.onUndo()) setRenderGeneration((current) => current + 1);
   }
 
   async function redo() {
     if (!canMutate) return;
     const next = contextRedo.current.pop();
     if (next) {
-      contextUndo.current.push(context);
-      setContext(next);
+      contextUndo.current.push({ context, gridScrollTop });
+      contextUndo.current.splice(0, Math.max(0, contextUndo.current.length - HISTORY_LIMIT));
+      setContext(next.context);
+      setGridScrollTop(next.gridScrollTop);
+      setGridRestoreRevision((current) => current + 1);
     }
-    await props.onRedo();
+    if (await props.onRedo()) setRenderGeneration((current) => current + 1);
   }
 
   function openInspector() {
@@ -959,8 +1081,7 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
         if (folder && exportDestination) {
           await persistExportManifest(exportDestination, manifest, true);
         }
-        const file = await props.onLoadSource(photograph.relativePath);
-        const blob = await renderLibraryPhotograph(file, photograph, {
+        const blob = await props.onRenderExport(photograph, {
           format: entry.format,
           quality: entry.quality,
         });
@@ -1092,8 +1213,10 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
           {props.feedback ?? message}
         </p>
         <ScanSummary
+          key={context.mode}
           onCancel={props.onCancelScan}
           onRefresh={props.onRefresh}
+          onReauthorize={() => void props.onReauthorizeScan()}
           snapshot={props.snapshot}
         />
       </div>
@@ -1360,15 +1483,18 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
               <LibraryGrid
                 activePhotographId={active?.id ?? null}
                 density={density}
+                initialScrollTop={gridScrollTop}
                 onActivate={(id) =>
                   setContext((current) => ({ ...current, activePhotographId: id }))
                 }
                 onLoadThumbnail={props.onLoadThumbnail}
+                onScrollTopChange={setGridScrollTop}
                 onToggleSelection={(id) =>
                   setContext((current) => toggleLibrarySelection(current, id))
                 }
                 photographs={visible}
                 selectedPhotographIds={selectionSet}
+                scrollRestoreRevision={gridRestoreRevision}
               />
             )}
             {!context.filter.unsupportedOnly && visible.length === 0 ? (
@@ -1383,7 +1509,12 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
               <Button onClick={() => setZoomScale(1)} size="small" variant="quiet">
                 Fit
               </Button>
-              <Button onClick={() => setZoomScale(2)} size="small" variant="quiet">
+              <Button
+                disabled={!sourceZoomAvailable}
+                onClick={() => setZoomScale(2)}
+                size="small"
+                variant="quiet"
+              >
                 100%
               </Button>
               <Button
@@ -1397,23 +1528,31 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
             </div>
             <LibraryPhotoView
               onLoadSource={props.onLoadSource}
+              onSourceZoomAvailability={setSourceZoomAvailable}
               photograph={active}
+              renderGeneration={renderGeneration}
               sourceView={sourceView}
               zoomScale={zoomScale}
             />
             <div aria-label="Nearby photographs" className="loupe-filmstrip">
-              {visible.map((photo) => (
-                <button
-                  aria-current={photo.id === active.id ? 'true' : undefined}
-                  key={photo.id}
-                  onClick={() =>
-                    setContext((current) => ({ ...current, activePhotographId: photo.id }))
-                  }
-                  type="button"
-                >
-                  {photo.fileName}
-                </button>
-              ))}
+              {visible
+                .slice(
+                  Math.max(0, visible.findIndex((photo) => photo.id === active.id) - 10),
+                  Math.max(0, visible.findIndex((photo) => photo.id === active.id) - 10) +
+                    FILMSTRIP_WINDOW,
+                )
+                .map((photo) => (
+                  <button
+                    aria-current={photo.id === active.id ? 'true' : undefined}
+                    key={photo.id}
+                    onClick={() =>
+                      setContext((current) => ({ ...current, activePhotographId: photo.id }))
+                    }
+                    type="button"
+                  >
+                    {photo.fileName}
+                  </button>
+                ))}
             </div>
           </div>
         ) : context.mode === 'comparison' && comparison ? (
@@ -1448,6 +1587,10 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
             {comparison.panes.map((pane, index) => {
               const photograph = photographs.find((photo) => photo.id === pane.photographId);
               if (!photograph) return null;
+              const paneFocalPoint = mapSourceFocalPointToPane(
+                comparison.focalPoint,
+                sourceView ? neutralGeometry : getLibraryEdit(photograph).geometry,
+              );
               return (
                 <article
                   aria-label={`Comparison pane ${index + 1}, ${photograph.fileName}, ${pane.linked ? 'linked' : 'unlinked'}, resolution limited`}
@@ -1471,16 +1614,18 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
                     }}
                     style={
                       {
-                        '--comparison-origin-x': `${comparison.focalPoint.x * 100}%`,
-                        '--comparison-origin-y': `${comparison.focalPoint.y * 100}%`,
+                        '--comparison-origin-x': `${paneFocalPoint.x * 100}%`,
+                        '--comparison-origin-y': `${paneFocalPoint.y * 100}%`,
                         '--comparison-zoom': pane.zoomScale,
                       } as CSSProperties
                     }
                     type="button"
                   >
                     <ComparisonPreview
-                      onLoadThumbnail={props.onLoadThumbnail}
+                      onLoadThumbnail={props.onLoadComparisonThumbnail}
                       photograph={photograph}
+                      renderGeneration={renderGeneration}
+                      sourceView={sourceView}
                     />
                   </button>
                   <footer>
@@ -1586,6 +1731,7 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
           <EditInspector
             active={active}
             canMutate={canMutate}
+            customLooks={props.customLooks}
             document={document}
             expanded={editSection}
             onChange={(next) =>
@@ -1825,7 +1971,13 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
       ) : null}
 
       {showShortcuts ? (
-        <div aria-modal="true" className="shortcut-dialog" data-openfilm-modal="true" role="dialog">
+        <div
+          aria-label="Keyboard shortcuts"
+          aria-modal="true"
+          className="shortcut-dialog"
+          data-openfilm-modal="true"
+          role="dialog"
+        >
           <div>
             <header>
               <h2>Keyboard shortcuts</h2>
@@ -1861,6 +2013,7 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
         <section
           aria-label="Unsaved Library recovery"
           className="library-recovery-bar"
+          data-workstation-background
           role="alert"
         >
           <span>Unsaved Library. Viewing remains available; changes wait for recovery.</span>
@@ -1879,6 +2032,7 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
         <section
           aria-label="Read-only Library recovery"
           className="library-recovery-bar"
+          data-workstation-background
           role="alert"
         >
           <span>Read-only Library. Reauthorize the folder to save changes.</span>

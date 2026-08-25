@@ -15,13 +15,15 @@ archival or print-fidelity master.
 
 ## Scale and resource bounds
 
-The release gate exercises a deterministic 2,000-record Library with logical 45-megapixel,
+The browser release gate exercises a deterministic 2,000-record Library with logical 45-megapixel,
 24-megabyte Sources. Only four records contain a physical fixture; the remaining records carry the
-same declared scale while marked Missing. This validates application state, virtualization, bounded
-DOM use, and interaction latency. It does not prove decode throughput for 2,000 simultaneous full
-Sources or predict every device.
+same declared scale while marked Missing. The separate generator creates 2,000 decodable 45 MP,
+24 MB logical JPEG paths through hard links. Together these validate directory scale, application
+state, virtualization, bounded DOM use, selected-source decode, and interaction latency. They do not
+measure independent-disk storage throughput, 2,000 simultaneous full-Source decodes, or every device.
 
-Grid cells decode transient bounded thumbnails only while mounted. Loupe reads the active Source.
+Grid cells use fingerprint-versioned thumbnails held under a 96 MiB least-recently-used cache.
+Loupe reads the active Source through the shared scheduler and one-full-Source admission gate.
 Comparison deliberately uses bounded 640-pixel derivatives and always says
 `Resolution limited · Fit`; it does not claim a true 100-percent view. The thumbnail cache and work
 scheduler enforce byte, concurrency, retry, and generation bounds.
@@ -53,9 +55,9 @@ explicit read-only or unsaved state instead of silently replacing durable data.
 
 Path plus cheap fingerprint preserves identity for unchanged Sources. Changed bytes at the same path
 create a new record and leave the previous record Missing. Explicit Refresh computes content hashes
-as low-priority work for later reconciliation; initial open does not. A moved Source relinks only when
-one cached hash matches. Ambiguous matches stay unresolved until the photographer chooses which
-Missing record supplies the state.
+as low-priority work for later reconciliation; initial scan stays on cheap fingerprints. A moved
+Source relinks only when one cached hash matches. Ambiguous matches stay unresolved until the
+photographer chooses which Missing record supplies the state.
 
 Version-1 Library migration preserves valid Looks and quarantines recoverable malformed Edit state.
 Unrecognized or unsafe state opens read-only. Legacy identity conflicts are resolved once and stored
