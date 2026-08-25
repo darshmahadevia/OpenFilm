@@ -7,7 +7,8 @@
 adaptive
 
 The workstation ships in a sandboxed Electron desktop shell for macOS and Windows, and Vite also
-produces a browser build. The public web root is the desktop download page.
+produces a browser build. The public web root is a product overview, with a separate
+operating-system-aware download route.
 
 ## Users
 

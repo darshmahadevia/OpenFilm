@@ -7,40 +7,39 @@ related_targets: ['index.html', 'src/landing/landing.css', 'electron/main.mjs', 
 
 ## Scope and mode
 
-Production desktop-download landing page. Persuade mode. The workstation interface remains a
+Production product landing page and separate download route. Persuade mode. The workstation interface remains a
 separate Operate surface at `app.html` and is outside this page's redesign boundary.
 
 ## Audience, action, proof, and constraints
 
 The audience is a photographer deciding whether to install a local-first review workstation. The
-primary action is downloading the macOS or Windows build. Proof comes from the real workstation
+primary action is reaching the download route and choosing the macOS or Windows build. Proof comes from the real workstation
 screenshot, the shipped folder-to-Export workflow, and the precise local-file boundary. There are
 no accounts, uploads, analytics, testimonials, invented performance claims, or cloud promises.
 
 ## Direction
 
-Matte Proof Studio at editorial scale with a restrained kinetic-darkroom composition. A clean,
-tightly set sans serif now carries landing headings while Bodoni remains in the OpenFilm wordmark.
-The desktop hero pairs the factual local-first promise with a static darkroom photograph and the
-real workstation entering once at the fold. The visitor then sees
+Matte Proof Studio at editorial scale with a restrained kinetic-darkroom composition. Bodoni
+carries the wordmark and measured editorial headings. The desktop hero pairs the factual
+local-first promise with a static darkroom photograph. The visitor then sees
 workstation proof, the ordered Library workflow, local architecture, and one final image-led
 download. Photography remains the strongest material; near-black, warm white, fine rules, and one
 sand signal carry the OpenFilm identity.
 
 ## Implementation commitments
 
-- The site root is the download page; `app.html` remains the browser workstation and Electron entry.
-- At 1024 CSS pixels and below, the download page is replaced by a dedicated, image-led `Coming
-soon.` view for phone and tablet visitors.
-- The hero removes the decorative film strip and pointer parallax. The workstation entrance remains
-  the single first-viewport reveal; reduced motion removes it.
+- The site root is a responsive product story; `/download` recommends a platform from the visitor's
+  operating system while `app.html` remains the browser workstation and Electron entry.
+- The hero removes the decorative film strip and pointer parallax. The copy carries the single
+  first-viewport reveal; reduced motion removes it.
 - Download links target the stable GitHub Release assets `OpenFilm.dmg` and
   `OpenFilm-Setup.exe`, with the unsigned preview status stated beside the actions.
-- The same real workstation screenshot supplies hero and detailed proof; no simulated product state
-  or fake device frame is introduced.
+- The real workstation screenshot is shown once at its native 16:10 proportion; no simulated product
+  state, crop, or fake device frame is introduced.
 
 ## Review result
 
-The finish reviewer returned `ship` after the compact mobile download action gained its explicit
-accessible name. Desktop and 390-pixel mobile captures, Axe checks, horizontal-overflow checks, the
-packaged Electron page, and the universal DMG were verified.
+The finish reviewer returned `ship` after the download consent language, GitHub boundary, and
+download-group semantics were corrected. Desktop and 390-pixel mobile captures, release links,
+operating-system detection, horizontal overflow, console output, and the full project gate were
+verified.

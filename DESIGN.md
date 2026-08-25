@@ -58,13 +58,13 @@ the workstation itself keeps actions compact and task-specific.
 - Compact, precise workstation controls extended to the landing page at editorial scale.
 - Local-first product language with no ornamental claims, social proof, or cloud/account theatre.
 
-## Download surface
+## Website and download surface
 
-The public download route is the Persuade expression of Matte Proof Studio. It opens with a factual
-local-first promise and two forms of proof: the actual workstation screenshot and a darkroom
-photograph. The visitor path is deliberate and vertical: download, workstation proof, the ordered
-Library workflow, precise local-file architecture, then an image-led final download. This is an
-editorial extension of the product world, not a second app UI or a feature-card wall.
+The public root is the Persuade expression of Matte Proof Studio. It opens with a factual
+local-first promise and a darkroom photograph, then moves through the actual workstation, the
+ordered Library workflow, precise local-file architecture, and an image-led final action. Download
+choices live on a separate route that recommends macOS or Windows from the visitor's operating
+system without starting a download automatically.
 
 ### Surface grammar
 
