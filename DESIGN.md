@@ -143,10 +143,9 @@ interface is not ready and points them to the project. The macOS and Windows lin
 hidden desktop layout, so their platform-specific accessible names stay correct without adding
 unusable download actions to the smaller-screen view.
 
-Motion is functional and brief. The landing hero has no looping film strip or pointer parallax. With
-reduced motion enabled, transitions are removed without hiding state changes. The landing
-workstation frame's single vertical reveal is removed entirely under
-`prefers-reduced-motion: reduce`; no state depends on the animation.
+Motion is functional and brief. A narrow film strip rolls across the hero photograph while it is in
+view, pauses offscreen or in a hidden tab, and becomes static under `prefers-reduced-motion: reduce`.
+The landing hero has no pointer parallax. No state depends on animation.
 
 **The Single Reveal Rule.** The landing hero may stage one vertical workstation entrance when motion
 is allowed; reduced motion removes it rather than replacing it with another effect.
@@ -191,9 +190,9 @@ its documented release boundary; atmosphere never stands in for evidence.
 - **Download links:** Sand-filled, squared macOS and Windows links with compact download icons.
   Hover swaps to the matte ground and sand text; focus uses the shared visible focus treatment. The
   header variants remain compact and keep explicit platform-specific accessible names.
-- **Proof frame:** A near-black, fine-rule frame around the real workstation screenshot. The small
-  window bar and filename readout are documentary chrome only; do not add controls, gradients, or
-  simulated product state.
+- **Proof frame:** A near-black, fine-rule frame around the real workstation screenshot. The landing
+  proof crops to the upper controls and photograph row; the download route keeps the complete 16:10
+  view. The small window bar and filename readout are documentary chrome only.
 - **Ruled fact / workflow rows:** Use one-pixel charcoal separators, sand indices, short labels, and
   muted explanatory copy. Rows are content-first and remain readable when stacked.
 - **Local architecture list:** Use a ruled definition list with tabular values for paths and license

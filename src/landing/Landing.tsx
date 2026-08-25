@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import workstationScreenshot from '../../docs/screenshots/openfilm-workstation-wide.png';
 import closingCoast from '../assets/openfilm-closing-coast.webp';
@@ -31,6 +31,49 @@ function ArrowIcon() {
     <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
       <path d="M5 12h13m-5-5 5 5-5 5" />
     </svg>
+  );
+}
+
+function FilmStrip() {
+  const stripRef = useRef<HTMLDivElement>(null);
+  const frames = [darkroomHero, comparisonStreet, closingCoast, coastalValley];
+
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    if (!('IntersectionObserver' in window)) {
+      strip.dataset.running = 'false';
+      return;
+    }
+
+    let intersects = false;
+    const updatePlayback = () => {
+      strip.dataset.running = String(intersects && !document.hidden);
+    };
+    const observer = new IntersectionObserver(([entry]) => {
+      intersects = entry.isIntersecting;
+      updatePlayback();
+    });
+
+    observer.observe(strip);
+    document.addEventListener('visibilitychange', updatePlayback);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', updatePlayback);
+    };
+  }, []);
+
+  return (
+    <div aria-hidden="true" className="landing-film-strip" ref={stripRef}>
+      <div className="landing-film-strip__track">
+        {[...frames, ...frames].map((src, index) => (
+          <figure key={`${src}-${index}`}>
+            <span>{String((index % frames.length) + 1).padStart(2, '0')}</span>
+            <img alt="" src={src} />
+          </figure>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -71,19 +114,30 @@ function SiteFooter() {
   );
 }
 
-function ProofFrame({ compact = false }: { compact?: boolean }) {
+function ProofFrame({
+  compact = false,
+  cropped = false,
+}: {
+  compact?: boolean;
+  cropped?: boolean;
+}) {
+  const classes = ['proof-frame', compact && 'proof-frame--compact', cropped && 'proof-frame--crop']
+    .filter(Boolean)
+    .join(' ');
   return (
-    <figure className={`proof-frame${compact ? ' proof-frame--compact' : ''}`}>
+    <figure className={classes}>
       <div className="landing-window-bar" aria-hidden="true">
         <span />
         <span />
         <span />
         <b>JUNE COAST / 184 PHOTOGRAPHS</b>
       </div>
-      <img
-        alt="OpenFilm showing a photograph grid, review controls, and the Edit inspector"
-        src={workstationScreenshot}
-      />
+      <div className="proof-frame__image">
+        <img
+          alt="OpenFilm showing a photograph grid, review controls, and the Edit inspector"
+          src={workstationScreenshot}
+        />
+      </div>
     </figure>
   );
 }
@@ -185,25 +239,34 @@ export function HomePage() {
       <SiteHeader />
       <main id="main-content">
         <section className="landing-hero" id="top">
-          <div className="landing-hero__copy">
-            <h1>Review the whole shoot. Keep every photograph local.</h1>
-            <p>
-              A desktop workstation for culling, comparing, editing, and exporting a folder of
-              photographs. No account. No upload path.
-            </p>
-            <div className="landing-hero__actions">
-              <a className="landing-download" href="/download">
-                Download OpenFilm <ArrowIcon />
-              </a>
-              <a className="landing-text-link" href="#workstation">
-                See the workstation <ArrowIcon />
-              </a>
-            </div>
-          </div>
           <figure className="landing-hero__photograph">
-            <img alt="Flowers in a dim photographic darkroom" src={darkroomHero} />
+            <img alt="Flowers beside a film camera in a dim workspace" src={darkroomHero} />
+            <FilmStrip />
             <figcaption>Local-first photography software</figcaption>
           </figure>
+          <div className="landing-hero__copy">
+            <h1 aria-label="Review the whole shoot. Keep every photograph local.">
+              <span aria-hidden="true">Review the whole shoot.</span>
+              <span aria-hidden="true">Keep every photograph local.</span>
+            </h1>
+            <div className="landing-hero__details">
+              <p>
+                A desktop workstation for culling, comparing, editing, and exporting a folder of
+                photographs. No account. No upload path.
+              </p>
+              <div className="landing-hero__actions">
+                <a className="landing-download" href="/download">
+                  Download OpenFilm <ArrowIcon />
+                </a>
+                <a className="landing-text-link" href="#workstation">
+                  See the workstation <ArrowIcon />
+                </a>
+              </div>
+            </div>
+          </div>
+          <div className="landing-hero__frame">
+            <ProofFrame cropped />
+          </div>
         </section>
         <section aria-label="Product facts" className="landing-facts">
           <p>
@@ -224,7 +287,7 @@ export function HomePage() {
               the app, reopen the folder, and continue the review.
             </p>
           </div>
-          <ProofFrame />
+          <ProofFrame cropped />
           <div className="landing-workstation__caption">
             <span>Grid / Loupe / Comparison</span>
             <p>Move from the full shoot to a single frame without losing review context.</p>

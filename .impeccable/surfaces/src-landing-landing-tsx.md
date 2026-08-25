@@ -30,12 +30,12 @@ sand signal carry the OpenFilm identity.
 
 - The site root is a responsive product story; `/download` recommends a platform from the visitor's
   operating system while `app.html` remains the browser workstation and Electron entry.
-- The hero removes the decorative film strip and pointer parallax. The copy carries the single
-  first-viewport reveal; reduced motion removes it.
+- A narrow film strip rolls over the hero photograph while visible and pauses offscreen. Reduced
+  motion leaves it static, and the hero keeps pointer parallax out.
 - Download links target the stable GitHub Release assets `OpenFilm.dmg` and
   `OpenFilm-Setup.exe`, with the unsigned preview status stated beside the actions.
-- The real workstation screenshot is shown once at its native 16:10 proportion; no simulated product
-  state, crop, or fake device frame is introduced.
+- The workstation screenshot appears as a top-anchored crop on the landing page and a complete 16:10
+  proof on the download route; no simulated product state or fake device frame is introduced.
 
 ## Review result
 

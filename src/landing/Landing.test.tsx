@@ -6,7 +6,7 @@ import { detectDesktopPlatform } from './platform';
 
 describe('OpenFilm website', () => {
   it('presents a scroll-led product story with a separate download route', () => {
-    render(<HomePage />);
+    const { container } = render(<HomePage />);
 
     expect(
       screen.getByRole('heading', {
@@ -22,6 +22,8 @@ describe('OpenFilm website', () => {
     expect(
       screen.getByRole('heading', { name: 'One folder in. A finished set out.' }),
     ).toBeInTheDocument();
+    expect(container.querySelector('.landing-film-strip')).toBeInTheDocument();
+    expect(container.querySelector('.proof-frame--crop')).toBeInTheDocument();
   });
 
   it('offers both stable release assets on the download page', () => {
