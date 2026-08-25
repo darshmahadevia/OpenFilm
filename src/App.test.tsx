@@ -102,28 +102,25 @@ describe('OpenFilm shell', () => {
     vi.restoreAllMocks();
   });
 
-  it('introduces the product and keeps the editor behind a clear import action', () => {
+  it('opens the Library workspace and keeps the editor behind an explicit secondary path', () => {
     render(<App />);
 
-    expect(screen.getByRole('heading', { name: 'Open a photograph.' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Open a Library.' })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'Adjust' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open folder' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Choose a photo' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open sample' })).toBeInTheDocument();
-    expect(screen.getByText('From Photos or Files · JPEG, PNG, or WebP')).toBeInTheDocument();
-    expect(screen.getByRole('slider', { name: 'Preview before and after' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Recent Libraries' })).toBeInTheDocument();
+    expect(screen.getByText(/JPEG, PNG, and WebP/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reload page' })).not.toBeInTheDocument();
   });
 
-  it('updates the landing comparison from its labeled range control', () => {
+  it('starts with a ruled recent-Library list', () => {
     const { container } = render(<App />);
-    const comparison = screen.getByRole('slider', { name: 'Preview before and after' });
 
-    fireEvent.change(comparison, { target: { value: '73' } });
-
-    expect(container.querySelector('.landing-demo__divider')).toHaveStyle({ left: '73%' });
-    expect(container.querySelector('.landing-demo__edited')).toHaveStyle({
-      clipPath: 'inset(0 27% 0 0)',
-    });
+    expect(screen.getByText(/No recent Libraries/)).toBeInTheDocument();
+    expect(container.querySelector('.library-recent')).toBeInTheDocument();
+    expect(container.querySelector('.library-recent__list')).toBeNull();
   });
 
   it('keeps the empty state focused and introduces controls after a source is ready', async () => {
@@ -132,9 +129,9 @@ describe('OpenFilm shell', () => {
     try {
       render(<App />);
 
-      expect(screen.getByRole('heading', { name: 'Open a photograph.' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Open a Library.' })).toBeInTheDocument();
       expect(screen.queryByRole('slider', { name: 'Exposure' })).not.toBeInTheDocument();
-      expect(screen.getByText(/Crop, shape color, save a Look, and export/)).toBeInTheDocument();
+      expect(screen.getByText(/Source photographs in place/)).toBeInTheDocument();
 
       await openBundledSample();
       expect(screen.getByRole('slider', { name: 'Exposure' })).toBeInTheDocument();

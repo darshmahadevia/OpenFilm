@@ -86,6 +86,7 @@ import {
 } from './rendering/export';
 import {
   createBrowserStorage,
+  createMemoryStorage,
   describeStorageError,
   hasBrowserStorage,
   storageNotice,
@@ -93,6 +94,18 @@ import {
   type StoredEdit,
   type StoredLook,
 } from './storage/browserStorage';
+import {
+  LibraryApplication,
+  type LibraryActionResult,
+  type LibraryOpenResult,
+  type LibraryWorkspaceSnapshot,
+  type RecentLibraryEntry,
+} from './library/libraryApplication';
+import {
+  createBrowserLibraryDirectoryGateway,
+  type LibraryDirectoryGateway,
+} from './library/libraryGateway';
+import { LibraryStartWorkspace, LibraryWorkspace } from './library/LibraryStartWorkspace';
 import {
   addToneCurvePoint,
   isNeutralToneCurve,
@@ -2024,7 +2037,13 @@ export default function App() {
   const [state, dispatch] = useReducer(editorReducer, initialEditorState);
   const [sourcePhotograph, setSourcePhotograph] = useState<ImportedSourcePhotograph | null>(null);
   const hasSource = Boolean(sourcePhotograph);
-  const [isLandingVisible, setIsLandingVisible] = useState(true);
+  const [isLandingVisible, setIsLandingVisible] = useState(false);
+  const [isLibraryStartVisible, setIsLibraryStartVisible] = useState(true);
+  const [librarySnapshot, setLibrarySnapshot] = useState<LibraryWorkspaceSnapshot | null>(null);
+  const [recentLibraries, setRecentLibraries] = useState<RecentLibraryEntry[]>([]);
+  const [libraryRecentLoading, setLibraryRecentLoading] = useState(hasBrowserStorage());
+  const [isLibraryOpening, setIsLibraryOpening] = useState(false);
+  const [libraryFeedback, setLibraryFeedback] = useState<string | null>(null);
   const [editHistory, dispatchEditHistory] = useReducer(editHistoryReducer, createEditHistory());
   const [rendererStatus, setRendererStatus] = useState<RendererStatus>('unsupported');
   const [rendererError, setRendererError] = useState<string | null>(null);
@@ -2074,10 +2093,23 @@ export default function App() {
   const presetImportRequestRef = useRef(0);
   const presetImportInFlightRef = useRef(false);
   const storageRef = useRef<BrowserStorage | null>(null);
+  const libraryGatewayRef = useRef<LibraryDirectoryGateway | null>(null);
+  const libraryApplicationRef = useRef<LibraryApplication | null>(null);
   const pendingEditRef = useRef<{ edit: StoredEdit; storage: BrowserStorage } | null>(null);
   const storageWriteInFlightRef = useRef(false);
   const persistedSourceRef = useRef<File | null | undefined>(undefined);
   const exportInFlightRef = useRef(false);
+
+  if (!libraryGatewayRef.current) {
+    libraryGatewayRef.current = createBrowserLibraryDirectoryGateway();
+  }
+
+  if (!libraryApplicationRef.current && libraryGatewayRef.current) {
+    libraryApplicationRef.current = new LibraryApplication(
+      libraryGatewayRef.current,
+      createMemoryStorage(),
+    );
+  }
   const activeTool = toolDetails[state.activeTool];
   const adjustments = editHistory.present.adjustments;
   const geometry = editHistory.present.geometry;
@@ -2160,7 +2192,7 @@ export default function App() {
       renderer.dispose();
       rendererRef.current = null;
     };
-  }, [hasSource, isLandingVisible]);
+  }, [hasSource, isLandingVisible, isLibraryStartVisible]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2179,6 +2211,7 @@ export default function App() {
           setStorageStatus('unavailable');
           setStorageFeedback(describeStorageError('unavailable'));
           setStorageReady(true);
+          setLibraryRecentLoading(false);
         }
       });
       return () => {
@@ -2188,12 +2221,18 @@ export default function App() {
 
     storageRef.current = storage;
     const availableStorage = storage;
+    const libraryGateway = libraryGatewayRef.current;
+
+    if (libraryGateway) {
+      libraryApplicationRef.current = new LibraryApplication(libraryGateway, availableStorage);
+    }
 
     async function recover() {
       try {
-        const [savedLooks, savedEdit] = await Promise.all([
+        const [savedLooks, savedEdit, savedLibraries] = await Promise.all([
           availableStorage.listCustomLooks(),
           availableStorage.loadLatestEdit(),
+          libraryApplicationRef.current?.listRecentLibraries() ?? Promise.resolve([]),
         ]);
 
         if (cancelled) {
@@ -2201,6 +2240,7 @@ export default function App() {
         }
 
         setCustomLooks(savedLooks);
+        setRecentLibraries(savedLibraries);
 
         if (savedEdit) {
           dispatch({
@@ -2252,10 +2292,12 @@ export default function App() {
           storageRef.current = null;
           setStorageStatus('failed');
           setStorageFeedback(describeStorageError('failed'));
+          setLibraryRecentLoading(false);
         }
       } finally {
         if (!cancelled) {
           setStorageReady(true);
+          setLibraryRecentLoading(false);
         }
       }
     }
@@ -2362,7 +2404,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [isLandingVisible, sourcePhotograph]);
+  }, [isLandingVisible, isLibraryStartVisible, sourcePhotograph]);
 
   useEffect(() => {
     const renderer = rendererRef.current;
@@ -2452,6 +2494,176 @@ export default function App() {
     };
   }, []);
 
+  async function refreshRecentLibraries() {
+    const application = libraryApplicationRef.current;
+
+    if (!application) {
+      setRecentLibraries([]);
+      return;
+    }
+
+    try {
+      setRecentLibraries(await application.listRecentLibraries());
+    } catch {
+      setRecentLibraries([]);
+      setLibraryFeedback('OpenFilm could not check recent Libraries. Open a folder to try again.');
+    }
+  }
+
+  function applyLibraryOpenResult(result: LibraryOpenResult) {
+    if (result.kind === 'cancelled') {
+      return;
+    }
+
+    if (result.kind === 'opened' || result.kind === 'read-only') {
+      setLibrarySnapshot(result.snapshot);
+      setLibraryFeedback(null);
+      setIsLibraryStartVisible(false);
+      setIsLandingVisible(false);
+      return;
+    }
+
+    if (result.kind === 'reauthorize') {
+      setLibraryFeedback(result.message);
+      return;
+    }
+
+    setLibraryFeedback(
+      `OpenFilm could not find the ${result.rootName} Library folder. Choose its folder again to create a new recent entry.`,
+    );
+  }
+
+  async function openLibraryFolder() {
+    const application = libraryApplicationRef.current;
+
+    if (!application || isLibraryOpening) {
+      return;
+    }
+
+    setIsLibraryOpening(true);
+    setLibraryFeedback(null);
+
+    try {
+      applyLibraryOpenResult(await application.openPickedFolder());
+      await refreshRecentLibraries();
+    } catch (error) {
+      setLibraryFeedback(
+        error instanceof Error ? error.message : 'OpenFilm could not open that Library folder.',
+      );
+    } finally {
+      setIsLibraryOpening(false);
+    }
+  }
+
+  async function openRecentLibrary(libraryId: string) {
+    const application = libraryApplicationRef.current;
+
+    if (!application || isLibraryOpening) {
+      return;
+    }
+
+    setIsLibraryOpening(true);
+    setLibraryFeedback(null);
+
+    try {
+      applyLibraryOpenResult(await application.openRecentLibrary(libraryId));
+    } catch (error) {
+      setLibraryFeedback(
+        error instanceof Error ? error.message : 'OpenFilm could not reopen that Library.',
+      );
+    } finally {
+      setIsLibraryOpening(false);
+      await refreshRecentLibraries();
+    }
+  }
+
+  async function reauthorizeRecentLibrary(libraryId: string) {
+    const application = libraryApplicationRef.current;
+
+    if (!application || isLibraryOpening) {
+      return;
+    }
+
+    setIsLibraryOpening(true);
+    setLibraryFeedback(null);
+
+    try {
+      applyLibraryOpenResult(await application.reauthorizeRecentLibrary(libraryId));
+    } catch (error) {
+      setLibraryFeedback(
+        error instanceof Error ? error.message : 'OpenFilm could not reauthorize that Library.',
+      );
+    } finally {
+      setIsLibraryOpening(false);
+      await refreshRecentLibraries();
+    }
+  }
+
+  async function applyLibraryAction(action: Promise<LibraryActionResult>) {
+    try {
+      const result = await action;
+
+      if (result.kind === 'updated') {
+        setLibrarySnapshot(result.snapshot);
+        setLibraryFeedback(null);
+      } else if (result.kind === 'reauthorize') {
+        setLibrarySnapshot((current) =>
+          current ? { ...current, message: result.message, status: 'read-only' } : current,
+        );
+        setLibraryFeedback(result.message);
+      } else {
+        setLibraryFeedback(result.message);
+      }
+    } catch (error) {
+      setLibraryFeedback(
+        error instanceof Error ? error.message : 'OpenFilm could not complete that Library action.',
+      );
+    } finally {
+      await refreshRecentLibraries();
+    }
+  }
+
+  function retryLibrarySave() {
+    const application = libraryApplicationRef.current;
+
+    if (application) {
+      void applyLibraryAction(application.retry());
+    }
+  }
+
+  function saveLibraryCopy() {
+    const application = libraryApplicationRef.current;
+
+    if (application) {
+      void applyLibraryAction(application.saveCopy());
+    }
+  }
+
+  function revertLibrary() {
+    const application = libraryApplicationRef.current;
+
+    if (application) {
+      void applyLibraryAction(application.revert());
+    }
+  }
+
+  function reauthorizeOpenLibrary() {
+    const libraryId = librarySnapshot?.libraryId;
+
+    if (libraryId) {
+      void reauthorizeRecentLibrary(libraryId);
+    }
+  }
+
+  function closeLibrary() {
+    libraryApplicationRef.current?.close();
+    setLibrarySnapshot(null);
+    setLibraryFeedback(null);
+    setIsLibraryStartVisible(true);
+    setIsLandingVisible(false);
+    void refreshRecentLibraries();
+  }
+
   function openFilePicker() {
     if (isImporting || importInFlightRef.current) {
       return;
@@ -2531,7 +2743,10 @@ export default function App() {
         return;
       }
 
+      libraryApplicationRef.current?.close();
+      setLibrarySnapshot(null);
       setSourcePhotograph(imported);
+      setIsLibraryStartVisible(false);
       setIsLandingVisible(false);
       setShowBefore(false);
       setExportFeedback(null);
@@ -3014,6 +3229,61 @@ export default function App() {
     rendererStatus === 'available' && rendererError
       ? openFilePicker
       : () => window.location.reload();
+  if (isLibraryStartVisible) {
+    return (
+      <>
+        <LibraryStartWorkspace
+          canResumeEdit={hasSource && Boolean(recoveryFeedback)}
+          feedback={libraryFeedback}
+          importFeedback={importFeedback}
+          isLoading={libraryRecentLoading}
+          isOpening={isLibraryOpening}
+          isPhotoImporting={isImporting}
+          onChoosePhoto={openFilePicker}
+          onContinueWithoutStorage={continueWithoutStorage}
+          onOpenFolder={() => void openLibraryFolder()}
+          onOpenRecent={(libraryId) => void openRecentLibrary(libraryId)}
+          onReauthorizeRecent={(libraryId) => void reauthorizeRecentLibrary(libraryId)}
+          onResumeEdit={() => {
+            setIsLibraryStartVisible(false);
+            setIsLandingVisible(false);
+          }}
+          onRetryStorage={retryStorage}
+          onTrySample={() => importBundledSample()}
+          recentLibraries={recentLibraries}
+          recoveryFeedback={recoveryFeedback}
+          recoveryNeedsSource={recoveryNeedsSource}
+          storageFeedback={storageFeedback}
+          storageStatus={storageStatus}
+        />
+        <div aria-label="Photograph chooser" className="visually-hidden" role="region">
+          <input
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+            aria-label="Choose source photograph"
+            onChange={handleFileSelected}
+            ref={fileInputRef}
+            tabIndex={-1}
+            type="file"
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (librarySnapshot && !hasSource && !isLandingVisible) {
+    return (
+      <LibraryWorkspace
+        feedback={libraryFeedback}
+        onClose={closeLibrary}
+        onReauthorize={reauthorizeOpenLibrary}
+        onRevert={revertLibrary}
+        onRetry={retryLibrarySave}
+        onSaveCopy={saveLibraryCopy}
+        snapshot={librarySnapshot}
+      />
+    );
+  }
+
   if (isLandingVisible) {
     return (
       <>

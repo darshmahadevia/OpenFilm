@@ -12,6 +12,8 @@ import {
   SOURCE_PHOTOGRAPH_MIME_TYPES,
   type SourcePhotographMimeType,
 } from '../import/sourcePhotograph';
+import type { LibraryRevisionReference } from '../library/libraryFile';
+import { isOpenFilmLibraryDocument, type OpenFilmLibraryDocument } from '../library/libraryModel';
 
 export const storageNotice = 'Browser storage is for recovery, not a backup.';
 export const storageUnavailableNotice =
@@ -20,10 +22,11 @@ export const storageFailureNotice =
   'Local recovery is unavailable here because browser storage failed. Your Edit will remain in memory until this tab closes. Try again or continue without recovery.';
 
 export const STORAGE_DATABASE_NAME = 'openfilm';
-export const STORAGE_DATABASE_VERSION = 2;
+export const STORAGE_DATABASE_VERSION = 3;
 export const CUSTOM_LOOKS_STORE_NAME = 'custom-looks';
 export const LATEST_EDIT_STORE_NAME = 'latest-edit';
 export const SOURCE_PHOTOGRAPH_STORE_NAME = 'source-photograph';
+export const RECENT_LIBRARIES_STORE_NAME = 'recent-libraries';
 export const LATEST_EDIT_KEY = 'current';
 
 export interface StoredLook {
@@ -52,10 +55,26 @@ export interface StoredEdit {
   version: 1;
 }
 
+export type StoredLibraryStatus = 'read-only' | 'saved' | 'unsaved';
+
+export interface StoredLibraryRecovery {
+  durableReference: LibraryRevisionReference | null;
+  handle: FileSystemDirectoryHandle;
+  lastOpenedAt: number;
+  libraryId: string;
+  rootName: string;
+  status: StoredLibraryStatus;
+  working: OpenFilmLibraryDocument;
+}
+
 export interface BrowserStorage {
   deleteCustomLook(id: string): Promise<void>;
+  deleteLibraryRecovery(libraryId: string): Promise<void>;
   listCustomLooks(): Promise<StoredLook[]>;
+  listLibraryRecoveries(): Promise<StoredLibraryRecovery[]>;
   loadLatestEdit(): Promise<StoredEdit | null>;
+  loadLibraryRecovery(libraryId: string): Promise<StoredLibraryRecovery | null>;
+  saveLibraryRecovery(recovery: StoredLibraryRecovery): Promise<void>;
   saveLatestEdit(edit: StoredEdit): Promise<void>;
   saveCustomLook(look: StoredLook): Promise<void>;
 }
@@ -75,6 +94,14 @@ export function hasBrowserStorage(): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function isDirectoryHandle(value: unknown): value is FileSystemDirectoryHandle {
+  return Boolean(
+    isRecord(value) &&
+    typeof value.getDirectoryHandle === 'function' &&
+    typeof value.getFileHandle === 'function',
+  );
 }
 
 function isBlob(value: unknown): value is Blob {
@@ -238,6 +265,65 @@ export function normalizeStoredEdit(value: unknown): StoredEdit | null {
   };
 }
 
+function isStoredLibraryStatus(value: unknown): value is StoredLibraryStatus {
+  return value === 'read-only' || value === 'saved' || value === 'unsaved';
+}
+
+function normalizeLibraryRevisionReference(value: unknown): LibraryRevisionReference | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return typeof value.checksum === 'string' &&
+    /^[0-9a-f]{64}$/.test(value.checksum) &&
+    typeof value.revision === 'number' &&
+    Number.isSafeInteger(value.revision) &&
+    value.revision > 0
+    ? { checksum: value.checksum, revision: value.revision }
+    : null;
+}
+
+export function normalizeStoredLibraryRecovery(value: unknown): StoredLibraryRecovery | null {
+  if (
+    !isRecord(value) ||
+    !isDirectoryHandle(value.handle) ||
+    !isOpenFilmLibraryDocument(value.working) ||
+    typeof value.libraryId !== 'string' ||
+    value.libraryId.length === 0 ||
+    value.working.libraryId !== value.libraryId ||
+    typeof value.rootName !== 'string' ||
+    value.rootName.length === 0 ||
+    !isStoredLibraryStatus(value.status) ||
+    typeof value.lastOpenedAt !== 'number' ||
+    !Number.isFinite(value.lastOpenedAt)
+  ) {
+    return null;
+  }
+
+  const durableReference =
+    value.durableReference === null || value.durableReference === undefined
+      ? null
+      : normalizeLibraryRevisionReference(value.durableReference);
+
+  if (
+    value.durableReference !== null &&
+    value.durableReference !== undefined &&
+    !durableReference
+  ) {
+    return null;
+  }
+
+  return {
+    durableReference,
+    handle: value.handle,
+    lastOpenedAt: value.lastOpenedAt,
+    libraryId: value.libraryId,
+    rootName: value.rootName,
+    status: value.status,
+    working: JSON.parse(JSON.stringify(value.working)) as OpenFilmLibraryDocument,
+  };
+}
+
 function openDatabase(indexedDb: IDBFactory): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     let request: IDBOpenDBRequest;
@@ -262,6 +348,10 @@ function openDatabase(indexedDb: IDBFactory): Promise<IDBDatabase> {
 
       if (!database.objectStoreNames.contains(SOURCE_PHOTOGRAPH_STORE_NAME)) {
         database.createObjectStore(SOURCE_PHOTOGRAPH_STORE_NAME);
+      }
+
+      if (!database.objectStoreNames.contains(RECENT_LIBRARIES_STORE_NAME)) {
+        database.createObjectStore(RECENT_LIBRARIES_STORE_NAME, { keyPath: 'libraryId' });
       }
     };
     request.onerror = () => reject(request.error ?? new Error('IndexedDB could not be opened.'));
@@ -318,6 +408,11 @@ function createIndexedDbStorage(indexedDb: IDBFactory): BrowserStorage {
     async deleteCustomLook(id) {
       await requestFromStore(CUSTOM_LOOKS_STORE_NAME, 'readwrite', (store) => store.delete(id));
     },
+    async deleteLibraryRecovery(libraryId) {
+      await requestFromStore(RECENT_LIBRARIES_STORE_NAME, 'readwrite', (store) =>
+        store.delete(libraryId),
+      );
+    },
     async listCustomLooks() {
       const records = await requestFromStore<unknown[]>(
         CUSTOM_LOOKS_STORE_NAME,
@@ -330,6 +425,18 @@ function createIndexedDbStorage(indexedDb: IDBFactory): BrowserStorage {
         .filter((look): look is StoredLook => look !== null)
         .sort((first, second) => second.updatedAt - first.updatedAt);
     },
+    async listLibraryRecoveries() {
+      const records = await requestFromStore<unknown[]>(
+        RECENT_LIBRARIES_STORE_NAME,
+        'readonly',
+        (store) => store.getAll(),
+      );
+
+      return records
+        .map(normalizeStoredLibraryRecovery)
+        .filter((recovery): recovery is StoredLibraryRecovery => recovery !== null)
+        .sort((first, second) => second.lastOpenedAt - first.lastOpenedAt);
+    },
     async loadLatestEdit() {
       const { edit, source } = await readLatestEditRecord();
 
@@ -340,6 +447,26 @@ function createIndexedDbStorage(indexedDb: IDBFactory): BrowserStorage {
       const record = isRecord(edit) ? { ...edit, source: source ?? edit.source ?? null } : edit;
 
       return normalizeStoredEdit(record);
+    },
+    async loadLibraryRecovery(libraryId) {
+      const record = await requestFromStore<unknown>(
+        RECENT_LIBRARIES_STORE_NAME,
+        'readonly',
+        (store) => store.get(libraryId),
+      );
+
+      return normalizeStoredLibraryRecovery(record);
+    },
+    async saveLibraryRecovery(recovery) {
+      const normalized = normalizeStoredLibraryRecovery(recovery);
+
+      if (!normalized) {
+        throw new Error('OpenFilm could not save this Library recovery record.');
+      }
+
+      await requestFromStore(RECENT_LIBRARIES_STORE_NAME, 'readwrite', (store) =>
+        store.put(normalized),
+      );
     },
     async saveCustomLook(look) {
       const normalized = normalizeStoredLook(look);
@@ -398,6 +525,7 @@ export function createMemoryStorage(
   initial: {
     customLooks?: StoredLook[];
     latestEdit?: StoredEdit | null;
+    libraryRecoveries?: StoredLibraryRecovery[];
   } = {},
 ): BrowserStorage {
   let customLooks =
@@ -406,18 +534,55 @@ export function createMemoryStorage(
       .filter((look): look is StoredLook => look !== null) ?? [];
   let latestEdit = initial.latestEdit ? normalizeStoredEdit(initial.latestEdit) : null;
   let storedSource = latestEdit?.source ?? null;
+  let libraryRecoveries =
+    initial.libraryRecoveries
+      ?.map((recovery) => normalizeStoredLibraryRecovery(recovery))
+      .filter((recovery): recovery is StoredLibraryRecovery => recovery !== null) ?? [];
 
   return {
     async deleteCustomLook(id) {
       customLooks = customLooks.filter((look) => look.id !== id);
+    },
+    async deleteLibraryRecovery(libraryId) {
+      libraryRecoveries = libraryRecoveries.filter((recovery) => recovery.libraryId !== libraryId);
     },
     async listCustomLooks() {
       return customLooks
         .map((look) => ({ ...look, adjustments: normalizeAdjustments(look.adjustments) }))
         .sort((first, second) => second.updatedAt - first.updatedAt);
     },
+    async listLibraryRecoveries() {
+      return libraryRecoveries
+        .map((recovery) => ({
+          ...recovery,
+          working: JSON.parse(JSON.stringify(recovery.working)) as OpenFilmLibraryDocument,
+        }))
+        .sort((first, second) => second.lastOpenedAt - first.lastOpenedAt);
+    },
     async loadLatestEdit() {
       return latestEdit ? { ...latestEdit, source: storedSource } : null;
+    },
+    async loadLibraryRecovery(libraryId) {
+      const recovery = libraryRecoveries.find((item) => item.libraryId === libraryId);
+
+      return recovery
+        ? {
+            ...recovery,
+            working: JSON.parse(JSON.stringify(recovery.working)) as OpenFilmLibraryDocument,
+          }
+        : null;
+    },
+    async saveLibraryRecovery(recovery) {
+      const normalized = normalizeStoredLibraryRecovery(recovery);
+
+      if (!normalized) {
+        throw new Error('OpenFilm could not save this Library recovery record.');
+      }
+
+      libraryRecoveries = [
+        ...libraryRecoveries.filter((item) => item.libraryId !== normalized.libraryId),
+        normalized,
+      ];
     },
     async saveCustomLook(look) {
       const normalized = normalizeStoredLook(look);

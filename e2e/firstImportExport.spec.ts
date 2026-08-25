@@ -52,7 +52,7 @@ async function expectNoAccessibilityViolations(page: Page) {
   ).toEqual([]);
 }
 
-test('has no automated accessibility violations on the landing state', async ({ page }) => {
+test('has no automated accessibility violations on the Library start state', async ({ page }) => {
   await page.goto('/');
   await expectNoAccessibilityViolations(page);
 });
@@ -103,17 +103,18 @@ test('keeps dialog focus contained and restores it after Escape', async ({ page 
   await expect(helpButton).toBeFocused();
 });
 
-test('introduces the product before revealing editor controls', async ({ page }) => {
+test('introduces the Library before revealing editor controls', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Open a photograph.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Open a Library.' })).toBeVisible();
   await expect(page.locator('input[type="file"]')).toHaveAttribute(
     'accept',
     'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp',
   );
   await expect(page.getByRole('slider', { name: 'Exposure' })).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveCount(0);
-  await expect(page.getByRole('slider', { name: 'Preview before and after' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open folder' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Recent Libraries' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Open sample' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
@@ -121,11 +122,11 @@ test('introduces the product before revealing editor controls', async ({ page })
   await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
 });
 
-test('does not clip landing headline glyphs after its entrance motion', async ({ page }) => {
+test('does not clip the Library start heading', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
 
-  const heading = page.getByRole('heading', { name: 'Open a photograph.' });
+  const heading = page.getByRole('heading', { name: 'Open a Library.' });
   await heading.evaluate((element) =>
     Promise.all(element.getAnimations().map((animation) => animation.finished)),
   );
@@ -133,17 +134,13 @@ test('does not clip landing headline glyphs after its entrance motion', async ({
   await expect(heading).toHaveCSS('clip-path', 'none');
 });
 
-test('keeps recovered landing copy below the navigation in a short viewport', async ({ page }) => {
+test('keeps Library start copy below the navigation in a short viewport', async ({ page }) => {
   await page.setViewportSize({ height: 160, width: 838 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open sample' }).click();
-  await page.getByRole('spinbutton', { name: 'Exposure value' }).fill('1');
-  await page.reload();
-
-  await expect(page.getByRole('button', { name: 'Resume latest edit' })).toBeVisible();
   const positions = await page.evaluate(() => ({
-    headingTop: document.querySelector('.landing-hero__intro h1')!.getBoundingClientRect().top,
-    navigationBottom: document.querySelector('.landing-nav')!.getBoundingClientRect().bottom,
+    headingTop: document.querySelector('.library-start__intro h1')!.getBoundingClientRect().top,
+    navigationBottom: document.querySelector('.library-start__topbar')!.getBoundingClientRect()
+      .bottom,
   }));
 
   expect(positions.headingTop).toBeGreaterThanOrEqual(positions.navigationBottom);
@@ -868,9 +865,9 @@ test('applies bundled Looks and supports custom Look CRUD', async ({ page }) => 
     )
     .toContain('My saved Look');
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Resume latest edit' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Resume latest Edit' })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 360));
-  await page.getByRole('button', { name: 'Resume latest edit' }).click();
+  await page.getByRole('button', { name: 'Resume latest Edit' }).click();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
   await page.getByRole('tab', { name: 'Looks' }).click();
@@ -984,9 +981,9 @@ test('recovers the latest Edit and its source after a reload', async ({ page }) 
   await page.getByRole('tab', { name: 'Adjust' }).click();
   await page.reload();
 
-  await expect(page.getByRole('heading', { name: 'Open a photograph.' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Resume latest edit' })).toBeVisible();
-  await page.getByRole('button', { name: 'Resume latest edit' }).click();
+  await expect(page.getByRole('heading', { name: 'Open a Library.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Resume latest Edit' })).toBeVisible();
+  await page.getByRole('button', { name: 'Resume latest Edit' }).click();
   await expect(page.getByRole('heading', { name: 'openfilm-alpine-lake.webp' })).toBeVisible();
   await expect(page.locator('canvas.render-canvas--visible')).toBeVisible();
   await expect(
@@ -1025,10 +1022,12 @@ test('restores settings and requests the source again when source bytes are unav
   });
   await page.reload();
 
-  await expect(page.getByText('Your latest Edit is ready.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Recoverable Edit' })).toBeVisible();
   await expect(page.getByText(/Recovered settings for openfilm-alpine-lake\.webp/)).toBeVisible();
   await expect(
-    page.locator('.landing-alert').getByRole('button', { name: 'Choose source photograph' }),
+    page
+      .locator('.library-start__recovery')
+      .getByRole('button', { name: 'Choose source photograph' }),
   ).toBeVisible();
 
   await page.getByLabel('Choose source photograph').setInputFiles(fixtureFile(previewFixture));

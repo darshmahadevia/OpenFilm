@@ -39,6 +39,12 @@ The Library durability gate has a source-module browser harness. Run it locally 
 npx playwright test e2e/libraryDurability.spec.ts
 ```
 
+The Library start and workspace journey can be run directly with:
+
+```bash
+npx playwright test e2e/libraryWorkspace.spec.ts
+```
+
 The harness writes the versioned sidecars to Chromium's Origin Private File System and injects an
 interruption at every exported commit phase. The deterministic Vitest suite adds truncated and
 corrupted writes, competing revisions, permission loss, Retry, Save a copy, Revert, and mutation
