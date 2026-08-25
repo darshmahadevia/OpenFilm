@@ -3,7 +3,32 @@ import type { JsonValue, LibraryDocument } from './libraryFile';
 export const LIBRARY_DOCUMENT_FORMAT = 'openfilm.library-state' as const;
 export const LIBRARY_DOCUMENT_SCHEMA_VERSION = 1 as const;
 
-export type LibraryPhotographRecord = { [key: string]: JsonValue };
+export const LIBRARY_PHOTOGRAPH_DISPOSITIONS = ['unmarked', 'pick', 'reject'] as const;
+export type LibraryPhotographDisposition = (typeof LIBRARY_PHOTOGRAPH_DISPOSITIONS)[number];
+
+export const LIBRARY_PHOTOGRAPH_SOURCE_STATES = ['available', 'missing'] as const;
+export type LibraryPhotographSourceState = (typeof LIBRARY_PHOTOGRAPH_SOURCE_STATES)[number];
+
+export interface LibraryFileFingerprint {
+  byteSize: number;
+  lastModified: number;
+  [key: string]: JsonValue;
+}
+
+export interface LibraryPhotographRecord {
+  cameraSerial: string | null;
+  captureTime: string | null;
+  disposition: LibraryPhotographDisposition;
+  fileName: string;
+  fingerprint: LibraryFileFingerprint;
+  id: string;
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+  orientation: number | null;
+  rating: number | null;
+  relativePath: string;
+  sourceState: LibraryPhotographSourceState;
+  [key: string]: JsonValue;
+}
 
 export type OpenFilmLibraryDocument = LibraryDocument & {
   createdAt: number;
@@ -33,11 +58,89 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isPhotographRecord(value: unknown): value is LibraryPhotographRecord {
-  if (!isRecord(value) || typeof value.id !== 'string' || value.id.length === 0) {
-    return false;
+  return isLibraryPhotographRecord(value);
+}
+
+function isLibraryPhotographDisposition(value: unknown): value is LibraryPhotographDisposition {
+  return LIBRARY_PHOTOGRAPH_DISPOSITIONS.includes(value as LibraryPhotographDisposition);
+}
+
+function isLibraryPhotographSourceState(value: unknown): value is LibraryPhotographSourceState {
+  return LIBRARY_PHOTOGRAPH_SOURCE_STATES.includes(value as LibraryPhotographSourceState);
+}
+
+function isLibraryFileFingerprint(value: unknown): value is LibraryFileFingerprint {
+  return Boolean(
+    isRecord(value) &&
+    typeof value.byteSize === 'number' &&
+    Number.isSafeInteger(value.byteSize) &&
+    value.byteSize >= 0 &&
+    typeof value.lastModified === 'number' &&
+    Number.isFinite(value.lastModified) &&
+    value.lastModified >= 0,
+  );
+}
+
+export function isLibraryPhotographRecord(value: unknown): value is LibraryPhotographRecord {
+  return Boolean(
+    isRecord(value) &&
+    !('source' in value) &&
+    !('blob' in value) &&
+    !('file' in value) &&
+    typeof value.id === 'string' &&
+    value.id.length > 0 &&
+    typeof value.relativePath === 'string' &&
+    value.relativePath.length > 0 &&
+    typeof value.fileName === 'string' &&
+    value.fileName.length > 0 &&
+    (value.mimeType === 'image/jpeg' ||
+      value.mimeType === 'image/png' ||
+      value.mimeType === 'image/webp') &&
+    isLibraryFileFingerprint(value.fingerprint) &&
+    (value.captureTime === null || typeof value.captureTime === 'string') &&
+    (value.cameraSerial === null || typeof value.cameraSerial === 'string') &&
+    (value.orientation === null ||
+      (typeof value.orientation === 'number' &&
+        Number.isInteger(value.orientation) &&
+        value.orientation >= 1 &&
+        value.orientation <= 8)) &&
+    isLibraryPhotographDisposition(value.disposition) &&
+    (value.rating === null ||
+      (typeof value.rating === 'number' &&
+        Number.isInteger(value.rating) &&
+        value.rating >= 0 &&
+        value.rating <= 5)) &&
+    isLibraryPhotographSourceState(value.sourceState),
+  );
+}
+
+export function compareLibraryPhotographRecords(
+  first: LibraryPhotographRecord,
+  second: LibraryPhotographRecord,
+): number {
+  if (first.captureTime === null && second.captureTime !== null) {
+    return 1;
   }
 
-  return value.relativePath === undefined || typeof value.relativePath === 'string';
+  if (first.captureTime !== null && second.captureTime === null) {
+    return -1;
+  }
+
+  if (first.captureTime !== second.captureTime) {
+    return first.captureTime! < second.captureTime! ? -1 : 1;
+  }
+
+  if (first.relativePath !== second.relativePath) {
+    return first.relativePath < second.relativePath ? -1 : 1;
+  }
+
+  return first.id < second.id ? -1 : first.id === second.id ? 0 : 1;
+}
+
+export function sortLibraryPhotographRecords(
+  photographs: readonly LibraryPhotographRecord[],
+): LibraryPhotographRecord[] {
+  return [...photographs].sort(compareLibraryPhotographRecords);
 }
 
 export function isOpenFilmLibraryDocument(value: unknown): value is OpenFilmLibraryDocument {

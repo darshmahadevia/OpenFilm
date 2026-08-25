@@ -1,5 +1,9 @@
 import { createMemoryStorage, type StoredLibraryRecovery } from '../storage/browserStorage';
-import { createLibraryFileEnvelope, serializeLibraryFile } from './libraryFile';
+import {
+  createLibraryFileEnvelope,
+  serializeLibraryFile,
+  verifySerializedLibraryFile,
+} from './libraryFile';
 import {
   createMemoryLibraryFileStore,
   type LibraryFileStore,
@@ -8,11 +12,12 @@ import {
 import { createMemoryLibraryLock } from './libraryFilePersistence';
 import { LibraryApplication } from './libraryApplication';
 import { createEmptyLibraryDocument } from './libraryModel';
-import type { LibraryDirectoryGateway } from './libraryGateway';
+import type { LibraryDirectoryGateway, LibrarySourceFile } from './libraryGateway';
 
 interface TestDirectory extends FileSystemDirectoryHandle {
   availability: 'available' | 'missing' | 'permission-denied';
   store: MemoryLibraryFileStore;
+  sourceFiles: LibrarySourceFile[];
 }
 
 function createDirectory(name: string): TestDirectory {
@@ -23,6 +28,7 @@ function createDirectory(name: string): TestDirectory {
     getFileHandle: vi.fn(),
     name,
     store: createMemoryLibraryFileStore(),
+    sourceFiles: [],
   } as unknown as TestDirectory;
 
   getDirectoryHandle.mockResolvedValue(directory);
@@ -43,9 +49,23 @@ function createGateway(picked: TestDirectory): LibraryDirectoryGateway {
     async pickDirectory() {
       return picked;
     },
+    async readSourcePhotograph(root, relativePath) {
+      const source = (root as TestDirectory).sourceFiles.find(
+        (candidate) => candidate.relativePath === relativePath,
+      );
+
+      if (!source) {
+        throw new Error(`Missing Source photograph: ${relativePath}`);
+      }
+
+      return source.file;
+    },
     async requestPermission(root) {
       (root as TestDirectory).availability = 'available';
       return 'granted';
+    },
+    async *scanSourceFiles(root) {
+      yield* (root as TestDirectory).sourceFiles;
     },
   };
 }
@@ -88,6 +108,72 @@ describe('Library application boundary', () => {
       kind: 'opened',
       snapshot: { libraryId: opened.snapshot.libraryId, status: 'saved' },
     });
+  });
+
+  it('progressively scans Source photographs and commits Photograph records through the sidecar', async () => {
+    const { app, directory } = createApplication();
+    directory.sourceFiles = [
+      {
+        file: new File(['png bytes'], 'second.png', {
+          lastModified: 200,
+          type: 'image/png',
+        }),
+        relativePath: 'nested/second.png',
+      },
+      {
+        file: new File(['jpeg bytes'], 'first.jpg', {
+          lastModified: 100,
+          type: 'image/jpeg',
+        }),
+        relativePath: 'first.jpg',
+      },
+      {
+        file: new File(['raw bytes'], 'camera.cr3', {
+          lastModified: 300,
+          type: 'application/octet-stream',
+        }),
+        relativePath: 'camera.cr3',
+      },
+    ];
+
+    const opened = await app.openPickedFolder();
+    const updates: string[] = [];
+    const result = await app.scanLibrary((snapshot) => updates.push(snapshot.scan.status));
+
+    expect(opened.kind).toBe('opened');
+    expect(result).toMatchObject({
+      progress: {
+        discoveredFiles: 3,
+        supportedFiles: 2,
+        unsupportedFiles: 1,
+      },
+      status: 'complete',
+    });
+    expect(updates).toContain('scanning');
+    expect(updates.at(-1)).toBe('complete');
+    expect(app.snapshot()).toMatchObject({
+      scan: { status: 'complete' },
+      status: 'saved',
+    });
+    expect(app.snapshot()?.library?.photographs).toHaveLength(2);
+    expect(app.snapshot()?.library?.photographs[0]).toMatchObject({
+      fingerprint: { byteSize: 10, lastModified: 100 },
+      relativePath: 'first.jpg',
+      sourceState: 'available',
+    });
+
+    const savedBytes = directory.store.bytes('library.json');
+
+    if (!savedBytes) {
+      throw new Error('The scanned Library sidecar was not written.');
+    }
+
+    const envelope = await verifySerializedLibraryFile(savedBytes);
+    expect(envelope.revision).toBe(2);
+    expect(envelope.library).not.toHaveProperty('source');
+    expect(envelope.library.photographs).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ blob: expect.anything() })]),
+    );
   });
 
   it('reports Ready, Reauthorize, Unsaved recovery, and Missing folder recent states', async () => {
@@ -228,5 +314,49 @@ describe('Library application boundary', () => {
     await expect(app.listRecentLibraries()).resolves.toMatchObject([
       { libraryId: 'library-invalid-payload', status: 'read-only' },
     ]);
+  });
+
+  it('commits one whole Library command and undoes or redoes it as one durable revision', async () => {
+    const { app, directory } = createApplication();
+    await app.openPickedFolder();
+
+    await expect(
+      app.commitCommand((document) => ({ ...document, reviewNote: 'first pass' }), 'Saved review.'),
+    ).resolves.toMatchObject({ kind: 'updated', snapshot: { status: 'saved' } });
+    expect(app.snapshot()?.library).toHaveProperty('reviewNote', 'first pass');
+    expect(app.historyStatus()).toEqual({ canRedo: false, canUndo: true });
+
+    await expect(app.undo()).resolves.toMatchObject({ kind: 'updated' });
+    expect(app.snapshot()?.library).not.toHaveProperty('reviewNote');
+    expect(app.historyStatus()).toEqual({ canRedo: true, canUndo: false });
+
+    await expect(app.redo()).resolves.toMatchObject({ kind: 'updated' });
+    expect(app.snapshot()?.library).toHaveProperty('reviewNote', 'first pass');
+
+    const bytes = directory.store.bytes('library.json');
+    expect(bytes).not.toBeNull();
+    await expect(verifySerializedLibraryFile(bytes!)).resolves.toMatchObject({ revision: 4 });
+  });
+
+  it('blocks another command while a failed command waits for Retry', async () => {
+    const { app, directory } = createApplication();
+    await app.openPickedFolder();
+    directory.store.setFailure({
+      fileName: 'library.pending.json',
+      mode: 'throw',
+      operation: 'write',
+    });
+
+    await expect(
+      app.commitCommand((document) => ({ ...document, reviewNote: 'recover me' }), 'Saved review.'),
+    ).resolves.toMatchObject({ kind: 'updated', snapshot: { status: 'unsaved' } });
+    await expect(
+      app.commitCommand((document) => ({ ...document, later: true }), 'Saved later command.'),
+    ).resolves.toMatchObject({ kind: 'failed', message: expect.stringContaining('Unsaved') });
+    await expect(app.retry()).resolves.toMatchObject({
+      kind: 'updated',
+      snapshot: { status: 'saved' },
+    });
+    expect(app.snapshot()?.library).toHaveProperty('reviewNote', 'recover me');
   });
 });

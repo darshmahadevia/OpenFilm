@@ -1,39 +1,34 @@
 # OpenFilm
 
-OpenFilm is a browser photo editor for applying reusable film-inspired Looks. The editor processes
-photos locally. It has no account system, application backend, or photo upload.
+OpenFilm is a local-first browser workstation for reviewing and editing a folder of JPEG, PNG, and
+WebP photographs. It has no account system, application backend, or runtime upload path.
 
-[Try the live app](https://openfilm.vercel.app) · [View the repository](https://github.com/darshmahadevia/OpenFilm) · [Check CI](https://github.com/darshmahadevia/OpenFilm/actions/workflows/ci.yml)
+[Try the live app](https://openfilm.vercel.app) · [Repository](https://github.com/darshmahadevia/OpenFilm) · [CI](https://github.com/darshmahadevia/OpenFilm/actions/workflows/ci.yml)
 
-The repository currently ships the single-photo editor shown here. The Library-based workstation
-described in [issue #39](https://github.com/darshmahadevia/OpenFilm/issues/39) is the planned v2
-baseline and is not implemented yet.
+![OpenFilm workstation at a wide viewport](./docs/screenshots/openfilm-workstation-wide.png)
 
-## Try it
+## Shipped workflow
 
-The editor keeps the photograph in the foreground on desktop and phone-sized screens.
+- Create or reopen a Library beside a Source-photo folder. OpenFilm keeps its versioned sidecars in
+  `.openfilm/`; Source bytes do not enter the Library document.
+- Review a progressively populated, virtualized Grid with three densities, persistent active state,
+  range Selection, filters, ordering, ratings, Pick/Reject/Unmarked, and optional auto-advance.
+- Inspect one photograph in Loupe, compare two to four bounded derivatives, and edit Light, Color,
+  Curve, Finish, Geometry, and Looks with the shared WebGL2 rendering path.
+- Accept deterministic Burst proposals or make manual groups, then split, merge, dissolve, or dismiss
+  them without losing provenance.
+- Export Picks or the current Selection with collision-safe names and a resumable manifest when the
+  browser grants folder write access. A bounded download fallback is available for up to 12 files.
+- Recover explicitly from interrupted writes, stale revisions, missing Sources, permission loss,
+  invalid Library files, and unsaved working state.
 
-![OpenFilm desktop editor](./docs/screenshots/openfilm-desktop.png)
+A Look is reusable rendering state. An Edit is one Photograph record's Look plus source-specific
+geometry and revision. A Library is the durable local review record. See [CONTEXT.md](./CONTEXT.md)
+for the project vocabulary.
 
-![OpenFilm phone editor](./docs/screenshots/openfilm-phone.png)
+## Run locally
 
-## What it does
-
-- Import one JPEG, PNG, or WebP by picker or drag and drop.
-- Adjust exposure, contrast, temperature, tint, saturation, fade, an RGB tone curve, vignette, and
-  deterministic grain through WebGL2.
-- Crop with free or common ratios, rotate in 90-degree steps, and flip horizontally or vertically.
-- Use undo, redo, before and after, reset controls, and a luminance histogram.
-- Apply bundled Looks, save custom Looks in IndexedDB, and exchange one versioned JSON preset file.
-- Export a fresh JPEG, PNG, or WebP without changing the source photograph.
-
-A Look is a reusable set of photographic adjustments. An Edit is one source photograph with its
-current Look, geometry, history, and grain seed. Geometry belongs to the Edit, so it does not travel
-with a reusable Look. See [the project glossary](./CONTEXT.md) for the full vocabulary.
-
-## Run it locally
-
-The project uses Node.js `22.20.0` and npm `11.19.0`. With [nvm](https://github.com/nvm-sh/nvm):
+OpenFilm uses Node.js `22.20.0` and npm `11.19.0`.
 
 ```bash
 nvm install
@@ -41,80 +36,40 @@ npm ci
 npm run dev
 ```
 
-Vite prints the local URL. To preview a production build instead:
+## Verification
 
 ```bash
-npm run build
-npm run preview
-```
-
-If you do not use nvm, install the Node.js and npm versions above before running `npm ci`.
-
-## Checks
-
-`npm run check` runs formatting, linting, typechecking, unit tests, and the production build.
-
-Run the browser suite separately. Install its Chromium browser once on a new machine:
-
-```bash
-npx playwright install chromium
+npm run check
+npm run check:ui-slop
 npm run test:e2e
+npm run perf:generate
+npx playwright test e2e/performance.spec.ts
 ```
 
-To run the same suite against production:
+The performance gate uses a deterministic 2,000-record Library and records the measured browser
+result under `.artifacts/`. Results are machine-specific; they are not a universal device claim.
+See [testing](./docs/testing.md), [release evidence](./docs/release-evidence.md), and
+[limitations](./docs/limitations.md).
 
-```bash
-PLAYWRIGHT_BASE_URL=https://openfilm.vercel.app npm run test:e2e
-```
+## Architecture and privacy
 
-See [testing and release checks](./docs/testing.md) for the full command list and manual checks.
+OpenFilm is a React and Vite static application. Browser directory handles, IndexedDB working
+copies, Web Workers, and WebGL2 provide the local workspace; there is no application server. Source
+files stay in the selected folder and are read only when needed for metadata, visible derivatives,
+Loupe, or Export. Browser storage and sidecars are recovery mechanisms, not backups.
 
-## Privacy and storage
+See [architecture notes](./docs/architecture.md) and the [Library workspace contract](./docs/library-workspace.md).
 
-The browser reads and renders the source photograph locally. OpenFilm does not upload it. Export
-creates a new local file and does not overwrite the source. IndexedDB may store custom Looks and the
-latest recoverable Edit, including source bytes when the browser allows it. Browser storage is a
-convenience for recovery, not a backup.
+## Supported boundary
 
-## Browser support and limits
-
-The current editor needs WebGL2 for preview and export. The Playwright suite exercises Chromium at
-desktop and phone-sized viewports. Other current browsers may work when they provide the required
-APIs, but OpenFilm does not publish a compatibility matrix. The planned v2 workstation targets
-current Chromium-family desktop browsers first and treats narrow CSS widths as desktop browser
-layouts rather than a separate mobile workflow. It accepts JPEG, PNG, and WebP source photographs
-and exports those same formats.
-
-The import limit is 20 MiB. Decoded sources and exports are limited to 16,384 pixels per edge and
-80,000,000 total pixels. The preview drawing buffer is limited to 4,096 pixels on its longest side.
-Devices with limited GPU or canvas memory may support smaller images. See [browser limitations](./docs/limitations.md)
-for recovery behavior, export details, and formats that are out of scope.
-
-## Architecture
-
-OpenFilm is a React and Vite app that builds to static files. The main code is grouped by behavior:
-
-- `src/editor` owns Looks, Edits, geometry, adjustments, tone curves, presets, and edit history.
-- `src/library` owns the versioned Library-file durability prototype and its browser harness.
-- `src/import` validates and decodes source photographs.
-- `src/rendering` owns the WebGL2 preview, histogram, geometry, and export path.
-- `src/storage` owns IndexedDB recovery and custom Looks.
-- `src/ui` owns tokens, layout styles, and reusable controls.
-
-See [architecture notes](./docs/architecture.md) for module responsibilities and test coverage.
-
-## Deployment
-
-The live app is a static Vercel deployment. `npm run build` creates the `dist/` directory used for
-deployment. The project does not require server functions, a database, paid APIs, or analytics.
-
-## Contributing
-
-For a code change, run `npm run check`. If the change affects browser behavior, also run the
-Playwright suite. Keep source photographs local and preserve the distinction between reusable Looks
-and source-specific Edit state.
+The verified browser target is current Chromium on macOS. RAW, HEIC/HEIF, TIFF, archival color
+management, cloud sync, and cross-device Libraries are out of scope. Comparison intentionally uses
+bounded derivatives and labels that limitation. Similarity and sharpness analysis models exist
+behind tested module boundaries but are not exposed in the shipped interface because a suitable
+rights-cleared validation corpus has not passed the documented quality gate.
 
 ## License
 
-OpenFilm is released under the [MIT License](./LICENSE). Dependency licenses and project links are
-listed in [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
+OpenFilm is released under the [MIT License](./LICENSE). Dependency licenses and asset provenance are
+recorded in [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md), beside generated assets, and in the
+[release evidence](./docs/release-evidence.md).

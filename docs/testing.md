@@ -1,71 +1,65 @@
 # Testing and release checks
 
-## Automated checks
+## Automated commands
 
-`npm run check` runs these steps in sequence:
+| Command                                                                      | Scope                                                                                       |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `npm run check`                                                              | Prettier check, ESLint, TypeScript, all Vitest tests, production build                      |
+| `npm run check:ui-slop`                                                      | Reject gradients, glass effects, social-proof copy, and generic slogans in the shipped UI   |
+| `npm run test:e2e`                                                           | Chromium workflow, durability, accessibility, and responsive tests                          |
+| `npm run perf:generate`                                                      | Build the deterministic 2,000-record logical corpus                                         |
+| `npx playwright test e2e/performance.spec.ts`                                | Measure the browser performance gate and write `.artifacts/browser-performance-report.json` |
+| `OPENFILM_CAPTURE_EVIDENCE=1 npx playwright test e2e/visualEvidence.spec.ts` | Refresh tracked wide, medium, and 200-percent-zoom screenshots                              |
 
-1. `npm run format:check`
-2. `npm run lint`
-3. `npm run typecheck`
-4. `npm run test:unit`
-5. `npm run build`
+Install the Playwright browser once with `npx playwright install chromium`. The suite starts Vite on
+port `4187` unless `PLAYWRIGHT_BASE_URL` is set. Durability and performance fixtures use Origin
+Private File System and therefore run only against the local server.
 
-Other useful commands:
+The top-level `npm run test:release` executes the main static, browser, anti-slop, and synthetic
+performance checks. The stricter browser scale gate remains an explicit command because it produces
+machine-specific evidence.
 
-| Command                   | Purpose                                    |
-| ------------------------- | ------------------------------------------ |
-| `npm run dev`             | Start the Vite development server.         |
-| `npm run format`          | Apply Prettier formatting.                 |
-| `npm run test:unit:watch` | Run Vitest in watch mode.                  |
-| `npm run preview`         | Serve the latest production build locally. |
+## What is covered
 
-The `check` script does not run Playwright. Run the browser suite separately:
+Vitest exercises the durable file protocol and recovery, scanner, metadata parser, virtualized Grid,
+bounded scheduler/cache, review commands, atomic Look copy, groups, Comparison geometry, Edit
+persistence, analysis cache invalidation, migration/quarantine, Source reconciliation, Export
+planning/resume, renderer, and storage boundaries.
 
-```bash
-npx playwright install chromium
-npm run test:e2e
-```
+Playwright covers:
 
-The suite starts a local Vite server on port `4187` unless `PLAYWRIGHT_BASE_URL` is set. To test the
-production deployment:
+- creating and reopening a Library, progressive scan, invalid sidecar protection, permission and
+  recovery states;
+- Grid keyboard review, range Selection, auto-advance, Loupe, Comparison, Edit inspector focus, and
+  Source/context-loss states;
+- resumable mixed-success Export in the browser and every interrupted Library commit phase;
+- axe-core checks at the start and populated workstation, visible focus, narrow widths, 200-percent
+  zoom proxy, and reduced-motion preference;
+- a 2,000-record performance fixture at baseline and 4× CPU throttling.
 
-```bash
-PLAYWRIGHT_BASE_URL=https://openfilm.vercel.app npm run test:e2e
-```
+The performance gate records first usable Grid, Loupe and Comparison readiness, p95 selection and
+general interaction latency, p95 frame time, JS heap, mounted Grid cells, live bitmaps/textures,
+queue depth, and full-resolution reads during open. It treats the corpus as a logical scale fixture;
+see [limitations](./limitations.md).
 
-The Library durability gate has a source-module browser harness. Run it locally with:
+## Manual release pass
 
-```bash
-npx playwright test e2e/libraryDurability.spec.ts
-```
+Before publishing, repeat these checks in current Chromium on macOS:
 
-The Library start and workspace journey can be run directly with:
+1. Navigate the complete start, Grid, Loupe, Comparison, inspector, groups, Export, and recovery
+   surfaces using only keyboard controls. Confirm the focus ring remains visible, focus returns after
+   closing the inspector, and Tab cannot escape an open modal surface.
+2. With VoiceOver enabled, confirm the Library heading, save status, scan progress, Grid cells,
+   Active/Selection state, Comparison panes, sliders, numeric fields, dialogs, and recovery alerts
+   have distinct names and useful state announcements.
+3. At 1440 × 900, 900 × 760, and 360 × 844, and at 200-percent browser zoom, confirm controls remain
+   reachable without document-level horizontal scrolling.
+4. Enable `prefers-reduced-motion: reduce`; confirm selection, mode, save, and recovery changes remain
+   understandable without decorative motion.
+5. Exercise an unsupported file, decode failure, missing Source, lost WebGL2 context, storage failure,
+   conflicting revision, permission loss, cancelled scan, cancelled Export, and failed Export entry.
+6. Check the generated screenshots, asset provenance sidecars, README, release notes, and limitations
+   for claims that exceed the measured evidence.
 
-```bash
-npx playwright test e2e/libraryWorkspace.spec.ts
-```
-
-The harness writes the versioned sidecars to Chromium's Origin Private File System and injects an
-interruption at every exported commit phase. The deterministic Vitest suite adds truncated and
-corrupted writes, competing revisions, permission loss, Retry, Save a copy, Revert, and mutation
-blocking cases.
-
-CI installs Chromium with system dependencies before running the browser suite.
-
-## Manual release checks
-
-Before a release, check the following in a current desktop browser and a phone-sized viewport:
-
-- Move through the landing page, tool tabs, disclosures, sliders, numeric fields, tone-curve points,
-  crop handles, dialogs, Looks, and export controls with the keyboard. Confirm the focus ring stays
-  visible and documented arrow-key controls work.
-- At 200 percent browser zoom, confirm the editor keeps all controls reachable without horizontal
-  scrolling. Repeat on a narrow phone viewport in portrait and landscape.
-- With `prefers-reduced-motion` enabled, confirm state changes remain clear without decorative motion.
-- Check approximately 1440 × 900 and 360 × 844 viewports. Review hierarchy, spacing, contrast, status
-  messages, touch targets, and hover-independent actions.
-- Try a supported file, an unsupported file, a decode failure, missing WebGL2, storage failure, a
-  lost WebGL2 context, and a large export. Confirm each message explains the problem and its recovery.
-
-These are practical release checks, not formal WCAG certification or a substitute for testing on
-every browser and device.
+Automated accessibility checks and semantic inspection reduce risk but are not WCAG certification or
+a substitute for testing on every browser, assistive technology, and device.

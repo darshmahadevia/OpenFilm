@@ -14,10 +14,19 @@ import {
   type LibrarySessionActionResult,
 } from './libraryFilePersistence';
 import {
+  cloneOpenFilmLibraryDocument,
   createEmptyLibraryDocument,
   isOpenFilmLibraryDocument,
   type OpenFilmLibraryDocument,
 } from './libraryModel';
+import {
+  createIdleLibraryScanState,
+  scanLibraryFolder,
+  type LibraryScanResult,
+  type LibraryScanState,
+} from './libraryScanner';
+import { createLibraryGridThumbnail, type LibraryThumbnail } from './libraryThumbnail';
+import { createLibraryWorkScheduler, type LibraryWorkScheduler } from './libraryScheduler';
 import {
   LibraryGatewayError,
   LibraryPickerCancelledError,
@@ -48,6 +57,7 @@ export interface LibraryWorkspaceSnapshot {
   message: string;
   revision: LibraryRevisionReference | null;
   rootName: string;
+  scan: LibraryScanState;
   status: LibraryWorkspaceStatus;
 }
 
@@ -69,8 +79,11 @@ interface ActiveLibrary {
   libraryId: string;
   pendingFromIndexedDb: boolean;
   rootName: string;
+  scanAbortController: AbortController | null;
+  scanPromise: Promise<LibraryScanResult> | null;
   session: LibraryFileSession;
   snapshot: LibraryWorkspaceSnapshot;
+  workScheduler: LibraryWorkScheduler;
 }
 
 interface LibraryApplicationOptions {
@@ -120,6 +133,10 @@ function describeStoredStatus(status: StoredLibraryStatus): RecentLibraryStatus 
 
 export class LibraryApplication {
   private active: ActiveLibrary | null = null;
+  private readonly undoStack: OpenFilmLibraryDocument[] = [];
+  private readonly redoStack: OpenFilmLibraryDocument[] = [];
+  private pendingUndoSnapshot: OpenFilmLibraryDocument | null = null;
+  private commandTail: Promise<unknown> = Promise.resolve();
   private readonly lock: LibraryLock | null;
   private readonly now: () => number;
 
@@ -134,6 +151,281 @@ export class LibraryApplication {
 
   snapshot(): LibraryWorkspaceSnapshot | null {
     return this.active?.snapshot ?? null;
+  }
+
+  historyStatus(): { canRedo: boolean; canUndo: boolean } {
+    return { canRedo: this.redoStack.length > 0, canUndo: this.undoStack.length > 0 };
+  }
+
+  async commitCommand(
+    command: (document: OpenFilmLibraryDocument) => OpenFilmLibraryDocument,
+    successMessage: string,
+  ): Promise<LibraryActionResult> {
+    const task = this.commandTail.then(
+      () => this.commitCommandNow(command, successMessage),
+      () => this.commitCommandNow(command, successMessage),
+    );
+    this.commandTail = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    return await task;
+  }
+
+  private async commitCommandNow(
+    command: (document: OpenFilmLibraryDocument) => OpenFilmLibraryDocument,
+    successMessage: string,
+  ): Promise<LibraryActionResult> {
+    const active = this.active;
+    if (!active?.snapshot.library) {
+      return { kind: 'failed', message: 'Open a Library before making a change.' };
+    }
+    if (active.snapshot.status !== 'saved') {
+      return {
+        kind: 'failed',
+        message:
+          'This Library is Unsaved. Retry, Save a copy, or Revert before making another change.',
+      };
+    }
+
+    const before = cloneOpenFilmLibraryDocument(active.snapshot.library);
+    let next: OpenFilmLibraryDocument;
+    try {
+      next = command(cloneOpenFilmLibraryDocument(before));
+    } catch (error) {
+      return {
+        kind: 'failed',
+        message:
+          error instanceof Error ? error.message : 'OpenFilm could not apply that Library command.',
+      };
+    }
+    if (!isOpenFilmLibraryDocument(next)) {
+      return { kind: 'failed', message: 'That command did not produce a valid Library document.' };
+    }
+
+    this.pendingUndoSnapshot = before;
+    const result = await active.session.save(next);
+    const action = await this.applySessionAction(result);
+    if (action.kind === 'updated' && action.snapshot.status === 'saved') {
+      this.finishPendingHistory();
+      active.snapshot = { ...action.snapshot, message: successMessage };
+      action.snapshot = active.snapshot;
+      await this.persistActive();
+    }
+    return action;
+  }
+
+  async undo(): Promise<LibraryActionResult> {
+    const active = this.active;
+    const previous = this.undoStack.at(-1);
+    if (!active?.snapshot.library || !previous || active.snapshot.status !== 'saved') {
+      return { kind: 'failed', message: 'There is no saved Library command to undo.' };
+    }
+    const current = cloneOpenFilmLibraryDocument(active.snapshot.library);
+    const result = await active.session.save(cloneOpenFilmLibraryDocument(previous));
+    const action = await this.applySessionAction(result);
+    if (action.kind === 'updated' && action.snapshot.status === 'saved') {
+      this.undoStack.pop();
+      this.redoStack.push(current);
+      active.snapshot = { ...action.snapshot, message: 'Undid the last Library command.' };
+      action.snapshot = active.snapshot;
+      await this.persistActive();
+    }
+    return action;
+  }
+
+  async redo(): Promise<LibraryActionResult> {
+    const active = this.active;
+    const next = this.redoStack.at(-1);
+    if (!active?.snapshot.library || !next || active.snapshot.status !== 'saved') {
+      return { kind: 'failed', message: 'There is no Library command to redo.' };
+    }
+    const current = cloneOpenFilmLibraryDocument(active.snapshot.library);
+    const result = await active.session.save(cloneOpenFilmLibraryDocument(next));
+    const action = await this.applySessionAction(result);
+    if (action.kind === 'updated' && action.snapshot.status === 'saved') {
+      this.redoStack.pop();
+      this.undoStack.push(current);
+      active.snapshot = { ...action.snapshot, message: 'Redid the last Library command.' };
+      action.snapshot = active.snapshot;
+      await this.persistActive();
+    }
+    return action;
+  }
+
+  async readSourcePhotograph(relativePath: string): Promise<File> {
+    if (!this.active) {
+      throw new Error('Open a Library before reading a Source photograph.');
+    }
+
+    return await this.gateway.readSourcePhotograph(this.active.handle, relativePath);
+  }
+
+  async pickExportDestination(): Promise<{ handle: FileSystemDirectoryHandle; paths: string[] }> {
+    if (!this.gateway.pickExportDirectory || !this.gateway.listExportPaths) {
+      throw new Error(
+        'This browser cannot authorize an Export folder. Use the bounded download fallback.',
+      );
+    }
+    const handle = await this.gateway.pickExportDirectory();
+    return { handle, paths: await this.gateway.listExportPaths(handle) };
+  }
+
+  async writeExportFile(
+    destination: FileSystemDirectoryHandle,
+    relativePath: string,
+    bytes: Blob | Uint8Array,
+    options?: { overwrite?: boolean },
+  ): Promise<void> {
+    if (!this.gateway.writeExportFile)
+      throw new Error('This browser cannot write to an Export folder.');
+    await this.gateway.writeExportFile(destination, relativePath, bytes, options);
+  }
+
+  async readExportFile(
+    destination: FileSystemDirectoryHandle,
+    relativePath: string,
+  ): Promise<File | null> {
+    if (!this.gateway.readExportFile)
+      throw new Error('This browser cannot resume from an Export folder.');
+    return await this.gateway.readExportFile(destination, relativePath);
+  }
+
+  async loadLibraryThumbnail(
+    relativePath: string,
+    maxWidth: number,
+    signal?: AbortSignal,
+  ): Promise<LibraryThumbnail> {
+    const active = this.active;
+
+    if (!active) {
+      throw new Error('Open a Library before reading a Source photograph.');
+    }
+
+    return await active.workScheduler.enqueue(
+      'visible-thumbnail',
+      async () =>
+        await createLibraryGridThumbnail(
+          await this.gateway.readSourcePhotograph(active.handle, relativePath),
+          { maxWidth, signal },
+        ),
+      signal,
+    );
+  }
+
+  async scanLibrary(
+    onSnapshot?: (snapshot: LibraryWorkspaceSnapshot) => void,
+    options: { cacheContentHashes?: boolean } = {},
+  ): Promise<LibraryScanResult | null> {
+    const active = this.active;
+
+    if (!active || !active.snapshot.library || active.snapshot.status !== 'saved') {
+      return null;
+    }
+
+    if (active.scanPromise) {
+      return await active.scanPromise;
+    }
+
+    const controller = new AbortController();
+    const originalPhotographs = active.snapshot.library.photographs;
+    active.scanAbortController = controller;
+
+    const updateScanSnapshot = (
+      scan: LibraryScanState,
+      photographs: OpenFilmLibraryDocument['photographs'],
+    ) => {
+      if (this.active !== active) {
+        return;
+      }
+
+      active.snapshot = {
+        ...active.snapshot,
+        library: { ...active.snapshot.library!, photographs },
+        scan,
+      };
+      onSnapshot?.(active.snapshot);
+    };
+
+    const promise = (async () => {
+      const result = await scanLibraryFolder(active.handle, this.gateway, {
+        cacheContentHashes: options.cacheContentHashes,
+        existingPhotographs: originalPhotographs,
+        onProgress: (scan, photographs) => updateScanSnapshot(scan, photographs),
+        scheduler: active.workScheduler,
+        signal: controller.signal,
+      });
+
+      if (this.active !== active) {
+        return result;
+      }
+
+      const scannedLibrary: OpenFilmLibraryDocument = {
+        ...active.snapshot.library!,
+        photographs: result.photographs,
+      };
+      const changed = JSON.stringify(originalPhotographs) !== JSON.stringify(result.photographs);
+
+      updateScanSnapshot(
+        {
+          error: result.error,
+          message:
+            result.status === 'complete'
+              ? 'Scan complete. The Library is ready to review.'
+              : result.status === 'cancelled'
+                ? 'Scan cancelled. Photograph records found so far remain in the Grid.'
+                : 'Scan stopped before the folder was fully read.',
+          progress: result.progress,
+          status: result.status,
+          unsupportedFiles: result.unsupportedFiles,
+        },
+        result.photographs,
+      );
+
+      if (changed) {
+        active.snapshot = { ...active.snapshot, status: 'saving' };
+        onSnapshot?.(active.snapshot);
+        const saved = await active.session.save(scannedLibrary);
+
+        if (saved.status === 'saved') {
+          active.pendingFromIndexedDb = false;
+          const library = asOpenFilmLibraryDocument(active.session.snapshot().working);
+          active.snapshot = this.createSnapshot(
+            library,
+            active.rootName,
+            active.session,
+            'saved',
+            'The Library is Saved.',
+            active.snapshot.scan,
+          );
+          await this.persistActive();
+          onSnapshot?.(active.snapshot);
+        } else {
+          await this.applySessionAction(saved);
+          onSnapshot?.(active.snapshot);
+        }
+      } else {
+        await this.persistActive();
+        onSnapshot?.(active.snapshot);
+      }
+
+      return result;
+    })();
+
+    active.scanPromise = promise;
+
+    try {
+      return await promise;
+    } finally {
+      if (this.active === active) {
+        active.scanAbortController = null;
+        active.scanPromise = null;
+      }
+    }
+  }
+
+  cancelScan(): void {
+    this.active?.scanAbortController?.abort();
   }
 
   async listRecentLibraries(): Promise<RecentLibraryEntry[]> {
@@ -250,7 +542,11 @@ export class LibraryApplication {
       ? await active.session.save(active.snapshot.library as OpenFilmLibraryDocument)
       : await active.session.retry();
 
-    return await this.applySessionAction(result);
+    const action = await this.applySessionAction(result);
+    if (action.kind === 'updated' && action.snapshot.status === 'saved') {
+      this.finishPendingHistory();
+    }
+    return action;
   }
 
   async saveCopy(): Promise<LibraryActionResult> {
@@ -297,6 +593,7 @@ export class LibraryApplication {
         message: `Reverted to Library revision ${result.revision}.`,
         revision: getLibraryRevisionReference(active.session.snapshot().durable),
         rootName: active.rootName,
+        scan: createIdleLibraryScanState(),
         status: 'saved',
       };
       await this.persistActive();
@@ -311,7 +608,10 @@ export class LibraryApplication {
   }
 
   close(): void {
+    this.active?.scanAbortController?.abort();
+    this.active?.workScheduler.dispose();
     this.active = null;
+    this.clearHistory();
   }
 
   private async openRoot(
@@ -463,6 +763,7 @@ export class LibraryApplication {
     session: LibraryFileSession,
     status: LibraryWorkspaceStatus,
     message: string,
+    scan: LibraryScanState = createIdleLibraryScanState(),
   ): LibraryWorkspaceSnapshot {
     const durable = session.snapshot().durable;
 
@@ -472,6 +773,7 @@ export class LibraryApplication {
       message,
       revision: getLibraryRevisionReference(durable),
       rootName,
+      scan,
       status,
     };
   }
@@ -482,15 +784,35 @@ export class LibraryApplication {
     snapshot: LibraryWorkspaceSnapshot,
     pendingFromIndexedDb: boolean,
   ): Promise<void> {
+    this.active?.scanAbortController?.abort();
+    this.active?.workScheduler.dispose();
+    this.clearHistory();
     this.active = {
       handle,
       libraryId: snapshot.libraryId ?? `unknown-${this.now()}`,
       pendingFromIndexedDb,
       rootName: snapshot.rootName,
+      scanAbortController: null,
+      scanPromise: null,
       session,
       snapshot,
+      workScheduler: createLibraryWorkScheduler(),
     };
     await this.persistActive();
+  }
+
+  private clearHistory(): void {
+    this.undoStack.splice(0);
+    this.redoStack.splice(0);
+    this.pendingUndoSnapshot = null;
+    this.commandTail = Promise.resolve();
+  }
+
+  private finishPendingHistory(): void {
+    if (!this.pendingUndoSnapshot) return;
+    this.undoStack.push(this.pendingUndoSnapshot);
+    this.redoStack.splice(0);
+    this.pendingUndoSnapshot = null;
   }
 
   private async applySessionAction(
@@ -511,6 +833,7 @@ export class LibraryApplication {
         active.session,
         'saved',
         'The Library is Saved.',
+        active.snapshot.scan,
       );
       await this.persistActive();
       return { kind: 'updated', snapshot: active.snapshot };
@@ -531,6 +854,7 @@ export class LibraryApplication {
       active.session,
       status,
       describeActionFailure(result),
+      active.snapshot.scan,
     );
     await this.persistActive();
 

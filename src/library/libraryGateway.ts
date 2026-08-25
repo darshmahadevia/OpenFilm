@@ -16,7 +16,16 @@ type PermissionDirectoryHandle = FileSystemDirectoryHandle & {
   requestPermission?: (descriptor?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>;
 };
 
+type IterableDirectoryHandle = FileSystemDirectoryHandle & {
+  entries: () => AsyncIterableIterator<[string, FileSystemHandle]>;
+};
+
 export type LibraryDirectoryAvailability = 'available' | 'missing' | 'permission-denied';
+
+export interface LibrarySourceFile {
+  file: File;
+  relativePath: string;
+}
 
 export class LibraryGatewayError extends Error {
   readonly kind: 'different-folder' | 'missing' | 'permission-denied' | 'unsupported';
@@ -43,7 +52,21 @@ export interface LibraryDirectoryGateway {
   getPermission(root: FileSystemDirectoryHandle): Promise<LibraryPermissionState>;
   inspectRecentDirectory(root: FileSystemDirectoryHandle): Promise<LibraryDirectoryAvailability>;
   pickDirectory(): Promise<FileSystemDirectoryHandle>;
+  readSourcePhotograph(root: FileSystemDirectoryHandle, relativePath: string): Promise<File>;
   requestPermission(root: FileSystemDirectoryHandle): Promise<LibraryPermissionState>;
+  scanSourceFiles(
+    root: FileSystemDirectoryHandle,
+    signal?: AbortSignal,
+  ): AsyncIterable<LibrarySourceFile>;
+  pickExportDirectory?(): Promise<FileSystemDirectoryHandle>;
+  listExportPaths?(root: FileSystemDirectoryHandle): Promise<string[]>;
+  readExportFile?(root: FileSystemDirectoryHandle, relativePath: string): Promise<File | null>;
+  writeExportFile?(
+    root: FileSystemDirectoryHandle,
+    relativePath: string,
+    bytes: Blob | Uint8Array,
+    options?: { overwrite?: boolean },
+  ): Promise<void>;
 }
 
 function isDomException(error: unknown, name: string): boolean {
@@ -81,6 +104,83 @@ function throwDirectoryError(error: unknown): never {
   throw error instanceof Error
     ? error
     : new Error('OpenFilm could not open the selected Library folder.');
+}
+
+function throwSourceFileError(error: unknown, relativePath: string): never {
+  if (isDomException(error, 'NotFoundError')) {
+    throw new LibraryGatewayError(
+      'missing',
+      `The Source photograph at ${relativePath} is no longer available in this Library folder.`,
+    );
+  }
+
+  if (isDomException(error, 'NotAllowedError') || isDomException(error, 'SecurityError')) {
+    throw new LibraryGatewayError(
+      'permission-denied',
+      'OpenFilm lost permission to read a Source photograph in this Library folder.',
+    );
+  }
+
+  throw error instanceof Error
+    ? error
+    : new Error(`OpenFilm could not read the Source photograph at ${relativePath}.`);
+}
+
+function normalizeRelativePath(relativePath: string): string[] {
+  const parts = relativePath.split('/');
+
+  if (
+    parts.length === 0 ||
+    parts.some((part) => part.length === 0 || part === '.' || part === '..')
+  ) {
+    throw new LibraryGatewayError(
+      'missing',
+      'OpenFilm received an invalid Source photograph path.',
+    );
+  }
+
+  return parts;
+}
+
+async function* walkSourceFiles(
+  directory: FileSystemDirectoryHandle,
+  prefix: string,
+  signal?: AbortSignal,
+): AsyncIterable<LibrarySourceFile> {
+  const iterableDirectory = directory as IterableDirectoryHandle;
+
+  if (typeof iterableDirectory.entries !== 'function') {
+    throw new LibraryGatewayError(
+      'unsupported',
+      'This Chromium browser cannot enumerate a Library folder.',
+    );
+  }
+
+  for await (const [name, entry] of iterableDirectory.entries()) {
+    if (signal?.aborted) {
+      return;
+    }
+
+    if (prefix.length === 0 && name === LIBRARY_SIDECAR_DIRECTORY) {
+      continue;
+    }
+
+    const relativePath = prefix.length === 0 ? name : `${prefix}/${name}`;
+
+    if (entry.kind === 'directory') {
+      yield* walkSourceFiles(entry as FileSystemDirectoryHandle, relativePath, signal);
+      continue;
+    }
+
+    try {
+      yield {
+        file: await (entry as FileSystemFileHandle).getFile(),
+        relativePath,
+      };
+    } catch (error) {
+      throwSourceFileError(error, relativePath);
+    }
+  }
 }
 
 export function hasDirectoryPicker(): boolean {
@@ -149,6 +249,85 @@ export function createBrowserLibraryDirectoryGateway(): LibraryDirectoryGateway 
         throwDirectoryError(error);
       }
     },
+    async pickExportDirectory() {
+      return await this.pickDirectory();
+    },
+    async listExportPaths(root) {
+      const paths: string[] = [];
+      async function walk(directory: FileSystemDirectoryHandle, prefix: string) {
+        const iterable = directory as IterableDirectoryHandle;
+        for await (const [name, entry] of iterable.entries()) {
+          const path = prefix ? `${prefix}/${name}` : name;
+          if (entry.kind === 'directory') await walk(entry as FileSystemDirectoryHandle, path);
+          else paths.push(path);
+        }
+      }
+      await walk(root, '');
+      return paths;
+    },
+    async readExportFile(root, relativePath) {
+      try {
+        const parts = normalizeRelativePath(relativePath);
+        let directory = root;
+        for (const part of parts.slice(0, -1))
+          directory = await directory.getDirectoryHandle(part, { create: false });
+        return await (await directory.getFileHandle(parts.at(-1)!, { create: false })).getFile();
+      } catch (error) {
+        if (isDomException(error, 'NotFoundError')) return null;
+        throwDirectoryError(error);
+      }
+    },
+    async writeExportFile(root, relativePath, bytes, options) {
+      const parts = normalizeRelativePath(relativePath);
+      let directory = root;
+      for (const part of parts.slice(0, -1))
+        directory = await directory.getDirectoryHandle(part, { create: true });
+      if (!options?.overwrite) {
+        try {
+          await directory.getFileHandle(parts.at(-1)!, { create: false });
+          throw new LibraryGatewayError(
+            'different-folder',
+            `Export stopped because ${relativePath} already exists.`,
+          );
+        } catch (error) {
+          if (!isDomException(error, 'NotFoundError')) throw error;
+        }
+      }
+      const handle = await directory.getFileHandle(parts.at(-1)!, { create: true });
+      const writable = await handle.createWritable({ keepExistingData: false });
+      try {
+        await writable.write(
+          bytes instanceof Uint8Array ? (bytes.slice().buffer as ArrayBuffer) : bytes,
+        );
+        await writable.close();
+      } catch (error) {
+        await writable.abort();
+        throwDirectoryError(error);
+      }
+    },
+    async readSourcePhotograph(root, relativePath) {
+      const parts = normalizeRelativePath(relativePath);
+      const fileName = parts.at(-1);
+
+      if (!fileName) {
+        throw new LibraryGatewayError(
+          'missing',
+          'OpenFilm received an empty Source photograph path.',
+        );
+      }
+
+      try {
+        let directory = root;
+
+        for (const directoryName of parts.slice(0, -1)) {
+          directory = await directory.getDirectoryHandle(directoryName, { create: false });
+        }
+
+        return await (await directory.getFileHandle(fileName, { create: false })).getFile();
+      } catch (error) {
+        throwSourceFileError(error, relativePath);
+      }
+    },
     async requestPermission(root) {
       const permissionRoot = root as PermissionDirectoryHandle;
 
@@ -177,6 +356,9 @@ export function createBrowserLibraryDirectoryGateway(): LibraryDirectoryGateway 
       }
 
       return this.getPermission(picker);
+    },
+    scanSourceFiles(root, signal) {
+      return walkSourceFiles(root, '', signal);
     },
   };
 }

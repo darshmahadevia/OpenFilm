@@ -1,46 +1,93 @@
 # Library workspace contract
 
-Issue #41 extends the Library-file durability boundary proved by issue #40. The application stays
-static and local-first: the browser opens one selected folder, and the Library sidecars live beside
-the Source photographs under `.openfilm/`.
+The Library workstation is OpenFilm's default and only shipped product surface. It remains static
+and local-first: the user authorizes one folder, Source photographs stay there, and OpenFilm stores
+versioned sidecars under `.openfilm/`.
 
-## Authority and validation
+## Authority and recovery
 
-`library.json` is the durable Library authority. `library.previous.json` and
-`library.pending.json` are the recovery slots governed by the existing commit protocol. A valid
-durability envelope is not enough to open a Library: the typed document must also have the supported
-OpenFilm format, schema version, Library identity, root name, creation time, and Photograph record
-shape. An invalid or conflicting file opens read-only and is never silently replaced by browser
-storage.
+`library.json` is the durable authority. `library.pending.json` and `library.previous.json` are
+recovery slots governed by the commit protocol. Every commit has a checksum, monotonically
+increasing revision, and parent revision. Validation covers the envelope and the typed Library
+document. An invalid, unsupported, or conflicting file opens read-only and is never replaced by a
+browser working copy.
 
-The Library document stores Photograph records, not Source photograph bytes. Opening a folder never
-copies or uploads the Source photographs.
+IndexedDB stores recent directory handles, the last durable revision reference, and a recoverable
+working copy. That copy is an aid, not a second source of truth. User-visible outcomes are `Saved`,
+`Saving`, `Unsaved`, and `Read-only`. Unsaved state blocks another mutation until Retry, Save a copy,
+or Revert resolves it.
 
-## Recent Libraries and recovery
+## Discovery and Grid
 
-IndexedDB stores the recent Library identity, a serializable directory handle, the last durable
-revision reference, and a recoverable working Library copy. That record is a recovery aid only. It
-cannot make an invalid or missing sidecar Saved, and it is not a second persistence path.
+The recursive scanner reports supported and unsupported files separately and yields records as it
+goes. It starts with cheap `lastModified + byteSize` fingerprints and bounded metadata reads; no
+full-resolution decode is required to make the Grid usable. Known capture times sort before unknown
+times, then relative path and record ID provide deterministic ties.
 
-The start workspace reports these recent states:
+The Grid has Overview, Standard, and Detail densities with fixed geometry and row virtualization.
+Only mounted rows request transient thumbnails. Active and Selection are separate state: click moves
+Active, modifier or keyboard range commands extend Selection, and the toolbar always shows the
+Selection count. Filters include disposition, rating, Source state, and capture ordering.
 
-- `Ready`: the same folder and a valid saved Library file are available.
-- `Reauthorize`: the stored handle needs permission again; reauthorization uses the existing handle
-  or the system folder picker and accepts only the same directory entry.
-- `Unsaved recovery`: a working copy is retained in browser storage and must be retried, copied, or
-  reverted before another Library change.
-- `Missing folder`: the stored folder or its Library sidecar is unavailable.
+Refreshing reuses identity for the same path and fingerprint, marks absent records Missing, and gives
+changed bytes at the same path a new record. Explicit Refresh caches content hashes as low-priority
+work for later moves; initial open remains cheap. A unique cached hash reconciles a moved file.
+Ambiguous candidates produce named choices in the Grid and preserve prior state until the
+photographer chooses one.
 
-The workspace exposes `Saved`, `Saving`, `Unsaved`, and `Read-only` as visible outcomes. `Unsaved`
-blocks another mutation until Retry save, Save a copy, or Revert completes. `Read-only` keeps the
-working state visible and routes the user to reauthorization or the recent-Library list.
+## Review, Loupe, and Comparison
 
-## Evidence
+The workstation supports `0–5`, `P`, `X`, and `U` review commands, arrow navigation, optional
+auto-advance, and command-level undo/redo. The command is committed before the Active photograph
+moves. Filtered-empty and no-next-photo cases preserve a valid context.
 
-- Public application boundary: `src/library/libraryApplication.test.ts`
-- Browser directory adapter: `src/library/libraryGateway.test.ts`
-- Library document and recovery validation: `src/library/libraryModel.test.ts` and
-  `src/storage/browserStorage.test.ts`
-- Chromium browser journey: `e2e/libraryWorkspace.spec.ts`
-- Existing commit durability protocol: `docs/library-durability.md` and
-  `e2e/libraryDurability.spec.ts`
+Loupe loads one active Source into the shared renderer and supports Fit, a 100-percent request,
+Source/Rendered comparison, nearby navigation, and keyboard return to Grid. Comparison accepts two
+to four selected photographs. Linked panes share zoom and normalized focal point; panes can be
+unlinked independently. Comparison uses bounded derivatives and is labeled
+`Resolution limited · Fit`.
+
+## Edits and groups
+
+Each Photograph has neutral Edit defaults, persistent adjustments, tone curve, Geometry, and a
+revision. Light, Color, Curve, Finish, Geometry, and Looks are grouped in a focus-contained inspector.
+Copy Look to Selection validates all targets, changes them atomically, and participates in the same
+undo/redo and durable-command boundary.
+
+Burst proposals are deterministic: adjacent capture times within two seconds and matching normalized
+camera serials form candidates. Accept and dismiss are explicit. Accepted and manual groups preserve
+their origin and can be merged, split, or dissolved without changing culling state.
+
+Perceptual similarity and relative sharpness implementations are versioned, cached, cancellable,
+and bounded to time-neighborhood candidates. They remain intentionally absent from the product UI
+until a rights-cleared labeled corpus meets the quality gate.
+
+## Final-set Export
+
+Export operates on all Picks or the current Selection. Planning resolves case-insensitive path
+collisions, optionally preserves Source folders, and records an explicit source-to-output binding.
+Folder writes refuse overwrite. A manifest records checksum, status, and failure per
+photograph; it is written before work and after every entry. Reopening the folder reconciles output
+checksums, skips valid results, and gives incomplete occupied paths a new collision-safe name rather
+than overwriting them. Cancel stops after the current photograph. A download fallback is capped at
+12 files and cannot resume after reload.
+
+All final-set images use the shared renderer. Output assumes sRGB, strips Source metadata, and does
+not claim archival or print fidelity.
+
+## Keyboard summary
+
+| Key                      | Command                     |
+| ------------------------ | --------------------------- |
+| Left / Right             | Move Active                 |
+| Shift + Left / Right     | Extend Selection            |
+| 0–5                      | Clear or set rating         |
+| P / X / U                | Pick, Reject, Unmarked      |
+| Enter / Escape           | Enter Loupe, return to Grid |
+| C / E                    | Comparison, Edit inspector  |
+| Space / Z                | Hold or toggle Loupe zoom   |
+| Command/Ctrl + Z         | Undo                        |
+| Command/Ctrl + Shift + Z | Redo                        |
+
+See [architecture](./architecture.md), [limitations](./limitations.md), and
+[release evidence](./release-evidence.md).

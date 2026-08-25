@@ -4,68 +4,62 @@
 
 ## Platform
 
-web
+Static web application; current Chromium on macOS is the verified target.
 
 ## Users
 
-Casual photographers who want fast, film-inspired edits without creating an account, learning a
-professional editing suite, or uploading photographs to a service.
+Photographers who want to review, cull, compare, make a focused non-destructive Edit, and export a
+local shoot without an account, backend, or cloud transfer.
 
-## Product Purpose
+## Product purpose
 
-OpenFilm is a quiet browser photo editor for importing one photograph, shaping a reusable Look,
-making source-specific geometry changes, and exporting a fresh local image.
+OpenFilm is a quiet, local-first Library workstation. It references JPEG, PNG, and WebP Source
+photographs in one authorized folder, stores durable review and Edit state beside that folder, and
+keeps the photographer's decisions explicit and recoverable.
 
-## Positioning
+## Primary journey
 
-The application is local-only and account-free. Photographs stay in the browser. Reusable Looks
-remain portable and separate from crop, rotation, flip, and other source-specific Edit state.
+1. Open a folder or reopen a recent Library.
+2. Review the progressive Grid with Active, Selection, Rating, Disposition, filters, and ordering.
+3. Move into Loupe or Comparison without losing review context.
+4. Edit the Active photograph, copy a Look atomically, and organize explicit Review groups.
+5. Export Picks or Selection to a folder with a resumable manifest, or use the bounded download
+   fallback.
 
-## Operating Context
+## Capabilities and constraints
 
-The primary journey is import, edit, and export. People may start with a bundled sample, resume a
-recoverable local Edit when browser storage permits it, or exchange a single versioned Look file.
-The workspace must remain usable on both desktop and phone-sized screens.
+- Library sidecars are authoritative. IndexedDB working copies and recent directory handles support
+  recovery but do not back up Source photographs.
+- Grid work is virtualized and scheduled. Source reads, thumbnails, metadata, analysis, rendering,
+  and Export remain bounded by explicit capability or resource limits.
+- Loupe and Export share WebGL2 adjustment and Geometry semantics. Comparison uses resolution-limited
+  derivatives and labels them honestly.
+- Light, Color, Curve, Finish, Geometry, and Looks persist as non-destructive Edit state. Undo/redo is
+  bounded in-session history, not a durable historical revision log.
+- Burst grouping is deterministic. Similarity and relative Sharpness remain out of the UI until the
+  documented validation gate can be met.
+- Export assumes sRGB, strips Source metadata, and makes no archival or print-fidelity promise.
+- RAW, HEIC/HEIF, TIFF, cloud sync, accounts, analytics, and cross-device Libraries are out of scope.
 
-## Capabilities and Constraints
+## Brand commitments
 
-- Import JPEG, PNG, or WebP photographs and process them locally.
-- Adjust exposure, contrast, temperature, tint, saturation, fade, tone curve, vignette, and grain.
-- Crop, rotate, and flip with preview and export using the same rendering path.
-- Apply bundled Looks and save, rename, duplicate, delete, import, or export custom Looks.
-- Undo, redo, compare before and after, recover a recent Edit when possible, and export JPEG, PNG,
-  or WebP.
-- Deploy as static files with no account system, application backend, analytics, or external API.
-- Browser storage is a convenience, not a backup.
+- Keep the OpenFilm wordmark; do not use the old `OF` monogram.
+- Make the photograph the strongest object and use compact near-black chrome, warm-white type, fine
+  separators, and one restrained sand interaction color.
+- Use product vocabulary from `CONTEXT.md` and calm, factual recovery language.
+- Avoid gradients, glass effects, ornamental dashboards, marketing slogans, fake activity, social
+  proof, or claims beyond recorded evidence.
 
-## Brand Commitments
+## Accessibility
 
-- Keep the OpenFilm name.
-- Do not use the existing “OF” monogram.
-- Prefer the OpenFilm wordmark without a logo. A simple circle may be explored as a quiet mark when
-  a concept needs one, but it must never compete with the photograph.
-- Use plain, calm product language and keep the image in the foreground.
-- Use a familiar dark creative-tool visual language at the craft level of Darkroom, VSCO Web
-  Studio, and Lightroom: image-led composition, legible professional controls, matte near-black
-  chrome, and one restrained violet-blue action color. The interface should feel immediately
-  recognizable rather than quirky or nostalgic.
+All critical paths must be keyboard operable with visible focus. Active, Selection, Rating,
+Disposition, save state, progress, errors, pane/link state, and recovery must have textual or
+semantic cues beyond color. Modal surfaces contain focus, restore it on close, and make the
+background inert. Layouts remain reachable across documented desktop widths, 200-percent zoom, and
+reduced-motion preference.
 
-## Evidence on Hand
+## Evidence boundary
 
-The repository contains a bundled sample photograph and current desktop and phone editor captures.
-No testimonials, usage metrics, or commercial claims have been supplied, so prototypes must not
-invent them.
-
-## Product Principles
-
-- Privacy should be evident in the experience, not buried in policy copy.
-- The photograph is the primary content.
-- A Look is reusable; geometry belongs to the current Edit.
-- Important controls and status must remain visible and keyboard accessible.
-- The quickest useful path is always import, edit, export.
-
-## Accessibility and Inclusion
-
-Controls need clear accessible names, visible keyboard focus, adequate contrast, touch-sized targets,
-and responsive layouts that remain usable at narrow widths and high zoom. Motion must respect
-reduced-motion preferences.
+Release claims come from the checked-in unit, browser, durability, accessibility, visual, and
+performance harnesses. Representative screenshots and generated fixture provenance are tracked.
+No testimonials, usage metrics, universal device claims, or unmeasured fidelity claims are implied.

@@ -1,67 +1,83 @@
 # Architecture
 
-OpenFilm uses one Vite entry point and one React tree. The production build is a static `dist/`
-directory. There is no server route, API client, analytics script, or general-purpose component kit.
+OpenFilm is one React tree built by Vite into static files. There is no application server, API
+client, analytics path, or Source-photo upload. The browser owns the directory handle, durable
+sidecars, transient image resources, and rendering context.
 
-## Source folders
+## Boundaries
 
-- `src/editor` contains editor state, adjustment values, normalized geometry, the Edit-specific grain
-  seed, and the shared 50-entry edit history. The tone curve model owns bounded points,
-  interpolation, lookup generation, ordering rules, and JSON serialization. The preset model owns
-  the versioned JSON format and runtime checks.
-- `src/import` validates JPEG, PNG, and WebP files, decodes them through browser APIs, and releases
-  object URLs and temporary decoder resources.
-- `src/rendering` contains the bounded WebGL2 preview renderer, geometry transforms, tone-curve
-  lookup texture, vignette, deterministic grain, deferred luminance histogram, export sizing and
-  encoding, resize handling, and context-loss recovery.
-- `src/library` contains the versioned Library-file envelope, typed Library document validation,
-  the browser directory gateway, Web Locks coordination, recoverable commit sequence, session and
-  workspace outcomes, and the browser durability harness for the first v2 gate.
-- `src/storage` contains separate IndexedDB records for custom Looks, the latest recoverable Edit,
-  and recent Library handles with working copies. The Library sidecar remains the durable authority;
-  storage also maps failures to product-language messages. Source bytes stay in the v1 Edit
-  recovery record and never enter a reusable Look or Library working copy.
-- `src/ui` contains design tokens, layout styles, and reusable buttons, fields, sliders, panels, and
-  dialogs.
+- `src/library/libraryApplication.ts` is the public workspace boundary. It opens or creates a
+  Library, coordinates scan progress and recent-handle recovery, serializes durable commands, and
+  exposes undo, redo, Retry, Save a copy, and Revert.
+- `src/library/libraryFile*.ts` owns canonical JSON, checksums, parent revisions, Web Locks, pending
+  and previous slots, atomic commit phases, and conflict recovery.
+- `src/library/libraryGateway.ts` owns authorized folder enumeration, Source reads, and no-overwrite
+  Export writes. It excludes `.openfilm/` from Source discovery.
+- `src/library/libraryScanner.ts`, `libraryMetadata*.ts`, `libraryScheduler.ts`, and
+  `libraryThumbnail.ts` own progressive discovery, bounded metadata reads, prioritized work,
+  cancellation/retry generations, and disposable derivatives.
+- `src/library/LibraryGrid.tsx` and `libraryGridModel.ts` own the fixed-row virtualized Grid. Active,
+  Selection, filtering, ordering, navigation, and review commands live in `libraryReview.ts`.
+- `src/library/libraryComparison.ts` and `libraryResourceCache.ts` own two-to-four-pane Comparison,
+  linked focal geometry, and bounded reusable resources.
+- `src/library/libraryReviewGroups.ts` owns deterministic Burst proposals and explicit group
+  provenance. `libraryAnalysis.ts` owns versioned perceptual-hash and relative-sharpness signals;
+  these are intentionally not connected to the shipped UI until their quality gate can be met.
+- `src/library/libraryExportSet.ts` owns collision-safe paths and resumable manifests.
+  `libraryRenderedExport.ts` renders each final result through the same WebGL2 renderer as Loupe.
+- `src/library/libraryMigration.ts` and `libraryReconciliation.ts` isolate legacy migration,
+  quarantine, fingerprint resolution, and unique-hash move reconciliation.
+- `src/editor` owns normalized adjustments, RGB tone curves, Geometry, Looks, and rendering-safe Edit
+  snapshots. `src/rendering` owns the shared WebGL2 preview/export pipeline and context lifecycle.
+- `src/storage` owns recent handles and recoverable working copies in IndexedDB. The Library sidecar
+  remains authoritative.
+- `src/library/AdaptiveLibraryWorkspace.tsx` composes the start surface, Grid, Loupe, Comparison,
+  inspector, groups, Export, recovery surfaces, and shortcuts. `src/ui` supplies tokens and controls.
 
-## State model
+## State and command flow
 
-A Look stores reusable adjustment values, including the shared RGB tone curve, vignette, and grain
-amount and size. An Edit stores the source photograph, the current Look, source-specific geometry,
-history, and the grain seed. Preset JSON contains a versioned Look only. It never contains source
-bytes, geometry, history, or the grain seed.
+```text
+keyboard / control
+      │
+      ▼
+review or edit command ──► immutable Library document
+      │                            │
+      │                            ▼
+      └────────────────────► serialized durable commit
+                                   │
+                        pending → library → previous
+                                   │
+                                   ▼
+                         Saved / Unsaved / Read-only
+```
 
-The preview and export paths use the same WebGL2 adjustment and geometry transform. The preview
-buffer is bounded separately from the requested export size.
+Active photograph and Selection are distinct. Culling records the command before optional
+auto-advance. Look-copy and other multi-record mutations form one command and one durable commit.
+The application queues concurrent UI commands so two rapid actions cannot manufacture a stale-parent
+conflict against its own write.
 
-## Tests
+Photograph records contain paths, cheap fingerprints, extracted metadata, review state, optional
+Edit state, and analysis-cache fields. They never contain Source bytes or browser object URLs.
 
-Key Vitest and component tests are grouped by behavior:
+## Rendering and resources
 
-- `src/App.test.tsx` covers the application shell and recovery states.
-- `src/editor/adjustments.test.ts` covers adjustment values and their history reducer.
-- `src/editor/editorState.test.ts` covers editor state.
-- `src/editor/editHistory.test.ts` covers shared history.
-- `src/editor/geometry.test.ts` covers normalized geometry and geometry history.
-- `src/editor/grain.test.ts` covers Edit-specific grain seeds.
-- `src/editor/looks.test.ts` covers bundled Looks.
-- `src/editor/presets.test.ts` covers preset validation and serialization.
-- `src/editor/toneCurve.test.ts` covers the RGB tone curve.
-- `src/import/sourcePhotograph.test.ts` covers source-photograph validation and decoding.
-- `src/storage/browserStorage.test.ts` covers browser and memory storage adapters.
-- `src/library/libraryModel.test.ts` covers versioned Library document validation.
-- `src/library/libraryGateway.test.ts` covers the Chromium directory picker and permission adapter.
-- `src/library/libraryApplication.test.ts` covers Library creation, recent statuses, recovery, and
-  read-only validation at the public application boundary.
-- `src/library/libraryFile.test.ts` covers canonical JSON, checksums, parent revisions, and invalid files.
-- `src/library/libraryFilePersistence.test.ts` covers commit phases, recovery, conflicts, permission
-  loss, Retry, Save a copy, Revert, and unsaved mutation blocking.
-- `src/rendering/export.test.ts` covers format and export sizing.
-- `src/rendering/renderer.test.ts` covers renderer capability, geometry helpers, preview, and export.
-- `src/ui/components/components.test.tsx` covers the reusable UI components.
+Loupe and rendered Export use the same adjustment, curve, Geometry, and grain implementation.
+Comparison uses bounded derivatives and labels its fit-only resolution. Grid derivatives are created
+for mounted rows and disposed when rows unmount. Schedulers reject stale generations and bound
+concurrency and retry; caches enforce byte budgets rather than entry counts.
 
-Playwright runs Chromium journeys at desktop and phone widths and uses axe-core on the Library start
-and loaded editor states. `e2e/libraryWorkspace.spec.ts` covers creation, reopen, IndexedDB recovery,
-the explicit Saving/Saved/Unsaved/read-only states, and invalid Library-file protection. The existing
-`e2e/libraryDurability.spec.ts` runs the Library commit harness against the Chromium Origin Private
-File System.
+## Verification map
+
+- Library durability and commands: `libraryApplication.test.ts`, `libraryFilePersistence.test.ts`,
+  and `e2e/libraryDurability.spec.ts`
+- Scan, reconciliation, metadata, scheduler, Grid, and resources: matching tests under `src/library`
+- Review, groups, Comparison, Edit persistence, analysis, migration, and Export: matching focused
+  Vitest files under `src/library`
+- Rendering: `src/rendering/renderer.test.ts`, `src/rendering/export.test.ts`, and Loupe browser paths
+- Product workflow and accessibility: `e2e/firstImportExport.spec.ts` and
+  `e2e/libraryWorkspace.spec.ts`
+- Scale: `e2e/performance.spec.ts` plus `scripts/generate-performance-corpus.mjs`
+- Visual evidence: `e2e/visualEvidence.spec.ts` and tracked screenshots under `docs/screenshots/`
+
+See [testing](./testing.md) for commands and [release evidence](./release-evidence.md) for the measured
+release verdict.

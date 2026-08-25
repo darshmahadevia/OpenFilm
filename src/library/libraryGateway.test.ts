@@ -4,6 +4,7 @@ function createDirectoryHandle(name: string, permission: PermissionState = 'gran
   const handle = {
     getDirectoryHandle: vi.fn(async () => handle),
     getFileHandle: vi.fn(),
+    kind: 'directory' as const,
     name,
     queryPermission: vi.fn(async () => permission),
     requestPermission: vi.fn(async () => 'granted' as PermissionState),
@@ -65,5 +66,53 @@ describe('browser Library gateway', () => {
 
     await expect(gateway?.inspectRecentDirectory(missing)).resolves.toBe('missing');
     await expect(gateway?.inspectRecentDirectory(denied)).resolves.toBe('permission-denied');
+  });
+
+  it('walks nested Source photographs, skips the Library sidecars, and reads by relative path', async () => {
+    const nestedFile = {
+      getFile: vi.fn(async () => new File(['nested'], 'photo.jpg', { type: 'image/jpeg' })),
+      kind: 'file' as const,
+    };
+    const nested = createDirectoryHandle('nested') as unknown as FileSystemDirectoryHandle & {
+      entries: () => AsyncIterableIterator<[string, FileSystemHandle]>;
+    };
+    const sidecar = createDirectoryHandle('.openfilm');
+    const rootFile = {
+      getFile: vi.fn(async () => new File(['root'], 'root.webp', { type: 'image/webp' })),
+      kind: 'file' as const,
+    };
+    const root = createDirectoryHandle('June shoot') as unknown as FileSystemDirectoryHandle & {
+      entries: () => AsyncIterableIterator<[string, FileSystemHandle]>;
+    };
+
+    nested.entries = async function* () {
+      yield ['photo.jpg', nestedFile as unknown as FileSystemFileHandle];
+    };
+    root.entries = async function* () {
+      yield ['.openfilm', sidecar];
+      yield ['nested', nested];
+      yield ['root.webp', rootFile as unknown as FileSystemFileHandle];
+    };
+    root.getDirectoryHandle = vi.fn(async (name) => {
+      if (name === 'nested') {
+        return nested;
+      }
+
+      return sidecar;
+    });
+    nested.getFileHandle = vi.fn(async () => nestedFile as unknown as FileSystemFileHandle);
+
+    const gateway = createBrowserLibraryDirectoryGateway();
+    const sources = [];
+
+    for await (const source of gateway!.scanSourceFiles(root)) {
+      sources.push(source);
+    }
+
+    expect(sources.map((source) => source.relativePath)).toEqual(['nested/photo.jpg', 'root.webp']);
+    await expect(gateway?.readSourcePhotograph(root, 'nested/photo.jpg')).resolves.toMatchObject({
+      name: 'photo.jpg',
+      type: 'image/jpeg',
+    });
   });
 });

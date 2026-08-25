@@ -30,6 +30,7 @@
   --type-display: clamp(3rem, 5.25vw, 5rem);
   --type-heading-mobile: clamp(2.25rem, 10vw, 3.25rem);
   --type-display-mobile: clamp(2.75rem, 12vw, 3.75rem);
+  --type-library-heading: clamp(1.35rem, 2.4vw, 2.1rem);
 
   --weight-regular: 400;
   --weight-medium: 500;
