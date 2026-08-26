@@ -16,6 +16,20 @@ test('ships the workstation without legacy product paths', async ({ page }) => {
   await expect(page.getByText(/no account or upload/i)).toBeVisible();
 });
 
+test('keeps the multiline Library heading from overlapping', async ({ page }) => {
+  await page.goto('/app.html');
+  const heading = page.getByRole('heading', { name: 'Open a Library' });
+  const metrics = await heading.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      fontSize: Number.parseFloat(style.fontSize),
+      lineHeight: Number.parseFloat(style.lineHeight),
+    };
+  });
+
+  expect(metrics.lineHeight / metrics.fontSize).toBeGreaterThanOrEqual(1.05);
+});
+
 test('stays within the viewport at wide, medium, and 200 percent zoom widths', async ({ page }) => {
   await page.goto('/app.html');
   for (const viewport of [

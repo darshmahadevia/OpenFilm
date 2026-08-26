@@ -128,12 +128,12 @@ code {
 }
 .library-start__intro h1 {
   max-width: 8ch;
-  margin: 0 0 1.25rem;
+  margin: 0 0 var(--space-6);
   font-family: var(--font-display);
   font-size: clamp(3.2rem, 7vw, 5.5rem);
   font-weight: 400;
   letter-spacing: -0.035em;
-  line-height: 0.95;
+  line-height: 1.12;
   text-wrap: balance;
 }
 .library-start__intro > p {
