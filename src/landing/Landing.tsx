@@ -7,6 +7,7 @@ import coastalValley from '../assets/openfilm-landing-coastal-valley.webp';
 import comparisonStreet from '../assets/openfilm-comparison-street.webp';
 
 const repositoryUrl = 'https://github.com/darshmahadevia/OpenFilm';
+const browserSupportUrl = `${repositoryUrl}/blob/main/README.md#browser-support`;
 
 function ArrowIcon() {
   return (
@@ -71,12 +72,18 @@ function SiteHeader() {
       <nav aria-label="Main navigation" className="landing-nav">
         <a href="#workstation">Workstation</a>
         <a href="#workflow">Workflow</a>
-        <a href={repositoryUrl}>Source</a>
+        <a
+          aria-label="Source code on GitHub (opens in a new tab)"
+          href={repositoryUrl}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Source
+        </a>
       </nav>
       <a className="header-launch" href="/app.html">
-        Open OpenFilm <ArrowIcon />
+        Open the workstation <ArrowIcon />
       </a>
-      <span className="header-coming-soon">Coming soon</span>
     </header>
   );
 }
@@ -89,15 +96,31 @@ function SiteFooter() {
       </a>
       <p>Local-first photography software.</p>
       <div>
-        <a href={repositoryUrl}>GitHub</a>
-        <a href={`${repositoryUrl}/blob/main/README.md`}>Documentation</a>
+        <a href={repositoryUrl} rel="noreferrer" target="_blank">
+          GitHub
+        </a>
+        <a href={`${repositoryUrl}/blob/main/README.md`} rel="noreferrer" target="_blank">
+          Documentation
+        </a>
         <span>MIT License</span>
       </div>
     </footer>
   );
 }
 
-function ProofFrame({ cropped = false }: { cropped?: boolean }) {
+function MobileWorkstationStatus() {
+  return (
+    <div className="landing-mobile-status" role="status">
+      <strong>Desktop workstation</strong>
+      <span>Open this page on a computer. Mobile access is coming soon.</span>
+      <a href={browserSupportUrl} rel="noreferrer" target="_blank">
+        Browser requirements <ArrowIcon />
+      </a>
+    </div>
+  );
+}
+
+function ProofFrame({ cropped = false, eager = false }: { cropped?: boolean; eager?: boolean }) {
   const classes = ['proof-frame', cropped && 'proof-frame--crop'].filter(Boolean).join(' ');
   return (
     <figure className={classes}>
@@ -110,7 +133,12 @@ function ProofFrame({ cropped = false }: { cropped?: boolean }) {
       <div className="proof-frame__image">
         <img
           alt="OpenFilm showing a photograph grid, review controls, and the Edit inspector"
+          decoding="async"
+          fetchPriority={eager ? 'high' : 'auto'}
+          height="900"
+          loading={eager ? 'eager' : 'lazy'}
           src={workstationScreenshot}
+          width="1440"
         />
       </div>
     </figure>
@@ -124,7 +152,14 @@ export function HomePage() {
       <main id="main-content">
         <section className="landing-hero" id="top">
           <figure className="landing-hero__photograph">
-            <img alt="Flowers beside a film camera in a dim workspace" src={darkroomHero} />
+            <img
+              alt="Flowers beside a film camera in a dim workspace"
+              decoding="async"
+              fetchPriority="high"
+              height="1024"
+              src={darkroomHero}
+              width="1536"
+            />
             <FilmStrip />
             <figcaption>Local-first photography software</figcaption>
           </figure>
@@ -139,18 +174,30 @@ export function HomePage() {
                 photographs. No account. No upload path.
               </p>
               <div className="landing-hero__actions">
-                <a className="landing-launch landing-launch--desktop" href="/app.html">
-                  Open OpenFilm <ArrowIcon />
+                <a
+                  className="landing-launch landing-launch--desktop landing-launch--icon-button"
+                  href="/app.html"
+                >
+                  Open the workstation
+                  <span className="landing-launch__icon">
+                    <ArrowIcon />
+                  </span>
                 </a>
-                <span className="landing-launch landing-launch--mobile-status">Coming soon</span>
+                <MobileWorkstationStatus />
                 <a className="landing-text-link" href="#workstation">
                   See the workstation <ArrowIcon />
                 </a>
+                <p className="landing-launch-note">
+                  Desktop browser · JPEG, PNG, WebP · choose a folder after launch.{' '}
+                  <a href={browserSupportUrl} rel="noreferrer" target="_blank">
+                    Browser limits
+                  </a>
+                </p>
               </div>
             </div>
           </div>
           <div className="landing-hero__frame">
-            <ProofFrame cropped />
+            <ProofFrame cropped eager />
           </div>
         </section>
         <section aria-label="Product facts" className="landing-facts">
@@ -161,15 +208,15 @@ export function HomePage() {
             <strong>A durable Library.</strong> Review and Edit state lives beside the shoot.
           </p>
           <p>
-            <strong>One rendering path.</strong> Loupe and Export share WebGL2 adjustments.
+            <strong>One rendering path.</strong> Loupe and Export apply the same adjustments.
           </p>
         </section>
         <section className="landing-workstation" id="workstation">
           <div className="landing-section-heading">
             <h2>A contact sheet that remembers.</h2>
             <p>
-              Ratings, Picks, Rejects, Selection, Looks, and Geometry stay with the Library. Close
-              the browser, reopen the folder, and continue the review.
+              Ratings, Picks, Rejects, Selection, reusable Looks, and crop or rotation settings stay
+              with the Library. Close the browser, reopen the folder, and continue the review.
             </p>
           </div>
           <ProofFrame cropped />
@@ -206,7 +253,14 @@ export function HomePage() {
         </section>
         <section className="landing-workflow" id="workflow">
           <figure className="landing-workflow__visual">
-            <img alt="A coastal valley photographed in soft morning light" src={coastalValley} />
+            <img
+              alt="A coastal valley photographed in soft morning light"
+              decoding="async"
+              height="1024"
+              loading="lazy"
+              src={coastalValley}
+              width="1536"
+            />
             <figcaption>Source photographs remain in place throughout the review.</figcaption>
           </figure>
           <div className="landing-workflow__content">
@@ -254,8 +308,9 @@ export function HomePage() {
             <h2>Your files never need to leave the machine.</h2>
             <p>
               OpenFilm has no account system, application backend, analytics, or upload path. The
-              browser reads Source photographs only after you choose their folder. Source
-              photographs and Library state stay on your machine.
+              browser reads Source photographs only after you choose their folder. Chrome and Edge
+              can store Library state beside the shoot. Other supported desktop browsers use a
+              Browser Library. Source photographs stay in place and are not backed up by OpenFilm.
             </p>
             <dl>
               <div>
@@ -273,19 +328,33 @@ export function HomePage() {
             </dl>
           </div>
           <figure className="landing-local__image">
-            <img alt="A street photograph at dusk" src={comparisonStreet} />
+            <img
+              alt="A street photograph at dusk"
+              decoding="async"
+              height="1024"
+              loading="lazy"
+              src={comparisonStreet}
+              width="1536"
+            />
             <figcaption>Source photograph / rendered locally</figcaption>
           </figure>
         </section>
         <section className="landing-closing">
-          <img alt="A quiet coastline photographed in soft evening light" src={closingCoast} />
+          <img
+            alt="A quiet coastline photographed in soft evening light"
+            decoding="async"
+            height="1024"
+            loading="lazy"
+            src={closingCoast}
+            width="1536"
+          />
           <div className="landing-closing__content">
             <h2>The shoot stays yours.</h2>
             <p>Open the folder. Make the decisions. Export the photographs.</p>
             <a className="landing-launch landing-launch--desktop" href="/app.html">
-              Open OpenFilm <ArrowIcon />
+              Open the workstation <ArrowIcon />
             </a>
-            <span className="landing-launch landing-launch--mobile-status">Coming soon</span>
+            <MobileWorkstationStatus />
           </div>
         </section>
       </main>

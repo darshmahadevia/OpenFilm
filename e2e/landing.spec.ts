@@ -10,7 +10,7 @@ test.describe('browser landing page', () => {
         name: 'Review the whole shoot. Keep every photograph local.',
       }),
     ).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Open OpenFilm' }).first()).toHaveAttribute(
+    await expect(page.getByRole('link', { name: 'Open the workstation' }).first()).toHaveAttribute(
       'href',
       '/app.html',
     );
@@ -22,12 +22,14 @@ test.describe('browser landing page', () => {
     expect(accessibility.violations).toEqual([]);
   });
 
-  test('marks the workstation as coming soon on mobile', async ({ page }) => {
+  test('explains the desktop boundary on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
 
-    await expect(page.getByText('Coming soon', { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Open OpenFilm' }).first()).toBeHidden();
+    await expect(page.getByText('Desktop workstation', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/mobile access is coming soon/i).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Browser requirements' }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Open the workstation' }).first()).toBeHidden();
 
     const dimensions = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,

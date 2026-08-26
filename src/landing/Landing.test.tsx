@@ -11,10 +11,12 @@ describe('OpenFilm website', () => {
         name: 'Review the whole shoot. Keep every photograph local.',
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Open OpenFilm' })).toHaveLength(3);
-    for (const link of screen.getAllByRole('link', { name: 'Open OpenFilm' })) {
+    expect(screen.getAllByRole('link', { name: 'Open the workstation' })).toHaveLength(3);
+    for (const link of screen.getAllByRole('link', { name: 'Open the workstation' })) {
       expect(link).toHaveAttribute('href', '/app.html');
     }
+    expect(screen.getAllByText('Desktop workstation')).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: /browser requirements/i })).toHaveLength(2);
     expect(
       screen.getByText(/no account system, application backend, analytics/i),
     ).toBeInTheDocument();
