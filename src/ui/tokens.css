@@ -19,6 +19,10 @@
   --color-warning-surface: #171109;
   --color-danger: #ffb59f;
 
+  --color-surface-hover: #1d1d1d;
+  --color-surface-selected: #201b14;
+  --color-line-subtle: #1b1b1b;
+
   --font-display: 'OpenFilm Bodoni', 'Iowan Old Style', 'Times New Roman', serif;
   --font-body: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 
@@ -50,6 +54,11 @@
   --space-16: 4rem;
 
   --touch-target: 2.75rem;
+
+  --control-height: 2.75rem;
+  --control-height-small: 2.25rem;
+  --control-height-compact: 2rem;
+  --focus-ring: 0 0 0 2px var(--color-paper), 0 0 0 4px var(--color-focus);
 
   --radius-sm: 0.4rem;
   --radius-md: 0.5rem;

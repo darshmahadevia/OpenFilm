@@ -14,6 +14,19 @@ test.describe('release visual evidence', () => {
       });
     });
     await page.goto('/app.html');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.screenshot({ path: '.impeccable/review/start-desktop.png' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect
+      .poll(() =>
+        page.evaluate(() => ({
+          documentWidth: document.documentElement.scrollWidth,
+          viewportWidth: window.innerWidth,
+        })),
+      )
+      .toEqual({ documentWidth: 390, viewportWidth: 390 });
+    await page.screenshot({ path: '.impeccable/review/start-mobile.png' });
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.evaluate(async () => {
       const root = await navigator.storage.getDirectory();
       try {
@@ -51,9 +64,46 @@ test.describe('release visual evidence', () => {
 
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.screenshot({ path: 'docs/screenshots/openfilm-workstation-wide.png' });
+    await page.screenshot({ path: '.impeccable/review/desktop.png' });
+    await expect
+      .poll(() =>
+        page.evaluate(() => ({
+          documentWidth: document.documentElement.scrollWidth,
+          viewportWidth: window.innerWidth,
+        })),
+      )
+      .toEqual({ documentWidth: 1440, viewportWidth: 1440 });
     await page.setViewportSize({ width: 1024, height: 768 });
     await page.screenshot({ path: 'docs/screenshots/openfilm-workstation-medium.png' });
+    await page.screenshot({ path: '.impeccable/review/user-1024.png' });
+    await expect
+      .poll(() =>
+        page.evaluate(() => ({
+          documentWidth: document.documentElement.scrollWidth,
+          viewportWidth: window.innerWidth,
+        })),
+      )
+      .toEqual({ documentWidth: 1024, viewportWidth: 1024 });
     await page.setViewportSize({ width: 720, height: 800 });
     await page.screenshot({ path: 'docs/screenshots/openfilm-workstation-200-percent-zoom.png' });
+    await page.screenshot({ path: '.impeccable/review/user-720.png' });
+    await expect
+      .poll(() =>
+        page.evaluate(() => ({
+          documentWidth: document.documentElement.scrollWidth,
+          viewportWidth: window.innerWidth,
+        })),
+      )
+      .toEqual({ documentWidth: 720, viewportWidth: 720 });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect
+      .poll(() =>
+        page.evaluate(() => ({
+          documentWidth: document.documentElement.scrollWidth,
+          viewportWidth: window.innerWidth,
+        })),
+      )
+      .toEqual({ documentWidth: 390, viewportWidth: 390 });
+    await page.screenshot({ path: '.impeccable/review/mobile.png' });
   });
 });

@@ -384,6 +384,7 @@ test.describe('Library start and recovery journey', () => {
       const root = await navigator.storage.getDirectory();
       await root.removeEntry('fifth.jpg');
     });
+    await page.locator('.workstation-more summary').click();
     await page.getByRole('button', { name: 'Refresh' }).click();
     await expect(page.getByLabel('Background jobs: complete')).toBeVisible();
     await expect(

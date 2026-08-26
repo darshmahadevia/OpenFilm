@@ -20,7 +20,7 @@ I built OpenFilm to answer a specific question: can a browser handle the difficu
 - Export Picks or the current selection with collision-safe names. Folder export can resume from a manifest when the browser grants write access.
 - Recover from interrupted saves, missing source files, expired folder permission, conflicting revisions, and invalid Library data without silently replacing the last good state.
 
-OpenFilm edits are non-destructive. A Library stores paths, metadata, ratings, Picks, groups, and edit settings. It never stores the source image bytes.
+OpenFilm Edits are non-destructive. A Library stores paths, metadata, ratings, Picks, groups, and Edit settings. It never stores Source image bytes.
 
 ## Browser support
 
@@ -68,7 +68,7 @@ Read [`docs/architecture.md`](./docs/architecture.md) for module boundaries and 
 
 ## Known limits
 
-OpenFilm does not support RAW, HEIC, HEIF, TIFF, camera profiles, soft proofing, cloud sync, cross-device Libraries, or archival metadata preservation. Export assumes sRGB and strips source metadata. Comparison uses bounded 640-pixel derivatives and labels that limit in the interface.
+OpenFilm does not support RAW, HEIC, HEIF, TIFF, camera profiles, soft proofing, cloud sync, cross-device Libraries, or archival metadata preservation. Export assumes sRGB and strips Source metadata. Comparison uses bounded 640-pixel derivatives and labels that limit in the interface.
 
 The repository contains similarity and relative-sharpness analysis modules, but the product does not expose them. The project does not yet have a rights-cleared labeled corpus that meets its documented quality threshold.
 

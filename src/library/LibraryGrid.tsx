@@ -216,12 +216,14 @@ function GridPhotographCell({
             {photograph.fileName}
           </span>
           <span className="library-grid__state">
-            {dispositionLabel(photograph)}
-            {photograph.rating === null ? '' : ` · ${photograph.rating}/5`}
+            <span>{dispositionLabel(photograph)}</span>
+            <span>{photograph.rating === null ? 'Unrated' : `${photograph.rating}/5`}</span>
+            {isActive ? <span className="library-grid__state-badge">Active</span> : null}
+            {isSelected ? <span className="library-grid__state-badge">Selected</span> : null}
           </span>
         </span>
       </button>
-      <details className="library-grid__actions">
+      <details className="library-grid__actions" data-workstation-popover="true">
         <summary aria-label={`Photo actions for ${photograph.fileName}`}>
           <span aria-hidden="true" />
         </summary>

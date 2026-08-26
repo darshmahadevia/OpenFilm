@@ -54,6 +54,7 @@ import {
   updateLibraryEdit,
   type LibraryFilter,
   type LibraryReviewContext,
+  type ReviewCommand,
 } from './libraryReview';
 import { resolveLibrarySourceChoice } from './libraryReconciliation';
 import type { StoredLook } from '../storage/browserStorage';
@@ -171,7 +172,11 @@ function ScanSummary({
   }
 
   return (
-    <details className="workstation-jobs" open={status === 'failed'}>
+    <details
+      className="workstation-jobs"
+      data-workstation-popover="true"
+      open={status === 'failed'}
+    >
       <summary aria-label={`Background jobs: ${status}`}>
         {status === 'scanning'
           ? `Reading folder · ${photographLabel}`
@@ -566,6 +571,148 @@ function EditInspector({
   );
 }
 
+function ActiveReviewRail({
+  active,
+  canMutate,
+  comparisonCount,
+  comparisonReady,
+  context,
+  onClearSelection,
+  onCompare,
+  onReview,
+  onToggleSelection,
+}: {
+  active: LibraryPhotographRecord;
+  canMutate: boolean;
+  comparisonCount: number;
+  comparisonReady: boolean;
+  context: LibraryReviewContext;
+  onClearSelection: () => void;
+  onCompare: () => void;
+  onReview: (command: ReviewCommand) => void;
+  onToggleSelection: () => void;
+}) {
+  const isSelected = context.selection.includes(active.id);
+  const sourceStatus = active.sourceState === 'missing' ? 'Missing Source' : 'Source ready';
+  const disposition =
+    active.disposition === 'pick'
+      ? 'Pick'
+      : active.disposition === 'reject'
+        ? 'Reject'
+        : 'Unmarked';
+
+  return (
+    <div
+      aria-label="Active photograph controls"
+      className="workstation-context-bar"
+      data-workstation-background
+    >
+      <div className="workstation-context-bar__identity">
+        <span className="workstation-context-bar__label">Active photograph</span>
+        <strong title={active.relativePath}>{active.fileName}</strong>
+        <span className="workstation-context-bar__state">
+          {disposition}
+          {active.rating === null ? ' · Unrated' : ` · ${active.rating}/5`}
+          {` · ${sourceStatus}`}
+        </span>
+      </div>
+      <div className="workstation-context-bar__actions">
+        <div
+          aria-label="Review Active photograph"
+          className="workstation-action-group"
+          role="group"
+        >
+          <span className="workstation-action-group__label">Review</span>
+          <div className="workstation-review-actions">
+            <Button
+              aria-pressed={active.disposition === 'pick'}
+              className="workstation-review-action workstation-review-action--pick"
+              disabled={!canMutate}
+              onClick={() => onReview({ kind: 'set-disposition', disposition: 'pick' })}
+              size="small"
+              variant="outline"
+            >
+              Pick
+            </Button>
+            <Button
+              aria-pressed={active.disposition === 'reject'}
+              className="workstation-review-action workstation-review-action--reject"
+              disabled={!canMutate}
+              onClick={() => onReview({ kind: 'set-disposition', disposition: 'reject' })}
+              size="small"
+              variant="outline"
+            >
+              Reject
+            </Button>
+            <Button
+              aria-pressed={active.disposition === 'unmarked'}
+              disabled={!canMutate}
+              onClick={() => onReview({ kind: 'set-disposition', disposition: 'unmarked' })}
+              size="small"
+              variant="quiet"
+            >
+              Clear mark
+            </Button>
+          </div>
+          <label className="workstation-rating-control">
+            <span>Rating</span>
+            <select
+              aria-label={`Rating for ${active.fileName}`}
+              disabled={!canMutate}
+              onChange={(event) =>
+                onReview({
+                  kind: 'rate',
+                  rating: event.currentTarget.value ? Number(event.currentTarget.value) : null,
+                })
+              }
+              value={active.rating ?? ''}
+            >
+              <option value="">Unrated</option>
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <option key={rating} value={rating}>
+                  {rating} stars
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div
+          aria-label="Selection actions"
+          className="workstation-action-group workstation-selection-group"
+          role="group"
+        >
+          <span className="workstation-selection-count">
+            <span>Selection</span>
+            <strong aria-label={`Selection count: ${context.selection.length}`}>
+              {context.selection.length}
+            </strong>
+          </span>
+          <Button
+            aria-pressed={isSelected}
+            onClick={onToggleSelection}
+            size="small"
+            variant="outline"
+          >
+            {isSelected ? 'Remove from Selection' : 'Add to Selection'}
+          </Button>
+          {comparisonReady ? (
+            <Button onClick={onCompare} size="small" variant="primary">
+              Compare {comparisonCount}
+            </Button>
+          ) : (
+            <span className="workstation-selection__hint">Select 2–4 to compare</span>
+          )}
+          {context.selection.length ? (
+            <Button onClick={onClearSelection} size="small" variant="quiet">
+              Clear
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function updateLibraryEditFromRecord(
   document: OpenFilmLibraryDocument,
   active: LibraryPhotographRecord,
@@ -739,6 +886,41 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
     };
   }, [overlayOpen]);
 
+  useEffect(() => {
+    const closePopovers = (except?: HTMLDetailsElement) => {
+      globalThis.document
+        .querySelectorAll<HTMLDetailsElement>('details[data-workstation-popover][open]')
+        .forEach((details) => {
+          if (details !== except) details.open = false;
+        });
+    };
+    const handleToggle = (event: Event) => {
+      const details = event.target;
+      if (
+        !(details instanceof HTMLDetailsElement) ||
+        !details.matches('[data-workstation-popover]')
+      ) {
+        return;
+      }
+      if (details.open) closePopovers(details);
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      if (
+        event.target instanceof Element &&
+        event.target.closest('details[data-workstation-popover]')
+      ) {
+        return;
+      }
+      closePopovers();
+    };
+    globalThis.document.addEventListener('toggle', handleToggle, true);
+    globalThis.document.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      globalThis.document.removeEventListener('toggle', handleToggle, true);
+      globalThis.document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, []);
+
   const document = documentState;
   const photographs = useMemo(() => document?.photographs ?? [], [document]);
   const visible = useMemo(
@@ -882,8 +1064,24 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
     if (await props.onRedo()) setRenderGeneration((current) => current + 1);
   }
 
+  function rememberOverlayFocus() {
+    const activeElement = globalThis.document.activeElement as HTMLElement | null;
+    focusBeforeOverlay.current =
+      activeElement
+        ?.closest<HTMLDetailsElement>('details[data-workstation-popover]')
+        ?.querySelector<HTMLElement>('summary') ?? activeElement;
+    globalThis.document
+      .querySelectorAll<HTMLDetailsElement>('details[data-workstation-popover][open]')
+      .forEach((details) => {
+        details.open = false;
+      });
+  }
+
   function openInspector() {
-    focusBeforeOverlay.current = globalThis.document.activeElement as HTMLElement | null;
+    rememberOverlayFocus();
+    setShowGroups(false);
+    setShowExport(false);
+    setShowShortcuts(false);
     setInspectorOpen(true);
   }
 
@@ -893,7 +1091,11 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
   }
 
   function openSheet(open: () => void) {
-    focusBeforeOverlay.current = globalThis.document.activeElement as HTMLElement | null;
+    rememberOverlayFocus();
+    setInspectorOpen(false);
+    setShowGroups(false);
+    setShowExport(false);
+    setShowShortcuts(false);
     open();
   }
 
@@ -927,6 +1129,18 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
     if (editableTarget(event.target) && event.key !== 'Escape') return;
     const key = event.key.toLowerCase();
     if (overlayOpen && event.key !== 'Escape') return;
+    if (event.key === 'Escape' && !overlayOpen) {
+      const openPopovers = globalThis.document.querySelectorAll<HTMLDetailsElement>(
+        'details[data-workstation-popover][open]',
+      );
+      if (openPopovers.length) {
+        event.preventDefault();
+        openPopovers.forEach((details) => {
+          details.open = false;
+        });
+        return;
+      }
+    }
     if ((event.metaKey || event.ctrlKey) && key === 'z') {
       event.preventDefault();
       void (event.shiftKey ? redo() : undo());
@@ -989,7 +1203,7 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
       setZoomScale((current) => (current === 1 ? 2 : 1));
     } else if (event.key === '?') {
       event.preventDefault();
-      setShowShortcuts(true);
+      openSheet(() => setShowShortcuts(true));
     }
   }
 
@@ -1227,6 +1441,15 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
             <span>Library</span>
             {props.snapshot.rootName}
           </span>
+          <Button
+            aria-label="Return to Libraries"
+            className="library-workspace__libraries"
+            onClick={props.onClose}
+            size="small"
+            variant="quiet"
+          >
+            Libraries
+          </Button>
         </div>
         <nav aria-label="Workstation modes" className="workstation-modes">
           <button
@@ -1265,8 +1488,11 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
         </nav>
         <div className="library-workspace__topbar-actions">
           {props.snapshot.status === 'saved' ? (
-            <span aria-label="Library save state: Saved" className="visually-hidden">
-              Saved
+            <span
+              aria-label="Library save state: Saved"
+              className="library-save-state library-save-state--saved"
+            >
+              <span className="visually-hidden">Saved</span>
             </span>
           ) : (
             <span
@@ -1285,16 +1511,9 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
               Export
             </Button>
           ) : null}
-          <details className="workstation-more">
+          <details className="workstation-more" data-workstation-popover="true">
             <summary>More</summary>
             <div>
-              <Button
-                onClick={() => openSheet(() => setShowGroups(true))}
-                size="small"
-                variant="quiet"
-              >
-                Review groups
-              </Button>
               <Button
                 disabled={
                   props.snapshot.scan.status === 'scanning' || props.snapshot.status !== 'saved'
@@ -1314,9 +1533,6 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
               </Button>
               <Button onClick={props.onDownloadLibraryBackup} size="small" variant="quiet">
                 Download Library backup
-              </Button>
-              <Button onClick={props.onClose} size="small" variant="quiet">
-                Libraries
               </Button>
             </div>
           </details>
@@ -1411,7 +1627,7 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
               </button>
             ))}
           </div>
-          <details className="workstation-filters">
+          <details className="workstation-filters" data-workstation-popover="true">
             <summary>Filters{activeFilterCount ? <span>{activeFilterCount}</span> : null}</summary>
             <div className="workstation-filters__panel">
               <label>
@@ -1520,29 +1736,6 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
               ) : null}
             </div>
           </details>
-          {context.selection.length ? (
-            <div className="workstation-selection" aria-label="Selection actions">
-              <span aria-label={`Selection count: ${context.selection.length}`}>
-                {context.selection.length} selected
-              </span>
-              {comparisonReady ? (
-                <Button onClick={enterComparison} size="small" variant="primary">
-                  Compare {comparisonCount}
-                </Button>
-              ) : (
-                <span className="workstation-selection__hint">Select 1 more to compare</span>
-              )}
-              <Button
-                onClick={() => setContext((current) => ({ ...current, selection: [] }))}
-                size="small"
-                variant="quiet"
-              >
-                Clear
-              </Button>
-            </div>
-          ) : context.mode === 'grid' ? (
-            <span className="workstation-selection__hint">Select 2–4 photos to compare</span>
-          ) : null}
           <span className="workstation-toolbar__spacer" />
           {props.historyStatus.canUndo || props.historyStatus.canRedo ? (
             <div className="workstation-history" aria-label="Library history">
@@ -1564,6 +1757,9 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
               </Button>
             </div>
           ) : null}
+          <Button onClick={() => openSheet(() => setShowGroups(true))} size="small" variant="quiet">
+            Review groups
+          </Button>
           <Button
             disabled={!active || !canMutate}
             onClick={() => (inspectorOpen ? closeInspector() : openInspector())}
@@ -1572,7 +1768,7 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
           >
             Edit
           </Button>
-          <details className="workstation-view">
+          <details className="workstation-view" data-workstation-popover="true">
             <summary>View</summary>
             <div className="workstation-view__panel">
               <label>
@@ -1624,6 +1820,22 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
             </div>
           </details>
         </div>
+      ) : null}
+
+      {photographs.length > 0 && active ? (
+        <ActiveReviewRail
+          active={active}
+          canMutate={canMutate}
+          comparisonCount={comparisonCount}
+          comparisonReady={comparisonReady}
+          context={context}
+          onClearSelection={() => setContext((current) => ({ ...current, selection: [] }))}
+          onCompare={enterComparison}
+          onReview={review}
+          onToggleSelection={() =>
+            setContext((current) => toggleLibrarySelection(current, active.id))
+          }
+        />
       ) : null}
 
       <section

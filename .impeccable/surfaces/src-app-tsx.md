@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 slug: 'src-app-tsx'
 primary_target: 'src/App.tsx'
 related_targets: ['src/app.css', 'src/library/AdaptiveLibraryWorkspace.tsx', 'app.html']
@@ -25,30 +25,40 @@ The start screen has one dominant action, `Open folder`, beside a quiet recent-L
 and persistence details remain supporting copy. Browsers without writable folder access state the
 Browser Library trade-off and offer backup import. Recovery appears only when it needs action.
 
-The workstation keeps Library identity, modes, save state, and Export in the top bar. One sentence
-names the path from Grid review through Loupe and Edit to Export. Filters and secondary Library
-actions use disclosures. The command bar shows Filters, Edit, and View by default; Selection and
-history appear only when they have state. Order, Auto-advance, and Grid size live under View. Empty
-folders replace the command bar and duplicate messages with one next action.
+The workstation keeps a direct Libraries route, Library identity, modes, save state, and Export in
+the top bar. One sentence names the path from Grid review through Loupe and Edit to Export. The
+Active photograph rail keeps review marks, rating, and Selection actions beside the stage, while
+Grid footers stay calm and less-frequent photo actions stay in overflow. Filters, Review groups,
+Edit, and View remain discoverable in the command bar; maintenance actions use More. Order,
+Auto-advance, and Grid size live under View. Empty folders replace the command bar and duplicate
+messages with one next action.
 
 ## Implementation commitments
 
-| Ingredient        | Commitment                                                                  |
-| ----------------- | --------------------------------------------------------------------------- |
-| Start action      | One sand `Open folder` button with formats and persistence detail nearby    |
-| Recent Libraries  | Ruled rows with one status and `Choose folder` when sources need access     |
-| Workstation bar   | Modes, save state, Export, and More with Library backup download            |
-| Filters           | One disclosure with an active-filter count and clear action                 |
-| Command bar       | Filters, Edit, View, and only contextual Selection or history               |
-| Accessibility     | Visible focus, semantic status, keyboard-complete menus, and reduced motion |
-| Responsive layout | No document overflow at wide, medium, 200-percent zoom, or compact width    |
+| Ingredient        | Commitment                                                                             |
+| ----------------- | -------------------------------------------------------------------------------------- |
+| Start action      | One sand `Open folder` button with formats and persistence detail nearby               |
+| Recent Libraries  | Ruled rows with one status and `Choose folder` when sources need access                |
+| Workstation bar   | Direct Libraries route, modes, save state, Export, and More with maintenance actions   |
+| Review rail       | Active photograph identity, Pick/Reject/rating, Selection, and Compare actions         |
+| Grid surface      | Stable metadata footers, explicit Active/Selected state, and photo actions in overflow |
+| Filters           | One disclosure with an active-filter count and clear action                            |
+| Command bar       | Filters, Review groups, Edit, View, and only contextual history                        |
+| Overlays          | One active popover/modal, priority Escape behavior, outside-click safety, focus return |
+| Accessibility     | Visible focus, semantic status, keyboard-complete menus, and reduced motion            |
+| Responsive layout | No document overflow at wide, medium, 200-percent zoom, or compact width               |
 
 ## Review decisions
 
 - Removed duplicate recent-Library status copy.
-- Moved Review groups, Refresh, keyboard help, and Library exit into `More`.
+- Kept `Libraries` and `Review groups` directly discoverable; kept Refresh, keyboard help, and
+  Library backup maintenance in `More`.
 - Moved the four filters into one counted disclosure.
 - Moved Order, Auto-advance, and Grid size into View; hid empty Selection and history controls.
+- Added an Active photograph rail so review decisions and Selection actions stay adjacent to the
+  current image instead of competing with every Grid tile.
+- Added explicit Grid Active/Selected badges and a shared one-open popover lifecycle with
+  priority Escape handling and focus restoration for protected overlays.
 - Added a concise Grid to Loupe/Edit to Export workflow line and one-action empty states.
 - Kept Export visible because it closes the primary workflow.
 - Removed the Electron update bridge and notice when the workstation returned to browser-only
