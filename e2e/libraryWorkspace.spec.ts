@@ -238,9 +238,11 @@ test.describe('Library start and recovery journey', () => {
       )
       .toBe(true);
 
+    await page.locator('.workstation-view summary').click();
     for (const density of ['overview', 'standard', 'detail']) {
       await expect(page.getByRole('button', { name: density, exact: true })).toBeVisible();
     }
+    await page.locator('.workstation-view summary').click();
 
     const cellHeights = await page
       .locator('.library-grid__cell:not(.library-grid__cell--empty)')

@@ -93,11 +93,10 @@ The start surface does one job: create a Library, reopen a folder, recover a rec
 import a Library backup. Browsers without writable folder access name Browser Library persistence
 and folder reselection before the photographer begins. The workstation then keeps this order stable:
 
-1. Library identity, save state, and Export in the top bar.
-2. Ordering, Selection count, history, Edit, and Grid density in the command strip. Filters and
-   secondary Library actions stay in named disclosures until needed.
-3. Grid, Loupe, or Comparison in the central stage.
-4. Scan jobs and concise feedback at the lower edge.
+1. Library identity, Grid / Loupe / Comparison, save state, and Export in the top bar.
+2. One workflow sentence and a concise photograph or scan count below it.
+3. Filters, contextual Selection and history, Edit, and a View disclosure in the command strip.
+4. Grid, Loupe, or Comparison in the central stage.
 5. Inspector and sheets as true overlays, with contained focus and explicit Close actions.
 
 The photograph is always the strongest visual object. There are no promotional cards, ornamental

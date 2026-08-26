@@ -93,11 +93,45 @@ describe('Adaptive Library workstation', () => {
     await waitFor(() => expect(options.onCommit).toHaveBeenCalled());
   });
 
-  it('keeps an invalid Comparison request attached to the current mode', () => {
+  it('guides the review workflow and enables Comparison after two photographs are selected', () => {
     render(<AdaptiveLibraryWorkspace {...props()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Comparison' }));
-    expect(screen.getByText(/two to four/)).toHaveAttribute('role', 'status');
-    expect(screen.getByRole('grid', { name: 'Library Grid' })).toBeInTheDocument();
+    expect(screen.getByText(/Review in Grid, inspect and Edit in Loupe/)).toHaveAttribute(
+      'role',
+      'status',
+    );
+    const comparison = screen.getByRole('button', { name: 'Comparison' });
+    expect(comparison).toBeDisabled();
+
+    const first = screen.getByRole('button', { name: /1\.jpg/ });
+    const second = screen.getByRole('button', { name: /2\.jpg/ });
+    fireEvent.keyDown(first, { key: ' ' });
+    fireEvent.click(second);
+    fireEvent.keyDown(second, { key: ' ' });
+
+    expect(comparison).toBeEnabled();
+  });
+
+  it('shows one clear next step when an opened folder has no photographs', () => {
+    const options = props();
+    options.snapshot = {
+      ...options.snapshot,
+      library: { ...options.snapshot.library!, photographs: [] },
+      scan: {
+        ...options.snapshot.scan,
+        progress: {
+          discoveredFiles: 0,
+          metadataFailures: 0,
+          processedFiles: 0,
+          supportedFiles: 0,
+          unsupportedFiles: 0,
+        },
+      },
+    };
+    render(<AdaptiveLibraryWorkspace {...options} />);
+
+    expect(screen.getByRole('heading', { name: 'No photographs found' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Refresh Library' })).toBeInTheDocument();
+    expect(screen.queryByText(/No more matches/)).not.toBeInTheDocument();
   });
 
   it('opens one Edit section at a time and restores the invoking control on close', async () => {

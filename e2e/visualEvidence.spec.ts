@@ -37,7 +37,17 @@ test.describe('release visual evidence', () => {
     });
     await page.getByRole('button', { name: 'Open folder' }).click();
     await expect(page.getByLabel('Background jobs: complete')).toBeVisible();
-    await expect(page.locator('.library-grid__image').first()).toBeVisible();
+    await expect(page.locator('.library-grid__image')).toHaveCount(4);
+    await expect
+      .poll(() =>
+        page.locator('.library-grid__image').evaluateAll((images) =>
+          images.every((image) => {
+            const element = image as HTMLImageElement;
+            return element.complete && element.naturalWidth > 0;
+          }),
+        ),
+      )
+      .toBe(true);
 
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.screenshot({ path: 'docs/screenshots/openfilm-workstation-wide.png' });

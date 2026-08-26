@@ -25,10 +25,11 @@ The start screen has one dominant action, `Open folder`, beside a quiet recent-L
 and persistence details remain supporting copy. Browsers without writable folder access state the
 Browser Library trade-off and offer backup import. Recovery appears only when it needs action.
 
-The workstation keeps Library identity, modes, save state, and Export in the top bar. Filters and
-secondary Library actions use disclosures. The command bar keeps only ordering, Auto-advance,
-Selection, history, Edit, and Grid density visible. The photograph stage receives the space removed
-from chrome.
+The workstation keeps Library identity, modes, save state, and Export in the top bar. One sentence
+names the path from Grid review through Loupe and Edit to Export. Filters and secondary Library
+actions use disclosures. The command bar shows Filters, Edit, and View by default; Selection and
+history appear only when they have state. Order, Auto-advance, and Grid size live under View. Empty
+folders replace the command bar and duplicate messages with one next action.
 
 ## Implementation commitments
 
@@ -38,7 +39,7 @@ from chrome.
 | Recent Libraries  | Ruled rows with one status and `Choose folder` when sources need access     |
 | Workstation bar   | Modes, save state, Export, and More with Library backup download            |
 | Filters           | One disclosure with an active-filter count and clear action                 |
-| Command bar       | Order, Auto-advance, Selection, history, Edit, and contextual Grid density  |
+| Command bar       | Filters, Edit, View, and only contextual Selection or history               |
 | Accessibility     | Visible focus, semantic status, keyboard-complete menus, and reduced motion |
 | Responsive layout | No document overflow at wide, medium, 200-percent zoom, or compact width    |
 
@@ -46,7 +47,9 @@ from chrome.
 
 - Removed duplicate recent-Library status copy.
 - Moved Review groups, Refresh, keyboard help, and Library exit into `More`.
-- Moved the four filters into one counted disclosure and moved Grid density into the command bar.
+- Moved the four filters into one counted disclosure.
+- Moved Order, Auto-advance, and Grid size into View; hid empty Selection and history controls.
+- Added a concise Grid to Loupe/Edit to Export workflow line and one-action empty states.
 - Kept Export visible because it closes the primary workflow.
 - Removed the Electron update bridge and notice when the workstation returned to browser-only
   distribution.
