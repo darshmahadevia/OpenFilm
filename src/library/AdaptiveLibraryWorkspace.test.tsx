@@ -119,6 +119,40 @@ describe('Adaptive Library workstation', () => {
     expect(screen.getByLabelText('Quick keyboard shortcuts')).toHaveTextContent('Pick');
   });
 
+  it('filters the Grid to Rejects from the main review toolbar', () => {
+    const options = props();
+    options.snapshot = {
+      ...options.snapshot,
+      library: {
+        ...options.snapshot.library!,
+        photographs: [
+          { ...photo('1'), disposition: 'pick' },
+          { ...photo('2'), disposition: 'reject' },
+          photo('3'),
+        ],
+      },
+    };
+    render(<AdaptiveLibraryWorkspace {...options} />);
+
+    const statusFilter = screen.getByRole('group', { name: 'Review status filter' });
+    expect(
+      within(statusFilter).getByRole('button', { name: 'Rejects, 1 photograph' }),
+    ).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(within(statusFilter).getByRole('button', { name: 'Rejects, 1 photograph' }));
+
+    expect(screen.getByRole('button', { name: /2\.jpg\. Source photograph/ })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /1\.jpg\. Source photograph/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(statusFilter).getByRole('button', { name: 'Rejects, 1 photograph' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(within(statusFilter).getByRole('button', { name: 'All, 3 photographs' }));
+    expect(screen.getByRole('button', { name: /1\.jpg\. Source photograph/ })).toBeInTheDocument();
+  });
+
   it('compares up to four photographs when Selection contains more', () => {
     const options = props();
     options.snapshot = {

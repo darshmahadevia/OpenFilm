@@ -794,6 +794,19 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
     context.filter.unsupportedOnly,
     context.filter.analysisComplete,
   ].filter((value) => value !== undefined).length;
+  const reviewStatusCounts = photographs.reduce(
+    (counts, photograph) => {
+      counts[photograph.disposition] += 1;
+      return counts;
+    },
+    { pick: 0, reject: 0, unmarked: 0 },
+  );
+  const reviewStatusFilters = [
+    { count: photographs.length, label: 'All', value: undefined },
+    { count: reviewStatusCounts.unmarked, label: 'Unreviewed', value: 'unmarked' },
+    { count: reviewStatusCounts.pick, label: 'Picks', value: 'pick' },
+    { count: reviewStatusCounts.reject, label: 'Rejects', value: 'reject' },
+  ] as const;
 
   async function commit(
     next: OpenFilmLibraryDocument,
@@ -1384,6 +1397,20 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
 
       {photographs.length > 0 ? (
         <div className="workstation-toolbar" data-workstation-background>
+          <div aria-label="Review status filter" className="workstation-review-filter" role="group">
+            {reviewStatusFilters.map((filter) => (
+              <button
+                aria-label={`${filter.label}, ${filter.count} photograph${filter.count === 1 ? '' : 's'}`}
+                aria-pressed={context.filter.disposition === filter.value}
+                key={filter.label}
+                onClick={() => setFilter({ disposition: filter.value })}
+                type="button"
+              >
+                <span>{filter.label}</span>
+                <output>{filter.count}</output>
+              </button>
+            ))}
+          </div>
           <details className="workstation-filters">
             <summary>Filters{activeFilterCount ? <span>{activeFilterCount}</span> : null}</summary>
             <div className="workstation-filters__panel">
@@ -1719,8 +1746,22 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
               </div>
             ) : visible.length === 0 ? (
               <div className="workstation-empty">
-                <h2>No photographs match</h2>
-                <p>Clear the active filters to return to the full Grid.</p>
+                <h2>
+                  {context.filter.disposition === 'reject'
+                    ? 'No rejected photographs'
+                    : context.filter.disposition === 'pick'
+                      ? 'No Picks match'
+                      : context.filter.disposition === 'unmarked'
+                        ? 'Review complete'
+                        : 'No photographs match'}
+                </h2>
+                <p>
+                  {context.filter.disposition === 'reject'
+                    ? 'Photographs appear here when you mark them as Rejects. Source files are never deleted.'
+                    : context.filter.disposition === 'unmarked'
+                      ? 'Every photograph has a review mark. Show all photographs to keep working.'
+                      : 'Show all photographs to return to the full Grid.'}
+                </p>
                 <Button
                   onClick={() =>
                     setContext((current) => ({
@@ -1731,7 +1772,7 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
                   size="small"
                   variant="outline"
                 >
-                  Clear filters
+                  Show all photographs
                 </Button>
               </div>
             ) : (
