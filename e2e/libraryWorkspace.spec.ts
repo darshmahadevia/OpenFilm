@@ -53,7 +53,7 @@ test.describe('Library start and recovery journey', () => {
     const openFolder = page.getByRole('button', { name: 'Open folder' });
     await expect(openFolder).toBeEnabled();
     await openFolder.click();
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Library save state: Saved')).toBeAttached();
 
     const savedFile = await page.evaluate(async () => {
       const root = await navigator.storage.getDirectory();
@@ -75,7 +75,7 @@ test.describe('Library start and recovery journey', () => {
     await expect(page.getByRole('button', { name: 'Open Library' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Open Library' }).click();
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Library save state: Saved')).toBeAttached();
 
     await page.evaluate(async () => {
       const database = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -112,7 +112,7 @@ test.describe('Library start and recovery journey', () => {
     await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Revert' }).click();
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Library save state: Saved')).toBeAttached();
 
     await page.evaluate(async () => {
       const root = await navigator.storage.getDirectory();
@@ -276,7 +276,16 @@ test.describe('Library start and recovery journey', () => {
       'sixth.jpg',
     ]);
 
-    const firstPhotograph = page.getByRole('button', { name: /fifth\.jpg/ });
+    const firstPhotograph = page.getByRole('button', {
+      name: /fifth\.jpg\. Source photograph/,
+    });
+    await page.getByLabel('Photo actions for fifth.jpg').click();
+    const photoActions = page.getByLabel('Review actions for fifth.jpg');
+    await expect(photoActions).toBeVisible();
+    await photoActions.getByRole('button', { name: 'Add to Selection' }).click();
+    await expect(page.getByLabel('Selection count: 1')).toBeVisible();
+    await page.getByLabel('Photo actions for fifth.jpg').click();
+    await photoActions.getByRole('button', { name: 'Remove from Selection' }).click();
     await firstPhotograph.click();
     await page.keyboard.press('p');
     await expect(page.getByText('fifth.jpg: Pick.')).toBeVisible();
@@ -305,7 +314,7 @@ test.describe('Library start and recovery journey', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByRole('grid', { name: 'Library Grid' })).toBeVisible();
 
-    const activeButton = page.getByRole('button', { name: /fifth\.jpg/ });
+    const activeButton = page.getByRole('button', { name: /fifth\.jpg\. Source photograph/ });
     await activeButton.focus();
     await page.keyboard.press('Shift+ArrowRight');
     await expect(page.getByLabel(/Selection count: 2/)).toBeVisible();

@@ -177,6 +177,32 @@ export function HomePage() {
             <span>Grid / Loupe / Comparison</span>
             <p>Move from the full shoot to a single frame without losing review context.</p>
           </div>
+          <div className="landing-review-controls">
+            <p>
+              Review from each photograph's actions menu, or keep both hands on the keyboard.
+              Selection stays visible as you move into Comparison.
+            </p>
+            <div aria-label="Workstation keyboard shortcuts" className="landing-key-map">
+              <span>
+                <kbd>P</kbd> Pick
+              </span>
+              <span>
+                <kbd>X</kbd> Reject
+              </span>
+              <span>
+                <kbd>0–5</kbd> Rate
+              </span>
+              <span>
+                <kbd>Space</kbd> Select
+              </span>
+              <span>
+                <kbd>Enter</kbd> Loupe
+              </span>
+              <span>
+                <kbd>C</kbd> Compare
+              </span>
+            </div>
+          </div>
         </section>
         <section className="landing-workflow" id="workflow">
           <figure className="landing-workflow__visual">
@@ -200,7 +226,10 @@ export function HomePage() {
                 <span>02</span>
                 <div>
                   <h3>Review the Grid</h3>
-                  <p>Rate, filter, compare, and mark Picks without moving Source files.</p>
+                  <p>
+                    Use a photograph's actions menu or keyboard shortcuts to Rate, Select, mark
+                    Picks, and Rejects.
+                  </p>
                 </div>
               </li>
               <li>

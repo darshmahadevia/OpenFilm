@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { LIBRARY_GRID_THUMBNAIL_MAX_WIDTH, type LibraryThumbnail } from './libraryThumbnail';
 import type { LibraryGridDensity } from './libraryGridModel';
 import type { LibraryPhotographRecord } from './libraryModel';
+import type { ReviewCommand } from './libraryReview';
 
 const GRID_DENSITY_SETTINGS: Record<LibraryGridDensity, { minimumCellWidth: number }> = {
   detail: { minimumCellWidth: 320 },
@@ -20,6 +21,7 @@ interface LibraryGridProps {
   activePhotographId: string | null;
   density: LibraryGridDensity;
   initialScrollTop?: number;
+  canReview: boolean;
   onActivate: (photographId: string) => void;
   onLoadThumbnail: (
     relativePath: string,
@@ -28,6 +30,8 @@ interface LibraryGridProps {
     cacheRevision?: string,
   ) => Promise<LibraryThumbnail>;
   onScrollTopChange?: (scrollTop: number) => void;
+  onOpenLoupe: (photographId: string) => void;
+  onReview: (photographId: string, command: ReviewCommand) => void;
   onToggleSelection: (photographId: string) => void;
   photographs: readonly LibraryPhotographRecord[];
   selectedPhotographIds: ReadonlySet<string>;
@@ -84,13 +88,17 @@ function dispositionLabel(photograph: LibraryPhotographRecord): string {
 function GridPhotographCell({
   isActive,
   isSelected,
+  canReview,
   onActivate,
   onLoadThumbnail,
+  onOpenLoupe,
+  onReview,
   onToggleSelection,
   photograph,
 }: {
   isActive: boolean;
   isSelected: boolean;
+  canReview: boolean;
   onActivate: (photographId: string) => void;
   onLoadThumbnail: (
     relativePath: string,
@@ -98,6 +106,8 @@ function GridPhotographCell({
     signal?: AbortSignal,
     cacheRevision?: string,
   ) => Promise<LibraryThumbnail>;
+  onOpenLoupe: (photographId: string) => void;
+  onReview: (photographId: string, command: ReviewCommand) => void;
   onToggleSelection: (photographId: string) => void;
   photograph: LibraryPhotographRecord;
 }) {
@@ -168,6 +178,7 @@ function GridPhotographCell({
         onKeyDown={(event) => {
           if (event.key === ' ') {
             event.preventDefault();
+            event.stopPropagation();
             onToggleSelection(photograph.id);
           }
         }}
@@ -210,16 +221,91 @@ function GridPhotographCell({
           </span>
         </span>
       </button>
+      <details className="library-grid__actions">
+        <summary aria-label={`Photo actions for ${photograph.fileName}`}>
+          <span aria-hidden="true" />
+        </summary>
+        <div aria-label={`Review actions for ${photograph.fileName}`}>
+          <button
+            aria-pressed={isSelected}
+            onClick={(event) => {
+              onToggleSelection(photograph.id);
+              event.currentTarget.closest('details')?.removeAttribute('open');
+            }}
+            type="button"
+          >
+            {isSelected ? 'Remove from Selection' : 'Add to Selection'}
+            <kbd aria-hidden="true">Space</kbd>
+          </button>
+          <button
+            onClick={(event) => {
+              onOpenLoupe(photograph.id);
+              event.currentTarget.closest('details')?.removeAttribute('open');
+            }}
+            type="button"
+          >
+            Open in Loupe
+            <kbd aria-hidden="true">Enter</kbd>
+          </button>
+          <span className="library-grid__actions-label">Review</span>
+          {(['pick', 'reject', 'unmarked'] as const).map((disposition) => (
+            <button
+              aria-pressed={photograph.disposition === disposition}
+              disabled={!canReview}
+              key={disposition}
+              onClick={(event) => {
+                onReview(photograph.id, { kind: 'set-disposition', disposition });
+                event.currentTarget.closest('details')?.removeAttribute('open');
+              }}
+              type="button"
+            >
+              {disposition === 'pick'
+                ? 'Mark as Pick'
+                : disposition === 'reject'
+                  ? 'Mark as Reject'
+                  : 'Clear review mark'}
+              <kbd aria-hidden="true">
+                {disposition === 'pick' ? 'P' : disposition === 'reject' ? 'X' : 'U'}
+              </kbd>
+            </button>
+          ))}
+          <label>
+            Rating
+            <select
+              aria-label={`Rating for ${photograph.fileName}`}
+              disabled={!canReview}
+              onChange={(event) => {
+                onReview(photograph.id, {
+                  kind: 'rate',
+                  rating: event.currentTarget.value ? Number(event.currentTarget.value) : null,
+                });
+                event.currentTarget.closest('details')?.removeAttribute('open');
+              }}
+              value={photograph.rating ?? ''}
+            >
+              <option value="">Unrated</option>
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <option key={rating} value={rating}>
+                  {rating} star{rating === 1 ? '' : 's'}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </details>
     </div>
   );
 }
 
 export function LibraryGrid({
   activePhotographId,
+  canReview,
   density,
   initialScrollTop = 0,
   onActivate,
   onLoadThumbnail,
+  onOpenLoupe,
+  onReview,
   onScrollTopChange,
   onToggleSelection,
   photographs,
@@ -292,11 +378,14 @@ export function LibraryGrid({
       >
         {rowPhotographs.map((photograph) => (
           <GridPhotographCell
+            canReview={canReview}
             isActive={photograph.id === activePhotographId}
             isSelected={selectedPhotographIds.has(photograph.id)}
             key={`${photograph.id}-${photograph.fingerprint.byteSize}-${photograph.fingerprint.lastModified}-${photograph.sourceState}`}
             onActivate={onActivate}
             onLoadThumbnail={onLoadThumbnail}
+            onOpenLoupe={onOpenLoupe}
+            onReview={onReview}
             onToggleSelection={onToggleSelection}
             photograph={photograph}
           />

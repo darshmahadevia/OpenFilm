@@ -762,11 +762,25 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
     props.feedback ??
     (message === 'The Library is Saved.' || message === 'Ready.' ? null : message);
   const canMutate = props.snapshot.status === 'saved' || props.snapshot.status === 'saving';
-  const comparisonReady = context.selection.length >= 2 && context.selection.length <= 4;
-  const workflowMessage =
-    photographs.length > 0
-      ? 'Review in Grid, inspect and Edit in Loupe, then Export Picks.'
-      : 'Reading the folder. Photographs appear as they are found.';
+  const comparisonCount = Math.min(4, context.selection.length);
+  const comparisonReady = comparisonCount >= 2;
+  const modePurpose =
+    context.mode === 'grid'
+      ? {
+          label: 'Review your Library',
+          detail: 'Choose an Active photo, rate it, or add photos to Selection for Comparison.',
+        }
+      : context.mode === 'loupe'
+        ? {
+            label: 'Inspect and Edit',
+            detail:
+              'Check one photo at full size, compare Source and Edit, or open the Edit panel.',
+          }
+        : {
+            label: 'Compare your Selection',
+            detail:
+              'Choose the strongest frame, review it, and keep panes linked while you inspect.',
+          };
   const showStatusRow =
     photographs.length > 0 ||
     props.snapshot.scan.status === 'scanning' ||
@@ -802,14 +816,17 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
     }
   }
 
-  function review(command: Parameters<typeof applyLibraryReviewCommand>[2]) {
+  function review(command: Parameters<typeof applyLibraryReviewCommand>[2], photographId?: string) {
     if (!document) return;
     if (!canMutate) {
       setMessage('Resolve the current Library recovery state before changing review state.');
       return;
     }
     try {
-      const result = applyLibraryReviewCommand(document, context, command);
+      const reviewContext = photographId
+        ? { ...context, activePhotographId: photographId, autoAdvance: false }
+        : context;
+      const result = applyLibraryReviewCommand(document, reviewContext, command);
       contextUndo.current.push({ context, gridScrollTop });
       contextUndo.current.splice(0, Math.max(0, contextUndo.current.length - HISTORY_LIMIT));
       contextRedo.current = [];
@@ -874,10 +891,15 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
 
   function enterComparison() {
     try {
-      const state = createComparisonState(context.selection);
+      const comparisonIds = context.selection.slice(0, 4);
+      const state = createComparisonState(comparisonIds);
       setComparison(state);
       setContext((current) => ({ ...current, mode: 'comparison' }));
-      setMessage(`Comparing ${context.selection.length} selected photographs.`);
+      setMessage(
+        context.selection.length > 4
+          ? `Comparing the first 4 of ${context.selection.length} selected photographs.`
+          : `Comparing ${comparisonIds.length} selected photographs.`,
+      );
       requestAnimationFrame(() => workstationRef.current?.focus());
     } catch (error) {
       setMessage(
@@ -944,7 +966,11 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
       }
     } else if (event.key === ' ') {
       event.preventDefault();
-      setZoomScale(2);
+      if (context.mode === 'grid' && active) {
+        setContext((current) => toggleLibrarySelection(current, active.id));
+      } else {
+        setZoomScale(2);
+      }
     } else if (key === 'z') {
       event.preventDefault();
       setZoomScale((current) => (current === 1 ? 2 : 1));
@@ -1179,49 +1205,64 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
       tabIndex={-1}
     >
       <header className="library-workspace__topbar" data-workstation-background>
-        <div>
+        <div className="library-workspace__identity">
           <span className="library-start__brand">OpenFilm</span>
           <h1 className="visually-hidden" id="library-workspace-title">
             {props.snapshot.rootName} Library workstation
           </h1>
-          <span className="library-workspace__file">{props.snapshot.rootName}</span>
+          <span className="library-workspace__file">
+            <span>Library</span>
+            {props.snapshot.rootName}
+          </span>
         </div>
         <nav aria-label="Workstation modes" className="workstation-modes">
           <button
+            aria-label="Grid"
             aria-current={context.mode === 'grid' ? 'page' : undefined}
             onClick={() => setContext((current) => ({ ...current, mode: 'grid' }))}
             type="button"
           >
-            Grid
+            <span>Grid</span>
+            <small>Review and select</small>
           </button>
           <button
+            aria-label="Loupe"
             aria-current={context.mode === 'loupe' ? 'page' : undefined}
             disabled={!active}
             onClick={() => setContext((current) => ({ ...current, mode: 'loupe' }))}
             type="button"
           >
-            Loupe
+            <span>Loupe</span>
+            <small>Inspect and edit</small>
           </button>
           <button
+            aria-label="Comparison"
             aria-current={context.mode === 'comparison' ? 'page' : undefined}
             aria-describedby="comparison-requirement"
             disabled={!comparisonReady}
             onClick={enterComparison}
             type="button"
           >
-            Comparison
+            <span>Comparison</span>
+            <small>{comparisonReady ? `${comparisonCount} ready` : 'Select at least 2'}</small>
           </button>
           <span className="visually-hidden" id="comparison-requirement">
             Select two to four photographs in Grid to use Comparison.
           </span>
         </nav>
         <div className="library-workspace__topbar-actions">
-          <span
-            aria-label={`Library save state: ${saveStatus}`}
-            className={`library-save-state library-save-state--${props.snapshot.status}`}
-          >
-            {saveStatus}
-          </span>
+          {props.snapshot.status === 'saved' ? (
+            <span aria-label="Library save state: Saved" className="visually-hidden">
+              Saved
+            </span>
+          ) : (
+            <span
+              aria-label={`Library save state: ${saveStatus}`}
+              className={`library-save-state library-save-state--${props.snapshot.status}`}
+            >
+              {saveStatus}
+            </span>
+          )}
           {photographs.length > 0 ? (
             <Button
               onClick={() => openSheet(() => setShowExport(true))}
@@ -1271,9 +1312,66 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
 
       {showStatusRow ? (
         <div className="workstation-status-row" data-workstation-background>
-          <p aria-live="polite" role="status">
-            {statusMessage ?? workflowMessage}
-          </p>
+          <div className="workstation-purpose">
+            <strong>{modePurpose.label}</strong>
+            <span>{modePurpose.detail}</span>
+          </div>
+          {photographs.length > 0 ? (
+            <div aria-label="Quick keyboard shortcuts" className="workstation-key-hints">
+              {context.mode === 'grid' ? (
+                <>
+                  <span>
+                    <kbd>P</kbd> Pick
+                  </span>
+                  <span>
+                    <kbd>X</kbd> Reject
+                  </span>
+                  <span>
+                    <kbd>0–5</kbd> Rate
+                  </span>
+                  <span>
+                    <kbd>Space</kbd> Select
+                  </span>
+                </>
+              ) : context.mode === 'loupe' ? (
+                <>
+                  <span>
+                    <kbd>← →</kbd> Move
+                  </span>
+                  <span>
+                    <kbd>Space</kbd> Hold 100%
+                  </span>
+                  <span>
+                    <kbd>E</kbd> Edit
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>
+                    <kbd>P</kbd> Pick
+                  </span>
+                  <span>
+                    <kbd>X</kbd> Reject
+                  </span>
+                  <span>
+                    <kbd>Esc</kbd> Grid
+                  </span>
+                </>
+              )}
+              <button
+                aria-label="Show all keyboard shortcuts"
+                onClick={() => openSheet(() => setShowShortcuts(true))}
+                type="button"
+              >
+                <kbd>?</kbd> All
+              </button>
+            </div>
+          ) : null}
+          {statusMessage ? (
+            <p aria-live="polite" role="status">
+              {statusMessage}
+            </p>
+          ) : null}
           <ScanSummary
             key={context.mode}
             onCancel={props.onCancelScan}
@@ -1396,9 +1494,27 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
             </div>
           </details>
           {context.selection.length ? (
-            <span aria-label={`Selection count: ${context.selection.length}`}>
-              {context.selection.length} selected
-            </span>
+            <div className="workstation-selection" aria-label="Selection actions">
+              <span aria-label={`Selection count: ${context.selection.length}`}>
+                {context.selection.length} selected
+              </span>
+              {comparisonReady ? (
+                <Button onClick={enterComparison} size="small" variant="primary">
+                  Compare {comparisonCount}
+                </Button>
+              ) : (
+                <span className="workstation-selection__hint">Select 1 more to compare</span>
+              )}
+              <Button
+                onClick={() => setContext((current) => ({ ...current, selection: [] }))}
+                size="small"
+                variant="quiet"
+              >
+                Clear
+              </Button>
+            </div>
+          ) : context.mode === 'grid' ? (
+            <span className="workstation-selection__hint">Select 2–4 photos to compare</span>
           ) : null}
           <span className="workstation-toolbar__spacer" />
           {props.historyStatus.canUndo || props.historyStatus.canRedo ? (
@@ -1621,12 +1737,23 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
             ) : (
               <LibraryGrid
                 activePhotographId={active?.id ?? null}
+                canReview={canMutate}
                 density={density}
                 initialScrollTop={gridScrollTop}
                 onActivate={(id) =>
                   setContext((current) => ({ ...current, activePhotographId: id }))
                 }
                 onLoadThumbnail={props.onLoadThumbnail}
+                onOpenLoupe={(id) => {
+                  const photograph = photographs.find((item) => item.id === id);
+                  setContext((current) => ({
+                    ...current,
+                    activePhotographId: id,
+                    mode: 'loupe',
+                  }));
+                  setMessage(`Loupe · ${photograph?.fileName ?? 'photograph'}`);
+                }}
+                onReview={(id, command) => review(command, id)}
                 onScrollTopChange={setGridScrollTop}
                 onToggleSelection={(id) =>
                   setContext((current) => toggleLibrarySelection(current, id))
@@ -1691,7 +1818,21 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
           </div>
         ) : context.mode === 'comparison' && comparison ? (
           <div className={`comparison-stage comparison-stage--${comparison.panes.length}`}>
-            <div className="stage-view-controls">
+            <div className="stage-view-controls comparison-stage__controls">
+              <div>
+                <strong>Comparing {comparison.panes.length}</strong>
+                <span>Click a photo to make it Active</span>
+              </div>
+              <Button
+                onClick={() => {
+                  setComparison(null);
+                  setContext((current) => ({ ...current, mode: 'grid' }));
+                }}
+                size="small"
+                variant="quiet"
+              >
+                Back to Grid
+              </Button>
               <Button
                 onClick={() =>
                   setComparison((current) =>
@@ -2124,20 +2265,24 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
               </Button>
             </header>
             <dl>
+              <dt>Space</dt>
+              <dd>Add or remove the Active photo from Selection</dd>
               <dt>Left / Right</dt>
-              <dd>Navigate</dd>
+              <dd>Move the Active photo</dd>
               <dt>Shift + Left / Right</dt>
               <dd>Extend Selection</dd>
               <dt>0–5</dt>
-              <dd>Rating</dd>
+              <dd>Clear or set Rating</dd>
               <dt>P / X / U</dt>
               <dd>Pick, Reject, Unmarked</dd>
               <dt>Enter / Escape</dt>
-              <dd>Enter Loupe, return</dd>
+              <dd>Open Loupe, return to Grid</dd>
               <dt>C / E</dt>
               <dd>Comparison, Edit inspector</dd>
-              <dt>Space / Z</dt>
+              <dt>Space / Z in Loupe</dt>
               <dd>Hold 100%, toggle zoom</dd>
+              <dt>?</dt>
+              <dd>Show this shortcut list</dd>
             </dl>
           </div>
         </div>

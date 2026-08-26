@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { neutralAdjustments } from '../editor/adjustments';
 
 import {
@@ -85,7 +85,7 @@ describe('Adaptive Library workstation', () => {
   it('culls from the keyboard with same-frame feedback and keeps Active separate from Selection', async () => {
     const options = props();
     render(<AdaptiveLibraryWorkspace {...options} />);
-    const first = screen.getByRole('button', { name: /1\.jpg/ });
+    const first = screen.getByRole('button', { name: /1\.jpg\. Source photograph/ });
     fireEvent.keyDown(first, { key: ' ' });
     expect(screen.getByLabelText('Selection count: 1')).toBeInTheDocument();
     fireEvent.keyDown(first, { key: 'p' });
@@ -95,20 +95,52 @@ describe('Adaptive Library workstation', () => {
 
   it('guides the review workflow and enables Comparison after two photographs are selected', () => {
     render(<AdaptiveLibraryWorkspace {...props()} />);
-    expect(screen.getByText(/Review in Grid, inspect and Edit in Loupe/)).toHaveAttribute(
-      'role',
-      'status',
-    );
+    expect(screen.getByText('Saved')).toHaveClass('visually-hidden');
+    expect(screen.getByText('Review your Library')).toBeInTheDocument();
+    expect(screen.getByText('Review and select')).toBeInTheDocument();
     const comparison = screen.getByRole('button', { name: 'Comparison' });
     expect(comparison).toBeDisabled();
 
-    const first = screen.getByRole('button', { name: /1\.jpg/ });
-    const second = screen.getByRole('button', { name: /2\.jpg/ });
-    fireEvent.keyDown(first, { key: ' ' });
-    fireEvent.click(second);
-    fireEvent.keyDown(second, { key: ' ' });
+    fireEvent.click(screen.getByLabelText('Photo actions for 1.jpg'));
+    fireEvent.click(
+      within(screen.getByLabelText('Review actions for 1.jpg')).getByRole('button', {
+        name: 'Add to Selection',
+      }),
+    );
+    fireEvent.click(screen.getByLabelText('Photo actions for 2.jpg'));
+    fireEvent.click(
+      within(screen.getByLabelText('Review actions for 2.jpg')).getByRole('button', {
+        name: 'Add to Selection',
+      }),
+    );
 
     expect(comparison).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Compare 2' })).toBeEnabled();
+    expect(screen.getByLabelText('Quick keyboard shortcuts')).toHaveTextContent('Pick');
+  });
+
+  it('compares up to four photographs when Selection contains more', () => {
+    const options = props();
+    options.snapshot = {
+      ...options.snapshot,
+      library: {
+        ...options.snapshot.library!,
+        photographs: [photo('1'), photo('2'), photo('3'), photo('4'), photo('5')],
+      },
+    };
+    render(<AdaptiveLibraryWorkspace {...options} />);
+    const workspace = screen.getByRole('main');
+    for (let index = 0; index < 4; index += 1) {
+      fireEvent.keyDown(workspace, { key: 'ArrowRight', shiftKey: true });
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: 'Compare 4' }));
+
+    expect(screen.getByText('Comparing the first 4 of 5 selected photographs.')).toHaveAttribute(
+      'role',
+      'status',
+    );
+    expect(document.querySelectorAll('.comparison-pane')).toHaveLength(4);
   });
 
   it('shows one clear next step when an opened folder has no photographs', () => {

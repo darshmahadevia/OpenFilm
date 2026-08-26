@@ -24,5 +24,11 @@ describe('OpenFilm website', () => {
     ).toBeInTheDocument();
     expect(container.querySelector('.landing-film-strip')).toBeInTheDocument();
     expect(container.querySelector('.proof-frame--crop')).toBeInTheDocument();
+    expect(screen.getByLabelText('Workstation keyboard shortcuts')).toHaveTextContent(
+      'P PickX Reject0–5 RateSpace SelectEnter LoupeC Compare',
+    );
+    expect(
+      screen.getByText(/actions menu, or keep both hands on the keyboard/),
+    ).toBeInTheDocument();
   });
 });

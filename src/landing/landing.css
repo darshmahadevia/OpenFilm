@@ -466,6 +466,45 @@ a.landing-launch:hover {
   font-size: 0.76rem;
   line-height: 1.55;
 }
+.landing-review-controls {
+  margin-top: clamp(2.5rem, 5vw, 4.5rem);
+  border-block: 1px solid var(--color-line-strong);
+  padding: 1.25rem 0;
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.7fr) minmax(24rem, 1.3fr);
+  gap: clamp(2rem, 7vw, 7rem);
+  align-items: center;
+}
+.landing-review-controls > p {
+  max-width: 38rem;
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+.landing-key-map {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--color-line);
+}
+.landing-key-map span {
+  min-height: 3.4rem;
+  padding: 0.65rem 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: #080808;
+  color: var(--color-muted);
+  font-size: 0.7rem;
+}
+.landing-key-map kbd {
+  min-width: 2.2rem;
+  color: var(--color-accent);
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
 
 .landing-workflow {
   border-block: 1px solid var(--color-line);
@@ -719,6 +758,9 @@ a.landing-launch:hover {
   .landing-workstation__caption {
     width: 100%;
   }
+  .landing-review-controls {
+    grid-template-columns: 1fr;
+  }
   .landing-footer {
     grid-template-columns: 1fr;
     gap: 1rem;
@@ -760,6 +802,9 @@ a.landing-launch:hover {
   .landing-workflow,
   .landing-local {
     padding-block: 4rem;
+  }
+  .landing-key-map {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .landing-section-heading h2,
   .landing-workflow h2,

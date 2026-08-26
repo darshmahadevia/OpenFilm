@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import { LibraryGrid } from './LibraryGrid';
 import type { LibraryThumbnail } from './libraryThumbnail';
@@ -25,6 +25,8 @@ describe('Library Grid', () => {
     const first = createPhotograph('photo-1', 'one.jpg');
     const second = createPhotograph('photo-2', 'nested/two.jpg');
     const onActivate = vi.fn();
+    const onOpenLoupe = vi.fn();
+    const onReview = vi.fn();
     const onToggleSelection = vi.fn();
     const dispose = vi.fn();
     const thumbnail: LibraryThumbnail = { bytes: 1, dispose, url: 'blob:grid-photo' };
@@ -32,9 +34,12 @@ describe('Library Grid', () => {
     const { container, unmount } = render(
       <LibraryGrid
         activePhotographId="photo-1"
+        canReview
         density="standard"
         onActivate={onActivate}
         onLoadThumbnail={async () => thumbnail}
+        onOpenLoupe={onOpenLoupe}
+        onReview={onReview}
         onToggleSelection={onToggleSelection}
         photographs={[first, second]}
         selectedPhotographIds={new Set(['photo-2'])}
@@ -43,7 +48,7 @@ describe('Library Grid', () => {
 
     const grid = screen.getByRole('grid', { name: 'Library Grid' });
     expect(grid).toHaveAttribute('aria-rowcount', '2');
-    expect(screen.getByRole('button', { name: /one\.jpg/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /one\.jpg\. Source photograph/ })).toHaveAttribute(
       'aria-current',
       'true',
     );
@@ -52,11 +57,21 @@ describe('Library Grid', () => {
       'true',
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /one\.jpg/ }));
+    fireEvent.click(screen.getByRole('button', { name: /one\.jpg\. Source photograph/ }));
     fireEvent.keyDown(screen.getByRole('button', { name: /nested\/two\.jpg/ }), { key: ' ' });
 
     expect(onActivate).toHaveBeenCalledWith('photo-1');
     expect(onToggleSelection).toHaveBeenCalledWith('photo-2');
+    fireEvent.click(screen.getByLabelText('Photo actions for one.jpg'));
+    fireEvent.click(
+      within(screen.getByLabelText('Review actions for one.jpg')).getByRole('button', {
+        name: 'Mark as Pick',
+      }),
+    );
+    expect(onReview).toHaveBeenCalledWith('photo-1', {
+      kind: 'set-disposition',
+      disposition: 'pick',
+    });
     await waitFor(() => expect(container.querySelectorAll('img')).toHaveLength(2));
     for (const image of container.querySelectorAll('img')) fireEvent.load(image);
     await waitFor(() => expect(screen.queryAllByText('Reading Source photograph')).toHaveLength(0));
@@ -84,9 +99,12 @@ describe('Library Grid', () => {
       const { rerender } = render(
         <LibraryGrid
           activePhotographId="photo-0"
+          canReview
           density="standard"
           onActivate={vi.fn()}
           onLoadThumbnail={async () => ({ bytes: 1, dispose: vi.fn(), url: 'blob:grid-photo' })}
+          onOpenLoupe={vi.fn()}
+          onReview={vi.fn()}
           onToggleSelection={vi.fn()}
           photographs={photographs}
           selectedPhotographIds={new Set()}
@@ -101,9 +119,12 @@ describe('Library Grid', () => {
       rerender(
         <LibraryGrid
           activePhotographId="photo-0"
+          canReview
           density="overview"
           onActivate={vi.fn()}
           onLoadThumbnail={async () => ({ bytes: 1, dispose: vi.fn(), url: 'blob:grid-photo' })}
+          onOpenLoupe={vi.fn()}
+          onReview={vi.fn()}
           onToggleSelection={vi.fn()}
           photographs={photographs}
           selectedPhotographIds={new Set()}
