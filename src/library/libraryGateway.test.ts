@@ -47,6 +47,52 @@ describe('browser Library gateway', () => {
     }
   });
 
+  it('opens a selected folder through a directory input when writable folder access is unavailable', async () => {
+    const originalPicker = (
+      window as Window & {
+        showDirectoryPicker?: (options?: {
+          mode?: 'read' | 'readwrite';
+        }) => Promise<FileSystemDirectoryHandle>;
+      }
+    ).showDirectoryPicker;
+
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      value: undefined,
+    });
+
+    try {
+      const gateway = createBrowserLibraryDirectoryGateway()!;
+      const opening = gateway.pickDirectory();
+      const input = document.querySelector<HTMLInputElement>('input[type="file"][webkitdirectory]');
+      const file = new File(['jpeg'], 'frame.jpg', {
+        lastModified: 100,
+        type: 'image/jpeg',
+      });
+      Object.defineProperty(file, 'webkitRelativePath', {
+        configurable: true,
+        value: 'June shoot/nested/frame.jpg',
+      });
+
+      expect(input).not.toBeNull();
+      Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+      input?.dispatchEvent(new Event('change'));
+
+      const root = await opening;
+      const sources = [];
+      for await (const source of gateway.scanSourceFiles(root)) sources.push(source);
+
+      expect(root.name).toBe('June shoot');
+      expect(sources).toEqual([{ file, relativePath: 'nested/frame.jpg' }]);
+      await expect(gateway.readSourcePhotograph(root, 'nested/frame.jpg')).resolves.toBe(file);
+    } finally {
+      Object.defineProperty(window, 'showDirectoryPicker', {
+        configurable: true,
+        value: originalPicker,
+      });
+    }
+  });
+
   it('requests permission on the existing directory handle during recovery', async () => {
     const root = createDirectoryHandle('June shoot', 'prompt');
     const gateway = createBrowserLibraryDirectoryGateway();

@@ -57,15 +57,28 @@ export interface StoredEdit {
 
 export type StoredLibraryStatus = 'read-only' | 'saved' | 'unsaved';
 
-export interface StoredLibraryRecovery {
+interface StoredLibraryRecoveryBase {
   durableReference: LibraryRevisionReference | null;
-  handle: FileSystemDirectoryHandle;
   lastOpenedAt: number;
   libraryId: string;
   rootName: string;
   status: StoredLibraryStatus;
   working: OpenFilmLibraryDocument;
 }
+
+export type StoredLibraryRecovery = StoredLibraryRecoveryBase &
+  (
+    | {
+        accessMode?: 'directory';
+        browserLibraryFile?: null;
+        handle: FileSystemDirectoryHandle;
+      }
+    | {
+        accessMode: 'browser';
+        browserLibraryFile: Uint8Array;
+        handle: null;
+      }
+  );
 
 export interface BrowserStorage {
   deleteCustomLook(id: string): Promise<void>;
@@ -106,6 +119,10 @@ function isDirectoryHandle(value: unknown): value is FileSystemDirectoryHandle {
 
 function isBlob(value: unknown): value is Blob {
   return typeof Blob !== 'undefined' && value instanceof Blob;
+}
+
+function isUint8Array(value: unknown): value is Uint8Array {
+  return value instanceof Uint8Array;
 }
 
 function isValidStoredAdjustmentValues(value: unknown): value is AdjustmentValues {
@@ -286,7 +303,6 @@ function normalizeLibraryRevisionReference(value: unknown): LibraryRevisionRefer
 export function normalizeStoredLibraryRecovery(value: unknown): StoredLibraryRecovery | null {
   if (
     !isRecord(value) ||
-    !isDirectoryHandle(value.handle) ||
     !isOpenFilmLibraryDocument(value.working) ||
     typeof value.libraryId !== 'string' ||
     value.libraryId.length === 0 ||
@@ -313,14 +329,35 @@ export function normalizeStoredLibraryRecovery(value: unknown): StoredLibraryRec
     return null;
   }
 
-  return {
+  const common: StoredLibraryRecoveryBase = {
     durableReference,
-    handle: value.handle,
     lastOpenedAt: value.lastOpenedAt,
     libraryId: value.libraryId,
     rootName: value.rootName,
     status: value.status,
     working: JSON.parse(JSON.stringify(value.working)) as OpenFilmLibraryDocument,
+  };
+
+  if (
+    value.accessMode === 'browser' &&
+    value.handle === null &&
+    isUint8Array(value.browserLibraryFile)
+  ) {
+    return {
+      ...common,
+      accessMode: 'browser',
+      browserLibraryFile: new Uint8Array(value.browserLibraryFile),
+      handle: null,
+    };
+  }
+
+  if (!isDirectoryHandle(value.handle)) return null;
+
+  return {
+    ...common,
+    accessMode: 'directory',
+    browserLibraryFile: null,
+    handle: value.handle,
   };
 }
 

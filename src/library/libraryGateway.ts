@@ -1,8 +1,10 @@
 import { LIBRARY_SIDECAR_DIRECTORY, type LibrarySidecarFileName } from './libraryFile';
 import {
   createBrowserLibraryFileStore,
+  createMemoryLibraryFileStore,
   type LibraryFileStore,
   type LibraryPermissionState,
+  type MemoryLibraryFileStore,
 } from './libraryFileStore';
 
 type DirectoryPickerWindow = Window & {
@@ -19,6 +21,141 @@ type PermissionDirectoryHandle = FileSystemDirectoryHandle & {
 type IterableDirectoryHandle = FileSystemDirectoryHandle & {
   entries: () => AsyncIterableIterator<[string, FileSystemHandle]>;
 };
+
+interface BrowserLibraryDirectoryHandle extends FileSystemDirectoryHandle {
+  readonly openfilmBrowserDirectory: true;
+  readonly sourceFiles: ReadonlyMap<string, File>;
+  readonly store: MemoryLibraryFileStore;
+}
+
+export function isBrowserLibraryDirectory(
+  root: FileSystemDirectoryHandle,
+): root is BrowserLibraryDirectoryHandle {
+  return (root as Partial<BrowserLibraryDirectoryHandle>).openfilmBrowserDirectory === true;
+}
+
+export function getBrowserLibraryFile(root: FileSystemDirectoryHandle): Uint8Array | null {
+  return isBrowserLibraryDirectory(root) ? root.store.bytes('library.json') : null;
+}
+
+export function restoreBrowserLibraryFile(
+  root: FileSystemDirectoryHandle,
+  bytes: Uint8Array,
+): Promise<void> {
+  if (!isBrowserLibraryDirectory(root)) {
+    throw new Error('The selected folder does not use browser Library storage.');
+  }
+  return root.store.write('library.json', bytes);
+}
+
+export function countBrowserLibrarySourceMatches(
+  root: FileSystemDirectoryHandle,
+  photographs: readonly {
+    fingerprint: { byteSize: number; lastModified: number };
+    relativePath: string;
+  }[],
+): number {
+  if (!isBrowserLibraryDirectory(root)) return 0;
+  return photographs.reduce((count, photograph) => {
+    const file = root.sourceFiles.get(photograph.relativePath);
+    return file &&
+      file.size === photograph.fingerprint.byteSize &&
+      file.lastModified === photograph.fingerprint.lastModified
+      ? count + 1
+      : count;
+  }, 0);
+}
+
+function createBrowserLibraryDirectory(
+  rootName: string,
+  sourceFiles: Map<string, File>,
+  sidecars: Partial<Record<LibrarySidecarFileName, Uint8Array>>,
+): BrowserLibraryDirectoryHandle {
+  return {
+    kind: 'directory',
+    name: rootName,
+    openfilmBrowserDirectory: true,
+    sourceFiles,
+    store: createMemoryLibraryFileStore(sidecars),
+  } as unknown as BrowserLibraryDirectoryHandle;
+}
+
+function pickBrowserLibraryDirectory(): Promise<FileSystemDirectoryHandle> {
+  if (typeof document === 'undefined') {
+    return Promise.reject(
+      new LibraryGatewayError('unsupported', 'This browser cannot open a folder.'),
+    );
+  }
+
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.setAttribute('webkitdirectory', '');
+    input.setAttribute('directory', '');
+    input.hidden = true;
+
+    const finish = () => input.remove();
+    input.addEventListener(
+      'cancel',
+      () => {
+        finish();
+        reject(new LibraryPickerCancelledError());
+      },
+      { once: true },
+    );
+    input.addEventListener(
+      'change',
+      () => {
+        void (async () => {
+          const files = Array.from(input.files ?? []);
+          if (files.length === 0) {
+            finish();
+            reject(new LibraryPickerCancelledError());
+            return;
+          }
+
+          const firstPath = files[0]?.webkitRelativePath || files[0]?.name || '';
+          const pathParts = firstPath.split('/').filter(Boolean);
+          const rootName = pathParts.length > 1 ? pathParts[0]! : 'Selected folder';
+          const sources = new Map<string, File>();
+          const sidecars: Partial<Record<LibrarySidecarFileName, Uint8Array>> = {};
+
+          for (const file of files) {
+            const selectedPath = file.webkitRelativePath || file.name;
+            const selectedParts = selectedPath.split('/').filter(Boolean);
+            const relativePath =
+              selectedParts.length > 1 ? selectedParts.slice(1).join('/') : selectedPath;
+
+            if (relativePath.startsWith(`${LIBRARY_SIDECAR_DIRECTORY}/`)) {
+              const fileName = relativePath.slice(LIBRARY_SIDECAR_DIRECTORY.length + 1);
+              if (isLibrarySidecarFileName(fileName)) {
+                sidecars[fileName] = new Uint8Array(await file.arrayBuffer());
+              }
+              continue;
+            }
+
+            sources.set(relativePath, file);
+          }
+
+          finish();
+          resolve(createBrowserLibraryDirectory(rootName, sources, sidecars));
+        })().catch((error: unknown) => {
+          finish();
+          reject(
+            error instanceof Error
+              ? error
+              : new Error('OpenFilm could not read the selected folder.'),
+          );
+        });
+      },
+      { once: true },
+    );
+
+    document.body.append(input);
+    input.click();
+  });
+}
 
 const exportWriteTails = new WeakMap<FileSystemDirectoryHandle, Map<string, Promise<void>>>();
 
@@ -232,9 +369,10 @@ export function hasDirectoryPicker(): boolean {
 export function createBrowserLibraryDirectoryGateway(): LibraryDirectoryGateway | null {
   return {
     createFileStore(root) {
-      return createBrowserLibraryFileStore(root);
+      return isBrowserLibraryDirectory(root) ? root.store : createBrowserLibraryFileStore(root);
     },
     async getPermission(root) {
+      if (isBrowserLibraryDirectory(root)) return 'granted';
       const permissionRoot = root as PermissionDirectoryHandle;
 
       if (!permissionRoot.queryPermission) {
@@ -254,6 +392,7 @@ export function createBrowserLibraryDirectoryGateway(): LibraryDirectoryGateway 
       }
     },
     async inspectRecentDirectory(root) {
+      if (isBrowserLibraryDirectory(root)) return 'available';
       try {
         const permission = await this.getPermission(root);
 
@@ -278,12 +417,7 @@ export function createBrowserLibraryDirectoryGateway(): LibraryDirectoryGateway 
     async pickDirectory() {
       const picker = getPicker();
 
-      if (!picker) {
-        throw new LibraryGatewayError(
-          'unsupported',
-          'OpenFilm needs a Chromium desktop browser with folder access to open a Library.',
-        );
-      }
+      if (!picker) return await pickBrowserLibraryDirectory();
 
       try {
         return await picker({ mode: 'readwrite' });
@@ -292,7 +426,18 @@ export function createBrowserLibraryDirectoryGateway(): LibraryDirectoryGateway 
       }
     },
     async pickExportDirectory() {
-      return await this.pickDirectory();
+      const picker = getPicker();
+      if (!picker) {
+        throw new LibraryGatewayError(
+          'unsupported',
+          'This browser cannot authorize an Export folder. Use the download fallback.',
+        );
+      }
+      try {
+        return await picker({ mode: 'readwrite' });
+      } catch (error) {
+        throwDirectoryError(error);
+      }
     },
     async listExportPaths(root) {
       const paths: string[] = [];
@@ -350,6 +495,14 @@ export function createBrowserLibraryDirectoryGateway(): LibraryDirectoryGateway 
       });
     },
     async readSourcePhotograph(root, relativePath) {
+      if (isBrowserLibraryDirectory(root)) {
+        const file = root.sourceFiles.get(relativePath);
+        if (file) return file;
+        throw new LibraryGatewayError(
+          'missing',
+          `The Source photograph at ${relativePath} is no longer available in this selected folder.`,
+        );
+      }
       const parts = normalizeRelativePath(relativePath);
       const fileName = parts.at(-1);
 
@@ -373,6 +526,7 @@ export function createBrowserLibraryDirectoryGateway(): LibraryDirectoryGateway 
       }
     },
     async requestPermission(root) {
+      if (isBrowserLibraryDirectory(root)) return 'granted';
       const permissionRoot = root as PermissionDirectoryHandle;
 
       if (permissionRoot.requestPermission) {
@@ -402,6 +556,14 @@ export function createBrowserLibraryDirectoryGateway(): LibraryDirectoryGateway 
       return this.getPermission(picker);
     },
     scanSourceFiles(root, signal) {
+      if (isBrowserLibraryDirectory(root)) {
+        return (async function* () {
+          for (const [relativePath, file] of root.sourceFiles) {
+            if (signal?.aborted) return;
+            yield { file, relativePath };
+          }
+        })();
+      }
       return walkSourceFiles(root, '', signal);
     },
   };

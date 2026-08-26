@@ -9,7 +9,7 @@ import {
   type LibraryWorkspaceSnapshot,
   type RecentLibraryEntry,
 } from './library/libraryApplication';
-import { createBrowserLibraryDirectoryGateway } from './library/libraryGateway';
+import { createBrowserLibraryDirectoryGateway, hasDirectoryPicker } from './library/libraryGateway';
 import {
   inspectLegacyState,
   importLegacyLooks,
@@ -43,14 +43,35 @@ function saveMigrationResolution(fingerprint: string): void {
   }
 }
 
-function downloadJson(value: unknown, fileName: string): void {
-  const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
+function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = fileName;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function downloadJson(value: unknown, fileName: string): void {
+  const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
+  downloadBlob(blob, fileName);
+}
+
+function pickLibraryBackup(): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.hidden = true;
+    const finish = (file: File | null) => {
+      input.remove();
+      resolve(file);
+    };
+    input.addEventListener('cancel', () => finish(null), { once: true });
+    input.addEventListener('change', () => finish(input.files?.[0] ?? null), { once: true });
+    document.body.append(input);
+    input.click();
+  });
 }
 
 function MigrationNotice({
@@ -100,6 +121,8 @@ function StartWorkspace({
   isLoading,
   isOpening,
   migration,
+  browserLibraryMode,
+  onImportBackup,
   onOpen,
   onOpenRecent,
   onReauthorize,
@@ -107,10 +130,12 @@ function StartWorkspace({
   recent,
   storageAvailable,
 }: {
+  browserLibraryMode: boolean;
   feedback: string | null;
   isLoading: boolean;
   isOpening: boolean;
   migration: LegacyMigrationState | null;
+  onImportBackup: () => void;
   onOpen: () => void;
   onOpenRecent: (id: string) => void;
   onReauthorize: (id: string) => void;
@@ -129,7 +154,7 @@ function StartWorkspace({
           <h1 id="library-start-title">Open a Library</h1>
           <p>
             Choose a shoot folder. Your Source photographs stay in place, and OpenFilm saves your
-            review beside them.
+            review {browserLibraryMode ? 'in this browser' : 'beside them'}.
           </p>
           <div className="library-start__primary-action">
             <Button disabled={isOpening} onClick={onOpen} variant="primary">
@@ -138,8 +163,21 @@ function StartWorkspace({
             <span>JPEG, PNG, or WebP</span>
           </div>
           <p className="library-start__format-note">
-            Library state is stored in <code>.openfilm/library.json</code>. No account or upload.
+            {browserLibraryMode ? (
+              <>
+                Browser Library state stays in this browser. Choose the folder again after a reload
+                and download a Library backup from More. No account or upload.
+              </>
+            ) : (
+              <>
+                Library state is stored in <code>.openfilm/library.json</code>. No account or
+                upload.
+              </>
+            )}
           </p>
+          <Button onClick={onImportBackup} size="small" variant="quiet">
+            Import Library backup
+          </Button>
         </section>
 
         <section aria-labelledby="recent-libraries-title" className="library-recent">
@@ -162,13 +200,13 @@ function StartWorkspace({
                     {entry.status.replaceAll('-', ' ')}
                   </span>
                   <div className="library-recent__action">
-                    {entry.status === 'reauthorize' ? (
+                    {entry.status === 'reauthorize' || entry.status === 'choose-folder' ? (
                       <Button
                         onClick={() => onReauthorize(entry.libraryId)}
                         size="small"
                         variant="quiet"
                       >
-                        Reauthorize
+                        {entry.status === 'choose-folder' ? 'Choose folder' : 'Reauthorize'}
                       </Button>
                     ) : entry.status !== 'missing-folder' ? (
                       <Button
@@ -191,8 +229,9 @@ function StartWorkspace({
         ) : null}
         {!storageAvailable ? (
           <p className="library-start__feedback" role="status">
-            Browser recovery storage is unavailable. Durable Library files still work while this tab
-            remains open.
+            {browserLibraryMode
+              ? 'Browser Library storage is unavailable. Changes last only while this tab remains open.'
+              : 'Browser recovery storage is unavailable. Durable Library files still work while this tab remains open.'}
           </p>
         ) : null}
         {feedback ? (
@@ -217,6 +256,7 @@ export default function App() {
   const [customLooks, setCustomLooks] = useState<StoredLook[]>([]);
   const storageRef = useRef<BrowserStorage | null>(null);
   const storageAvailable = hasBrowserStorage();
+  const browserLibraryMode = !hasDirectoryPicker();
 
   const refreshRecent = useCallback(async () => {
     const application = applicationRef.current;
@@ -350,6 +390,23 @@ export default function App() {
     [],
   );
 
+  async function importLibraryBackup() {
+    const application = applicationRef.current;
+    if (!application) return;
+    const file = await pickLibraryBackup();
+    if (!file) return;
+    try {
+      setFeedback(
+        await application.importBrowserLibraryBackup(new Uint8Array(await file.arrayBuffer())),
+      );
+      await refreshRecent();
+    } catch (error) {
+      setFeedback(
+        error instanceof Error ? error.message : 'OpenFilm could not import that Library backup.',
+      );
+    }
+  }
+
   async function resolveMigration(action: 'discard' | 'export-edit' | 'import-looks') {
     if (!migration || migration.kind !== 'action-required') return;
     const resolution = resolveLegacyMigration(migration, action);
@@ -373,10 +430,12 @@ export default function App() {
   if (!snapshot) {
     return (
       <StartWorkspace
+        browserLibraryMode={browserLibraryMode}
         feedback={feedback}
         isLoading={loading}
         isOpening={opening}
         migration={migration}
+        onImportBackup={() => void importLibraryBackup()}
         onOpen={() => void open(() => applicationRef.current!.openPickedFolder())}
         onOpenRecent={(id) => void open(() => applicationRef.current!.openRecentLibrary(id))}
         onReauthorize={(id) =>
@@ -408,6 +467,18 @@ export default function App() {
         const result = await application.commitCommand(() => library, message);
         await applyAction(Promise.resolve(result));
         return result.kind === 'updated' && result.snapshot.status === 'saved';
+      }}
+      onDownloadLibraryBackup={() => {
+        if (!application) return;
+        try {
+          const backup = application.downloadLibraryBackup();
+          downloadBlob(new Blob([backup.bytes.slice().buffer]), backup.fileName);
+          setFeedback('Downloaded a Library backup.');
+        } catch (error) {
+          setFeedback(
+            error instanceof Error ? error.message : 'OpenFilm could not download this Library.',
+          );
+        }
       }}
       onLoadSource={loadSource}
       onLoadComparisonThumbnail={loadComparisonThumbnail}

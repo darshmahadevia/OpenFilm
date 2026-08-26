@@ -89,8 +89,9 @@ navigation, and controls frame the proof; they do not compete with it.
 
 ## Product hierarchy
 
-The start surface does one job: create a Library, reopen a folder, or recover a recent Library. The
-workstation then keeps this order stable:
+The start surface does one job: create a Library, reopen a folder, recover a recent Library, or
+import a Library backup. Browsers without writable folder access name Browser Library persistence
+and folder reselection before the photographer begins. The workstation then keeps this order stable:
 
 1. Library identity, save state, and Export in the top bar.
 2. Ordering, Selection count, history, Edit, and Grid density in the command strip. Filters and
@@ -169,9 +170,9 @@ unsupported formats, universal performance, archival fidelity, or automatic qual
 Errors state the consequence and the next safe action. Empty states say which filter or Selection
 caused the result. Shortcuts remain discoverable through the `?` key and the More menu.
 
-Landing copy may state only shipped facts: local folder references, durable Library sidecars, the
-supported JPEG / PNG / WebP boundary, the shared WebGL2 path, bounded Export fallback, and the
-browser capability boundary.
+Landing copy may state only shipped facts: local folder references, durable Library sidecars,
+Browser Library persistence, the supported JPEG / PNG / WebP boundary, the shared WebGL2 path,
+bounded Export fallback, and the browser capability boundary.
 Do not turn the page's atmospheric photography into a claim about product performance or quality.
 
 **The Local Fact Rule.** Every landing-page claim must be traceable to the shipped workstation or
@@ -206,7 +207,8 @@ source of truth remains `src/ui/tokens.css`.
   proof, and final CTA.
 - **Do** keep the near-black ground, warm-white type, fine rules, Bodoni wordmark, precise sans-serif
   headings, and one restrained sand interaction signal across workstation and landing surfaces.
-- **Do** make local behavior, Library durability, recovery, and export language plain and visible.
+- **Do** make local behavior, Library durability, Browser Library limits, recovery, and Export
+  language plain and visible.
 - **Do** preserve the landing reading order: launch, proof, workflow, local architecture, final
   launch.
 - **Do** keep keyboard focus visible and browser launch links explicitly named.

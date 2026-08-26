@@ -2,8 +2,9 @@
 
 OpenFilm is one React tree built by Vite into a static landing page and browser workstation. There
 is no application server, analytics path, Source-photo upload, desktop shell, installer, or
-application update channel. The browser owns the directory handle, durable sidecars, transient image
-resources, and rendering context.
+application update channel. The browser owns folder authorization, Library persistence, transient
+image resources, and the rendering context. Writable folder access stores durable sidecars; Browser
+Library mode stores the same versioned Library envelope in IndexedDB.
 
 ## Boundaries
 
@@ -12,8 +13,9 @@ resources, and rendering context.
   exposes undo, redo, Retry, Save a copy, and Revert.
 - `src/library/libraryFile*.ts` owns canonical JSON, checksums, parent revisions, Web Locks, pending
   and previous slots, atomic commit phases, and conflict recovery.
-- `src/library/libraryGateway.ts` owns authorized folder enumeration, Source reads, and no-overwrite
-  Export writes. It excludes `.openfilm/` from Source discovery.
+- `src/library/libraryGateway.ts` owns folder selection, Source reads, and no-overwrite Export writes.
+  It prefers writable directory handles and falls back to a directory input with an in-memory Source
+  map. It excludes `.openfilm/` from Source discovery.
 - `src/library/libraryScanner.ts`, `libraryMetadata*.ts`, `libraryScheduler.ts`, and
   `libraryThumbnail.ts` own progressive discovery, bounded metadata reads, prioritized work,
   cancellation/retry generations, and disposable derivatives.
@@ -30,8 +32,9 @@ resources, and rendering context.
   quarantine, fingerprint resolution, and unique-hash move reconciliation.
 - `src/editor` owns normalized adjustments, RGB tone curves, Geometry, Looks, and rendering-safe Edit
   snapshots. `src/rendering` owns the shared WebGL2 preview/export pipeline and context lifecycle.
-- `src/storage` owns recent handles and recoverable working copies in IndexedDB. The Library sidecar
-  remains authoritative.
+- `src/storage` owns recent handles and recoverable working copies in IndexedDB. A sidecar remains
+  authoritative for a folder-access Library. IndexedDB stores the authoritative versioned envelope
+  for a Browser Library, whose Source folder is reselected after reload.
 - `src/App.tsx` owns the Library start surface. `src/library/AdaptiveLibraryWorkspace.tsx` composes
   Grid, Loupe, Comparison, inspector, groups, Export, recovery surfaces, and shortcuts. `src/ui`
   supplies tokens and controls.

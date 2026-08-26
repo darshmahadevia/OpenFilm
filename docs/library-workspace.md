@@ -1,21 +1,23 @@
 # Library workspace contract
 
 The Library workstation is OpenFilm's default and only shipped product surface. It remains static
-and local-first: the user authorizes one folder, Source photographs stay there, and OpenFilm stores
-versioned sidecars under `.openfilm/`.
+and local-first: the user selects one folder and Source photographs stay there. OpenFilm stores
+versioned sidecars under `.openfilm/` when writable folder access is available. Otherwise it creates
+a Browser Library in IndexedDB and asks for the Source folder again after reload.
 
 ## Authority and recovery
 
-`library.json` is the durable authority. `library.pending.json` and `library.previous.json` are
-recovery slots governed by the commit protocol. Every commit has a checksum, monotonically
-increasing revision, and parent revision. Validation covers the envelope and the typed Library
-document. An invalid, unsupported, or conflicting file opens read-only and is never replaced by a
-browser working copy.
+For a folder-access Library, `library.json` is the durable authority. `library.pending.json` and
+`library.previous.json` are recovery slots governed by the commit protocol. For a Browser Library,
+IndexedDB stores the authoritative versioned envelope and a downloadable backup carries that same
+envelope. Every commit has a checksum, monotonically increasing revision, and parent revision.
+Validation covers the envelope and the typed Library document. An invalid, unsupported, or
+conflicting file opens read-only and is never replaced by a working copy.
 
-IndexedDB stores recent directory handles, the last durable revision reference, and a recoverable
-working copy. That copy is an aid, not a second source of truth. User-visible outcomes are `Saved`,
-`Saving`, `Unsaved`, and `Read-only`. Unsaved state blocks another mutation until Retry, Save a copy,
-or Revert resolves it.
+IndexedDB also stores recent directory handles, the last durable revision reference, and recoverable
+working copies. A folder-access working copy is an aid, not a second source of truth. User-visible
+outcomes are `Saved`, `Saving`, `Unsaved`, and `Read-only`. Unsaved state blocks another mutation
+until Retry, Save a copy, or Revert resolves it.
 
 ## Discovery and Grid
 
@@ -69,8 +71,8 @@ collisions, optionally preserves Source folders, and records an explicit source-
 Folder writes refuse overwrite. A manifest records checksum, status, and failure per
 photograph; it is written before work and after every entry. Reopening the folder reconciles output
 checksums, skips valid results, and gives incomplete occupied paths a new collision-safe name rather
-than overwriting them. Cancel stops after the current photograph. A download fallback is capped at
-12 files and cannot resume after reload.
+than overwriting them. Cancel stops after the current photograph. Browser Library mode uses the
+download fallback, which is capped at 12 files and cannot resume after reload.
 
 All final-set images use the shared renderer. Output assumes sRGB, strips Source metadata, and does
 not claim archival or print fidelity.

@@ -35,6 +35,52 @@ function createDirectory(name: string): TestDirectory {
   return directory;
 }
 
+interface TestBrowserDirectory extends FileSystemDirectoryHandle {
+  openfilmBrowserDirectory: true;
+  sourceFiles: Map<string, File>;
+  store: MemoryLibraryFileStore;
+}
+
+function createBrowserDirectory(name: string, sources: LibrarySourceFile[]): TestBrowserDirectory {
+  return {
+    kind: 'directory',
+    name,
+    openfilmBrowserDirectory: true,
+    sourceFiles: new Map(sources.map((source) => [source.relativePath, source.file])),
+    store: createMemoryLibraryFileStore(),
+  } as unknown as TestBrowserDirectory;
+}
+
+function createBrowserGateway(picked: TestBrowserDirectory): LibraryDirectoryGateway {
+  return {
+    createFileStore(root) {
+      return (root as TestBrowserDirectory).store;
+    },
+    async getPermission() {
+      return 'granted';
+    },
+    async inspectRecentDirectory() {
+      return 'available';
+    },
+    async pickDirectory() {
+      return picked;
+    },
+    async readSourcePhotograph(root, relativePath) {
+      const file = (root as TestBrowserDirectory).sourceFiles.get(relativePath);
+      if (!file) throw new Error(`Missing Source photograph: ${relativePath}`);
+      return file;
+    },
+    async requestPermission() {
+      return 'granted';
+    },
+    async *scanSourceFiles(root) {
+      for (const [relativePath, file] of (root as TestBrowserDirectory).sourceFiles) {
+        yield { file, relativePath };
+      }
+    },
+  };
+}
+
 function createGateway(picked: TestDirectory): LibraryDirectoryGateway {
   return {
     createFileStore(root) {
@@ -109,6 +155,97 @@ describe('Library application boundary', () => {
       created: false,
       kind: 'opened',
       snapshot: { libraryId: opened.snapshot.libraryId, status: 'saved' },
+    });
+  });
+
+  it('restores a Browser Library after the user chooses the same folder again', async () => {
+    const source = new File(['jpeg bytes'], 'first.jpg', {
+      lastModified: 100,
+      type: 'image/jpeg',
+    });
+    const sources = [{ file: source, relativePath: 'first.jpg' }];
+    const storage = createMemoryStorage();
+    const firstDirectory = createBrowserDirectory('June shoot', sources);
+    const firstApp = new LibraryApplication(createBrowserGateway(firstDirectory), storage, {
+      lock: createMemoryLibraryLock(),
+      now: () => 100,
+    });
+
+    const opened = await firstApp.openPickedFolder();
+    await firstApp.scanLibrary();
+    const libraryId = firstApp.snapshot()?.libraryId;
+    const photographId = firstApp.snapshot()?.library?.photographs[0]?.id;
+
+    expect(opened.kind).toBe('opened');
+    expect(libraryId).toBeTruthy();
+    await expect(storage.loadLibraryRecovery(libraryId!)).resolves.toMatchObject({
+      accessMode: 'browser',
+      handle: null,
+      status: 'saved',
+    });
+    await expect(firstApp.listRecentLibraries()).resolves.toMatchObject([
+      { libraryId, status: 'choose-folder' },
+    ]);
+
+    firstApp.close();
+    const secondDirectory = createBrowserDirectory('June shoot', sources);
+    const secondApp = new LibraryApplication(createBrowserGateway(secondDirectory), storage, {
+      lock: createMemoryLibraryLock(),
+      now: () => 200,
+    });
+    const reopened = await secondApp.openPickedFolder();
+
+    expect(reopened).toMatchObject({
+      created: false,
+      kind: 'opened',
+      snapshot: { libraryId, status: 'saved' },
+    });
+    expect(secondApp.snapshot()?.library?.photographs[0]?.id).toBe(photographId);
+
+    secondApp.close();
+    const changedSources = [
+      {
+        file: new File(['changed jpeg bytes'], 'first.jpg', {
+          lastModified: 400,
+          type: 'image/jpeg',
+        }),
+        relativePath: 'first.jpg',
+      },
+    ];
+    const thirdDirectory = createBrowserDirectory('June shoot', changedSources);
+    const thirdApp = new LibraryApplication(createBrowserGateway(thirdDirectory), storage, {
+      lock: createMemoryLibraryLock(),
+      now: () => 300,
+    });
+    await expect(thirdApp.reauthorizeRecentLibrary(libraryId!)).resolves.toMatchObject({
+      kind: 'opened',
+      snapshot: { libraryId, status: 'saved' },
+    });
+  });
+
+  it('downloads and imports a verified Browser Library backup', async () => {
+    const { app } = createApplication();
+    const opened = await app.openPickedFolder();
+    if (opened.kind !== 'opened') throw new Error('The test Library did not open.');
+
+    const backup = app.downloadLibraryBackup();
+    const importedStorage = createMemoryStorage();
+    const importedApp = new LibraryApplication(
+      createGateway(createDirectory('Unused folder')),
+      importedStorage,
+      { lock: createMemoryLibraryLock(), now: () => 200 },
+    );
+
+    await expect(importedApp.importBrowserLibraryBackup(backup.bytes)).resolves.toMatch(
+      /Choose its Source folder/,
+    );
+    await expect(
+      importedStorage.loadLibraryRecovery(opened.snapshot.libraryId!),
+    ).resolves.toMatchObject({
+      accessMode: 'browser',
+      durableReference: opened.snapshot.revision,
+      handle: null,
+      working: opened.snapshot.library,
     });
   });
 

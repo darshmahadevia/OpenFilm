@@ -11,6 +11,8 @@ workstation.
 - Loupe, two-to-four-photo Comparison, non-destructive Edits, and atomic Look copy.
 - Deterministic Burst proposals and editable Review groups with provenance.
 - Collision-safe final-set Export with a resumable manifest and a bounded download fallback.
+- Browser Library mode for Brave, Safari, Firefox, and other browsers without writable folder access,
+  with folder reselection and Library backup download/import.
 - Explicit recovery for interrupted writes, permission loss, stale revisions, malformed state,
   migrations, Missing Sources, and WebGL2 loss.
 - A quieter start screen and workstation command bar with filters and secondary actions disclosed

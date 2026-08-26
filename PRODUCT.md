@@ -17,8 +17,8 @@ local shoot without an account, backend, or cloud transfer.
 ## Product purpose
 
 OpenFilm is a quiet, local-first Library workstation. It references JPEG, PNG, and WebP Source
-photographs in one authorized folder, stores durable review and Edit state beside that folder, and
-keeps the photographer's decisions explicit and recoverable.
+photographs in one authorized folder. It stores durable review and Edit state beside that folder when
+writable folder access is available, or in browser storage as a Browser Library when it is not.
 
 ## Primary journey
 
@@ -31,8 +31,9 @@ keeps the photographer's decisions explicit and recoverable.
 
 ## Capabilities and constraints
 
-- Library sidecars are authoritative. IndexedDB working copies and recent directory handles support
-  recovery but do not back up Source photographs.
+- Library sidecars are authoritative when writable directory handles are available. A Browser
+  Library keeps its versioned Library file in IndexedDB and supports backup download and import.
+  Neither mode backs up Source photographs.
 - Grid work is virtualized and scheduled. Source reads, thumbnails, metadata, analysis, rendering,
   and Export remain bounded by explicit capability or resource limits.
 - Loupe and Export share WebGL2 adjustment and Geometry semantics. Comparison uses resolution-limited
@@ -43,8 +44,9 @@ keeps the photographer's decisions explicit and recoverable.
   documented validation gate can be met.
 - Export assumes sRGB, strips Source metadata, and makes no archival or print-fidelity promise.
 - RAW, HEIC/HEIF, TIFF, cloud sync, accounts, analytics, and cross-device Libraries are out of scope.
-- The workstation has no update or installer network path. Browser support for directory handles,
-  IndexedDB, Web Workers, Canvas, and WebGL2 defines the supported runtime boundary.
+- The workstation has no update or installer network path. Current browsers need directory selection,
+  IndexedDB, Web Workers, Canvas, Web Crypto, and WebGL2. Writable directory handles add in-folder
+  sidecars and resumable folder Export; other browsers use Browser Library and download fallbacks.
 
 ## Brand commitments
 

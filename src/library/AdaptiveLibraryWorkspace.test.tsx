@@ -37,6 +37,7 @@ function props(
     onCancelScan: vi.fn(),
     onClose: vi.fn(),
     onCommit: vi.fn(async () => true),
+    onDownloadLibraryBackup: vi.fn(),
     onLoadSource: vi.fn(async () => new File(['image'], 'photo.jpg', { type: 'image/jpeg' })),
     onLoadComparisonThumbnail: vi.fn(() => new Promise<never>(() => undefined)),
     onLoadThumbnail: vi.fn(() => new Promise<never>(() => undefined)),

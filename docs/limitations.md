@@ -1,11 +1,13 @@
 # Browser and release limitations
 
-OpenFilm's measured release evidence comes from current Chromium on macOS. Windows and other
-Chromium browsers have not yet received the same hardware-specific performance and
-assistive-technology pass. OpenFilm depends on the File System Access API, IndexedDB, Web Workers,
-Canvas, and WebGL2. A browser without directory-handle support cannot open a durable Library. A lost
-WebGL2 context pauses rendered preview and Export until the browser restores the context or the page
-is reloaded. OpenFilm does not ship a desktop shell, installer, or application updater.
+OpenFilm's measured release evidence comes from current Chromium on macOS. Windows, Brave, Safari,
+Firefox, and other browsers have not yet received the same hardware-specific performance and
+assistive-technology pass. OpenFilm depends on directory selection, IndexedDB, Web Workers, Canvas,
+Web Crypto, and WebGL2. Browsers without writable directory handles use a Browser Library: they ask
+for the Source folder again after reload, keep the versioned Library file in browser storage, and
+cannot use resumable folder Export. A lost WebGL2 context pauses rendered preview and Export until
+the browser restores the context or the page is reloaded. OpenFilm does not ship a desktop shell,
+installer, or application updater.
 
 ## Formats and color
 
@@ -50,10 +52,12 @@ signals remain omitted.
 
 ## Recovery boundaries
 
-The `.openfilm/library.json` sidecar is authoritative. Pending and previous sidecars support
-interrupted-commit recovery; IndexedDB holds recent handles and a working copy. Neither is a backup
-of Source photographs. Permission loss, a conflicting revision, or an invalid sidecar produces an
-explicit read-only or unsaved state instead of silently replacing durable data.
+For a folder-access Library, `.openfilm/library.json` is authoritative. Pending and previous
+sidecars support interrupted-commit recovery; IndexedDB holds recent handles and a working copy. For
+a Browser Library, IndexedDB holds the authoritative versioned Library envelope and the photographer
+can download or import a Library backup. Neither mode backs up Source photographs. Permission loss,
+a conflicting revision, or an invalid Library file produces an explicit read-only or unsaved state
+instead of silently replacing durable data.
 
 Path plus cheap fingerprint preserves identity for unchanged Sources. Changed bytes at the same path
 create a new record and leave the previous record Missing. Explicit Refresh computes content hashes

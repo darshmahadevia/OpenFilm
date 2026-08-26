@@ -107,6 +107,31 @@ describe('browser storage', () => {
     await expect(storage.listLibraryRecoveries()).resolves.toEqual([]);
   });
 
+  it('stores a Browser Library file without a serializable directory handle', async () => {
+    const recovery = {
+      accessMode: 'browser' as const,
+      browserLibraryFile: new Uint8Array([1, 2, 3]),
+      durableReference: { checksum: 'b'.repeat(64), revision: 2 },
+      handle: null,
+      lastOpenedAt: 20,
+      libraryId: 'browser-library',
+      rootName: 'Brave shoot',
+      status: 'saved' as const,
+      working: createEmptyLibraryDocument('Brave shoot', {
+        libraryId: 'browser-library',
+        now: 20,
+      }),
+    };
+    const storage = createMemoryStorage();
+
+    await storage.saveLibraryRecovery(recovery);
+    await expect(storage.loadLibraryRecovery('browser-library')).resolves.toMatchObject({
+      accessMode: 'browser',
+      browserLibraryFile: new Uint8Array([1, 2, 3]),
+      handle: null,
+    });
+  });
+
   it('explains that a failed storage adapter does not end the editing session', () => {
     expect(describeStorageError('failed')).toContain('browser storage failed');
     expect(describeStorageError('unavailable')).toContain('does not provide IndexedDB');

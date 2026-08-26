@@ -24,6 +24,10 @@ _Avoid_: Catalog, collection, album
 The durable saved representation of a Library.
 _Avoid_: Database, project file, cache
 
+**Browser Library**:
+A Library whose Library file is kept in browser storage because the browser cannot write beside its Source photographs. Its Source folder must be chosen again after reload.
+_Avoid_: Temporary Library, fallback Library
+
 **Unsaved Library**:
 A Library whose latest command has not been durably saved. It remains viewable, but further changes wait for Retry, Save a copy, or Revert.
 _Avoid_: Dirty state, offline Library

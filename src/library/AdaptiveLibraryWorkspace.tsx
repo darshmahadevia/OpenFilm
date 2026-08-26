@@ -65,6 +65,7 @@ export interface AdaptiveLibraryWorkspaceProps {
   onCancelScan: () => void;
   onClose: () => void;
   onCommit: (document: OpenFilmLibraryDocument, message: string) => Promise<boolean>;
+  onDownloadLibraryBackup: () => void;
   onLoadSource: (relativePath: string, signal?: AbortSignal) => Promise<File>;
   onLoadComparisonThumbnail: (
     relativePath: string,
@@ -1227,6 +1228,9 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
                 variant="quiet"
               >
                 Keyboard shortcuts
+              </Button>
+              <Button onClick={props.onDownloadLibraryBackup} size="small" variant="quiet">
+                Download Library backup
               </Button>
               <Button onClick={props.onClose} size="small" variant="quiet">
                 Libraries

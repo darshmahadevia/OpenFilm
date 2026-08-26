@@ -1,6 +1,8 @@
 import {
   getLibraryRevisionReference,
   sameLibraryRevision,
+  serializeLibraryFile,
+  verifySerializedLibraryFile,
   type LibraryDocument,
   type LibraryRevisionReference,
 } from './libraryFile';
@@ -32,8 +34,12 @@ import type { ExportFormat } from '../rendering/export';
 import type { LibraryPhotographRecord } from './libraryModel';
 import { ByteBudgetedResourceCache } from './libraryResourceCache';
 import {
+  countBrowserLibrarySourceMatches,
+  getBrowserLibraryFile,
+  isBrowserLibraryDirectory,
   LibraryGatewayError,
   LibraryPickerCancelledError,
+  restoreBrowserLibraryFile,
   type LibraryDirectoryAvailability,
   type LibraryDirectoryGateway,
 } from './libraryGateway';
@@ -44,7 +50,7 @@ import type {
 } from '../storage/browserStorage';
 
 export type RecentLibraryStatus =
-  'missing-folder' | 'reauthorize' | 'read-only' | 'ready' | 'unsaved-recovery';
+  'choose-folder' | 'missing-folder' | 'reauthorize' | 'read-only' | 'ready' | 'unsaved-recovery';
 
 export interface RecentLibraryEntry {
   lastOpenedAt: number;
@@ -167,6 +173,35 @@ export class LibraryApplication {
 
   historyStatus(): { canRedo: boolean; canUndo: boolean } {
     return { canRedo: this.redoStack.length > 0, canUndo: this.undoStack.length > 0 };
+  }
+
+  downloadLibraryBackup(): { bytes: Uint8Array; fileName: string } {
+    const active = this.active;
+    const durable = active?.session.snapshot().durable;
+    if (!active || !durable) throw new Error('Open a saved Library before downloading a backup.');
+    return {
+      bytes: serializeLibraryFile(durable),
+      fileName: `${active.rootName.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-|-$/g, '') || 'openfilm'}-library.json`,
+    };
+  }
+
+  async importBrowserLibraryBackup(bytes: Uint8Array): Promise<string> {
+    const envelope = await verifySerializedLibraryFile(bytes);
+    if (!isOpenFilmLibraryDocument(envelope.library)) {
+      throw new Error('That file does not contain a supported OpenFilm Library.');
+    }
+    await this.storage.saveLibraryRecovery({
+      accessMode: 'browser',
+      browserLibraryFile: new Uint8Array(bytes),
+      durableReference: getLibraryRevisionReference(envelope),
+      handle: null,
+      lastOpenedAt: this.now(),
+      libraryId: envelope.library.libraryId,
+      rootName: envelope.library.rootName,
+      status: 'saved',
+      working: envelope.library,
+    });
+    return `Imported ${envelope.library.rootName}. Choose its Source folder to open the Library.`;
   }
 
   resourceStatus(): {
@@ -553,6 +588,26 @@ export class LibraryApplication {
     this.active?.scanAbortController?.abort();
   }
 
+  private async findBrowserRecovery(
+    root: FileSystemDirectoryHandle,
+  ): Promise<StoredLibraryRecovery | null> {
+    if (!isBrowserLibraryDirectory(root)) return null;
+    const candidates = (await this.storage.listLibraryRecoveries()).filter(
+      (recovery) => recovery.accessMode === 'browser' && recovery.rootName === root.name,
+    );
+    if (candidates.length === 1) return candidates[0]!;
+    const ranked = candidates
+      .map((recovery) => ({
+        recovery,
+        score: countBrowserLibrarySourceMatches(root, recovery.working.photographs),
+      }))
+      .filter(({ score }) => score > 0)
+      .sort((first, second) => second.score - first.score);
+
+    if (ranked.length === 0 || (ranked[1] && ranked[0]!.score === ranked[1].score)) return null;
+    return ranked[0]!.recovery;
+  }
+
   async listRecentLibraries(): Promise<RecentLibraryEntry[]> {
     const stored = await this.storage.listLibraryRecoveries();
 
@@ -579,7 +634,11 @@ export class LibraryApplication {
   async openPickedFolder(): Promise<LibraryOpenResult> {
     try {
       const root = await this.gateway.pickDirectory();
-      return await this.openRoot(root, null, true);
+      const recovery = await this.findBrowserRecovery(root);
+      if (recovery?.accessMode === 'browser') {
+        await restoreBrowserLibraryFile(root, recovery.browserLibraryFile);
+      }
+      return await this.openRoot(root, recovery, true);
     } catch (error) {
       if (error instanceof LibraryGatewayError && error.kind === 'permission-denied') {
         return {
@@ -606,6 +665,15 @@ export class LibraryApplication {
         kind: 'missing-folder',
         libraryId,
         rootName: 'Library',
+      };
+    }
+
+    if (recovery.accessMode === 'browser') {
+      return {
+        kind: 'reauthorize',
+        libraryId: recovery.libraryId,
+        message: 'Choose this Library folder again so OpenFilm can read its Source photographs.',
+        rootName: recovery.rootName,
       };
     }
 
@@ -640,6 +708,31 @@ export class LibraryApplication {
         libraryId,
         rootName: 'Library',
       };
+    }
+
+    if (recovery.accessMode === 'browser') {
+      try {
+        const root = await this.gateway.pickDirectory();
+        const matches = countBrowserLibrarySourceMatches(root, recovery.working.photographs);
+        if (
+          !isBrowserLibraryDirectory(root) ||
+          (root.name !== recovery.rootName &&
+            recovery.working.photographs.length > 0 &&
+            matches === 0)
+        ) {
+          return {
+            kind: 'reauthorize',
+            libraryId,
+            message: 'That folder does not match this Browser Library. Choose the original folder.',
+            rootName: recovery.rootName,
+          };
+        }
+        await restoreBrowserLibraryFile(root, recovery.browserLibraryFile);
+        return await this.openRoot(root, recovery, false);
+      } catch (error) {
+        if (error instanceof LibraryPickerCancelledError) return { kind: 'cancelled' };
+        throw error;
+      }
     }
 
     const permission = await this.gateway.requestPermission(recovery.handle);
@@ -1011,15 +1104,35 @@ export class LibraryApplication {
     }
 
     const durable = active.session.snapshot().durable;
-    const recovery: StoredLibraryRecovery = {
+    const common = {
       durableReference: getLibraryRevisionReference(durable),
-      handle: active.handle,
       lastOpenedAt: this.now(),
       libraryId: active.snapshot.library.libraryId,
       rootName: active.rootName,
       status: this.toStoredStatus(active.snapshot.status),
       working: active.snapshot.library,
     };
+    let recovery: StoredLibraryRecovery;
+
+    if (isBrowserLibraryDirectory(active.handle)) {
+      const browserLibraryFile = getBrowserLibraryFile(active.handle);
+      if (!browserLibraryFile) {
+        throw new Error('OpenFilm could not save this Browser Library in recovery storage.');
+      }
+      recovery = {
+        ...common,
+        accessMode: 'browser',
+        browserLibraryFile,
+        handle: null,
+      };
+    } else {
+      recovery = {
+        ...common,
+        accessMode: 'directory',
+        browserLibraryFile: null,
+        handle: active.handle,
+      };
+    }
 
     await this.storage.saveLibraryRecovery(recovery);
   }
@@ -1029,6 +1142,8 @@ export class LibraryApplication {
   }
 
   private async getRecentStatus(recovery: StoredLibraryRecovery): Promise<RecentLibraryStatus> {
+    if (recovery.accessMode === 'browser') return 'choose-folder';
+
     const availability: LibraryDirectoryAvailability = await this.gateway.inspectRecentDirectory(
       recovery.handle,
     );

@@ -8,6 +8,8 @@ describe('OpenFilm workstation entry', () => {
     expect(screen.getByRole('heading', { name: 'Open a Library' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open folder' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Recent Libraries' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Import Library backup' })).toBeInTheDocument();
+    expect(screen.getByText(/Browser Library state stays in this browser/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /sample/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /choose a photo/i })).not.toBeInTheDocument();
     expect(screen.getByText(/no account or upload/i)).toBeInTheDocument();
