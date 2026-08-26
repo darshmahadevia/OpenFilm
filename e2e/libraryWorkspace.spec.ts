@@ -309,6 +309,24 @@ test.describe('Library start and recovery journey', () => {
     await activeButton.focus();
     await page.keyboard.press('Shift+ArrowRight');
     await expect(page.getByLabel(/Selection count: 2/)).toBeVisible();
+    const selectionFrame = await page
+      .locator('.library-grid__cell--selected')
+      .first()
+      .evaluate((cell) => {
+        const style = getComputedStyle(cell, '::after');
+        return {
+          content: style.content,
+          inset: style.inset,
+          pointerEvents: style.pointerEvents,
+          position: style.position,
+        };
+      });
+    expect(selectionFrame).toEqual({
+      content: '""',
+      inset: '0px',
+      pointerEvents: 'none',
+      position: 'absolute',
+    });
     await page.keyboard.press('c');
     await expect(page.locator('.comparison-pane')).toHaveCount(2);
     await expect(page.locator('.comparison-pane canvas')).toHaveCount(2);
