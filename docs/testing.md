@@ -44,7 +44,7 @@ see [limitations](./limitations.md).
 
 ## Manual release pass
 
-Before publishing, repeat these checks in the packaged Chromium runtime on macOS and Windows. The
+Before publishing, repeat these checks in current desktop Chromium on macOS and Windows. The
 recorded performance baseline remains macOS-specific:
 
 1. Navigate the complete start, Grid, Loupe, Comparison, inspector, groups, Export, and recovery
@@ -59,7 +59,9 @@ recorded performance baseline remains macOS-specific:
    understandable without decorative motion.
 5. Exercise an unsupported file, decode failure, missing Source, lost WebGL2 context, storage failure,
    conflicting revision, permission loss, cancelled scan, cancelled Export, and failed Export entry.
-6. Check the generated screenshots, asset provenance sidecars, README, release notes, and limitations
+6. Confirm the landing page opens `app.html`, no installer or update language remains, and unsupported
+   browsers receive an honest capability error.
+7. Check the generated screenshots, asset provenance sidecars, README, release notes, and limitations
    for claims that exceed the measured evidence.
 
 Automated accessibility checks and semantic inspection reduce risk but are not WCAG certification or

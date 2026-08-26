@@ -1,30 +1,12 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import workstationScreenshot from '../../docs/screenshots/openfilm-workstation-wide.png';
 import closingCoast from '../assets/openfilm-closing-coast.webp';
 import darkroomHero from '../assets/openfilm-darkroom-hero.webp';
 import coastalValley from '../assets/openfilm-landing-coastal-valley.webp';
 import comparisonStreet from '../assets/openfilm-comparison-street.webp';
-import { detectDesktopPlatform } from './platform';
 
-const releases = {
-  macOS: { asset: 'OpenFilm.dmg', detail: 'Universal DMG · unsigned preview' },
-  Windows: { asset: 'OpenFilm-Setup.exe', detail: '64-bit installer · unsigned preview' },
-} as const;
-const releaseBaseUrl = 'https://github.com/darshmahadevia/OpenFilm/releases/latest/download';
 const repositoryUrl = 'https://github.com/darshmahadevia/OpenFilm';
-
-function useDesktopPlatform() {
-  return useMemo(() => detectDesktopPlatform(navigator.userAgent, navigator.platform), []);
-}
-
-function DownloadIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-      <path d="M12 3v12m0 0 4.5-4.5M12 15l-4.5-4.5M5 21h14" />
-    </svg>
-  );
-}
 
 function ArrowIcon() {
   return (
@@ -77,7 +59,7 @@ function FilmStrip() {
   );
 }
 
-function SiteHeader({ download = false }: { download?: boolean }) {
+function SiteHeader() {
   return (
     <header className="site-header">
       <a className="landing-skip" href="#main-content">
@@ -87,12 +69,12 @@ function SiteHeader({ download = false }: { download?: boolean }) {
         OpenFilm
       </a>
       <nav aria-label="Main navigation" className="landing-nav">
-        <a href={download ? '/#workstation' : '#workstation'}>Workstation</a>
-        <a href={download ? '/#workflow' : '#workflow'}>Workflow</a>
+        <a href="#workstation">Workstation</a>
+        <a href="#workflow">Workflow</a>
         <a href={repositoryUrl}>Source</a>
       </nav>
-      <a className="header-download" href="/download">
-        {download ? 'Choose a platform' : 'Download'} <ArrowIcon />
+      <a className="header-launch" href="/app.html">
+        Open OpenFilm <ArrowIcon />
       </a>
       <span className="header-coming-soon">Coming soon</span>
     </header>
@@ -115,16 +97,8 @@ function SiteFooter() {
   );
 }
 
-function ProofFrame({
-  compact = false,
-  cropped = false,
-}: {
-  compact?: boolean;
-  cropped?: boolean;
-}) {
-  const classes = ['proof-frame', compact && 'proof-frame--compact', cropped && 'proof-frame--crop']
-    .filter(Boolean)
-    .join(' ');
+function ProofFrame({ cropped = false }: { cropped?: boolean }) {
+  const classes = ['proof-frame', cropped && 'proof-frame--crop'].filter(Boolean).join(' ');
   return (
     <figure className={classes}>
       <div className="landing-window-bar" aria-hidden="true">
@@ -140,97 +114,6 @@ function ProofFrame({
         />
       </div>
     </figure>
-  );
-}
-
-export function DownloadPage() {
-  const detectedPlatform = useDesktopPlatform();
-  const recommendation = detectedPlatform === 'unsupported' ? null : detectedPlatform;
-  return (
-    <div className="landing-page download-page">
-      <SiteHeader download />
-      <main id="main-content">
-        <section className="download-hero">
-          <div className="download-hero__copy">
-            <p className="download-status" aria-live="polite">
-              {recommendation
-                ? `${recommendation} detected. This build is recommended for your computer.`
-                : 'Choose the desktop build that matches your computer.'}
-            </p>
-            <h1>Bring the whole shoot to your desktop.</h1>
-            <p>
-              OpenFilm is free, open-source, and distributed through GitHub Releases. The current
-              preview is unsigned, so your operating system may ask you to confirm the first launch.
-            </p>
-          </div>
-          <div aria-label="OpenFilm desktop downloads" className="download-options" role="group">
-            {(Object.keys(releases) as Array<keyof typeof releases>).map((platform) => {
-              const release = releases[platform];
-              const recommended = recommendation === platform;
-              return (
-                <article
-                  className={recommended ? 'download-option is-recommended' : 'download-option'}
-                  key={platform}
-                >
-                  <div>
-                    <h2>{platform}</h2>
-                    {recommended && <span className="recommended-label">Recommended</span>}
-                  </div>
-                  <p>{release.detail}</p>
-                  <a className="landing-download" href={`${releaseBaseUrl}/${release.asset}`}>
-                    Download for {platform} <DownloadIcon />
-                  </a>
-                  <small>{release.asset}</small>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-        <section className="download-notes">
-          <div>
-            <h2>Before you install.</h2>
-            <p>
-              OpenFilm does not use a paid signing certificate yet. On macOS, open the DMG, drag
-              OpenFilm to Applications, then control-click the app and choose Open if Gatekeeper
-              blocks the first launch. On Windows, confirm the SmartScreen prompt only after
-              checking that the installer came from this project’s GitHub Release.
-            </p>
-          </div>
-          <dl>
-            <div>
-              <dt>Release source</dt>
-              <dd>GitHub Releases</dd>
-            </div>
-            <div>
-              <dt>Cost</dt>
-              <dd>Free</dd>
-            </div>
-            <div>
-              <dt>License</dt>
-              <dd>MIT</dd>
-            </div>
-            <div>
-              <dt>Updates</dt>
-              <dd>Download requires approval</dd>
-            </div>
-          </dl>
-        </section>
-        <section className="download-proof">
-          <div>
-            <h2>See what you are installing.</h2>
-            <p>
-              A focused workstation for Grid review, Loupe, Comparison, non-destructive Edit, and
-              Export.
-            </p>
-          </div>
-          <ProofFrame compact />
-          <a className="landing-text-link" href="/#workstation">
-            Explore the workstation <ArrowIcon />
-          </a>
-        </section>
-      </main>
-      <SiteFooter />
-    </div>
   );
 }
 
@@ -252,13 +135,14 @@ export function HomePage() {
             </h1>
             <div className="landing-hero__details">
               <p>
-                A desktop workstation for culling, comparing, editing, and exporting a folder of
+                A browser workstation for culling, comparing, editing, and exporting a folder of
                 photographs. No account. No upload path.
               </p>
               <div className="landing-hero__actions">
-                <a className="landing-download" href="/download">
-                  Download OpenFilm <ArrowIcon />
+                <a className="landing-launch landing-launch--desktop" href="/app.html">
+                  Open OpenFilm <ArrowIcon />
                 </a>
+                <span className="landing-launch landing-launch--mobile-status">Coming soon</span>
                 <a className="landing-text-link" href="#workstation">
                   See the workstation <ArrowIcon />
                 </a>
@@ -285,7 +169,7 @@ export function HomePage() {
             <h2>A contact sheet that remembers.</h2>
             <p>
               Ratings, Picks, Rejects, Selection, Looks, and Geometry stay with the Library. Close
-              the app, reopen the folder, and continue the review.
+              the browser, reopen the folder, and continue the review.
             </p>
           </div>
           <ProofFrame cropped />
@@ -340,9 +224,9 @@ export function HomePage() {
           <div className="landing-local__copy">
             <h2>Your files never need to leave the machine.</h2>
             <p>
-              OpenFilm has no account system, application backend, or analytics. The installed app
-              contacts GitHub Releases for update checks and user-approved installer downloads.
-              Source photographs and Library state are never sent there.
+              OpenFilm has no account system, application backend, analytics, or upload path. The
+              browser reads Source photographs only after you choose their folder. Source
+              photographs and Library state stay on your machine.
             </p>
             <dl>
               <div>
@@ -369,9 +253,10 @@ export function HomePage() {
           <div className="landing-closing__content">
             <h2>The shoot stays yours.</h2>
             <p>Open the folder. Make the decisions. Export the photographs.</p>
-            <a className="landing-download" href="/download">
-              Choose your download <ArrowIcon />
+            <a className="landing-launch landing-launch--desktop" href="/app.html">
+              Open OpenFilm <ArrowIcon />
             </a>
+            <span className="landing-launch landing-launch--mobile-status">Coming soon</span>
           </div>
         </section>
       </main>
@@ -381,5 +266,5 @@ export function HomePage() {
 }
 
 export default function Landing() {
-  return window.location.pathname.startsWith('/download') ? <DownloadPage /> : <HomePage />;
+  return <HomePage />;
 }

@@ -329,12 +329,12 @@
   },
   "components": [
     {
-      "name": "Download Link",
+      "name": "Browser Launch Link",
       "kind": "button",
-      "refersTo": "download-link",
+      "refersTo": "browser-launch-link",
       "description": "The squared sand action used in the landing hero, header, and closing photograph.",
-      "html": "<a class=\"ds-download\" href=\"#\"><span>Download for macOS</span><svg aria-hidden=\"true\" fill=\"none\" viewBox=\"0 0 24 24\"><path d=\"M12 3v12m0 0 4.5-4.5M12 15l-4.5-4.5M5 21h14\" /></svg></a>",
-      "css": ".ds-download { align-items: center; background: var(--color-accent); border: 1px solid var(--color-accent); color: var(--color-accent-ink); display: inline-flex; font: 600 0.8rem/1 var(--font-body); gap: 2.2rem; min-height: 3.2rem; padding: 0.75rem 0.85rem 0.75rem 1.05rem; text-decoration: none; text-transform: uppercase; } .ds-download svg { stroke: currentColor; stroke-width: 1.5; width: 1.15rem; } .ds-download:hover { background: transparent; color: var(--color-accent); } .ds-download:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 4px; }"
+      "html": "<a class=\"ds-launch\" href=\"/app.html\"><span>Open OpenFilm</span><svg aria-hidden=\"true\" fill=\"none\" viewBox=\"0 0 24 24\"><path d=\"M5 12h13m-5-5 5 5-5 5\" /></svg></a>",
+      "css": ".ds-launch { align-items: center; background: var(--color-accent); border: 1px solid var(--color-accent); color: var(--color-accent-ink); display: inline-flex; font: 600 0.8rem/1 var(--font-body); gap: 2.2rem; min-height: 3.2rem; padding: 0.75rem 0.85rem 0.75rem 1.05rem; text-decoration: none; text-transform: uppercase; } .ds-launch svg { stroke: currentColor; stroke-width: 1.5; width: 1.15rem; } .ds-launch:hover { background: transparent; color: var(--color-accent); } .ds-launch:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 4px; }"
     },
     {
       "name": "Primary Button",
@@ -355,7 +355,7 @@
   ],
   "narrative": {
     "northStar": "Matte Proof Studio",
-    "overview": "OpenFilm is primarily a working surface. Near-black chrome, warm-white type, fine rules, and one restrained sand signal frame the Source photograph. The download site uses the same world at editorial scale, with real workstation proof, full-bleed photography, and factual product language.",
+    "overview": "OpenFilm is primarily a working surface. Near-black chrome, warm-white type, fine rules, and one restrained sand signal frame the Source photograph. The landing page uses the same world at editorial scale, with real workstation proof, full-bleed photography, and factual product language.",
     "keyCharacteristics": [
       "Matte near-black chrome, warm-white type, fine rules, and a restrained sand signal.",
       "OpenFilm Bodoni display paired with Helvetica Neue interface copy and tabular numeric values.",
@@ -385,15 +385,15 @@
       },
       {
         "name": "The Local Fact Rule",
-        "body": "Every download-page claim must be traceable to the shipped workstation or its documented release boundary; atmosphere never stands in for evidence.",
+        "body": "Every landing-page claim must be traceable to the shipped workstation or its documented browser boundary; atmosphere never stands in for evidence.",
         "section": "content"
       }
     ],
     "dos": [
       "Do make a real photograph the strongest object in the landing first viewport, workstation proof, and final CTA.",
-      "Do keep the near-black ground, warm-white type, fine rules, OpenFilm Bodoni display, and one restrained sand interaction signal across workstation and download surfaces.",
+      "Do keep the near-black ground, warm-white type, fine rules, OpenFilm Bodoni display, and one restrained sand interaction signal across workstation and landing surfaces.",
       "Do make local behavior, Library durability, recovery, and export language plain and visible.",
-      "Do keep keyboard focus visible and the compact mobile download link semantically named."
+      "Do keep keyboard focus visible and browser launch links explicitly named."
     ],
     "donts": [
       "Don't use gradients, glass effects, blur-backed panels, ornamental dashboards, fake metrics, testimonials, account or cloud claims, or a second accent family.",

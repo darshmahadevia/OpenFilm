@@ -4,11 +4,10 @@
 
 ## Platform
 
-adaptive
+web
 
-The workstation ships in a sandboxed Electron desktop shell for macOS and Windows, and Vite also
-produces a browser build. The public web root is a product overview, with a separate
-operating-system-aware download route.
+Vite ships a static landing page and browser workstation. The landing page opens the workstation at
+`app.html`; there are no platform installers, desktop packages, or application update path.
 
 ## Users
 
@@ -44,8 +43,8 @@ keeps the photographer's decisions explicit and recoverable.
   documented validation gate can be met.
 - Export assumes sRGB, strips Source metadata, and makes no archival or print-fidelity promise.
 - RAW, HEIC/HEIF, TIFF, cloud sync, accounts, analytics, and cross-device Libraries are out of scope.
-- Installed builds may contact GitHub Releases for update checks and installer downloads. They ask
-  before downloading, and this network path never receives Source photographs or Library state.
+- The workstation has no update or installer network path. Browser support for directory handles,
+  IndexedDB, Web Workers, Canvas, and WebGL2 defines the supported runtime boundary.
 
 ## Brand commitments
 
@@ -55,7 +54,7 @@ keeps the photographer's decisions explicit and recoverable.
 - Use product vocabulary from `CONTEXT.md` and calm, factual recovery language.
 - Avoid gradients, glass effects, ornamental dashboards, marketing slogans, fake activity, social
   proof, or claims beyond recorded evidence.
-- The download page may use a larger editorial scale than the workstation, but it keeps the same
+- The landing page may use a larger editorial scale than the workstation, but it keeps the same
   palette, type, photographic authority, and factual product language.
 
 ## Accessibility

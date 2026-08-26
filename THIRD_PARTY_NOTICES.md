@@ -5,9 +5,8 @@ OpenFilm uses the direct npm dependencies below. Versions are pinned by
 transitive dependency graph and its license metadata. Running `npm ci` installs
 the package license files under `node_modules`.
 
-OpenFilm does not ship remote fonts, stock images, analytics scripts, or a
-third-party update client. The installed app reads release metadata and
-installers from GitHub Releases. The bundled sample photograph is project-owned
+OpenFilm does not ship remote fonts, stock images, analytics scripts, an update
+client, or platform installers. The bundled sample photograph is project-owned
 fixture data used for automated browser tests.
 
 ## Runtime dependencies

@@ -4,7 +4,7 @@ Verdict: **Conditional pass on the verified target**. The workstation paths belo
 release remains gated on a 2,000-file independent-content/storage-throughput run and the documented
 analysis-validation corpus.
 
-Evidence was collected on 2026-08-25 in current bundled Chromium on a MacBook Air with Apple M4,
+Evidence was collected on 2026-08-25 in current desktop Chromium on a MacBook Air with Apple M4,
 10 CPU cores, and 16 GB memory. The repository state under review is the change set after `e38f6d0`.
 Machine identifiers are intentionally omitted.
 

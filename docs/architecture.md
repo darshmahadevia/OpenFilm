@@ -1,9 +1,9 @@
 # Architecture
 
-OpenFilm is one React tree built by Vite into static files. There is no application server,
-analytics path, or Source-photo upload. The browser owns the directory handle, durable sidecars,
-transient image resources, and rendering context. The installed Electron shell separately contacts
-GitHub Releases for update metadata and installer downloads.
+OpenFilm is one React tree built by Vite into a static landing page and browser workstation. There
+is no application server, analytics path, Source-photo upload, desktop shell, installer, or
+application update channel. The browser owns the directory handle, durable sidecars, transient image
+resources, and rendering context.
 
 ## Boundaries
 
@@ -35,8 +35,8 @@ GitHub Releases for update metadata and installer downloads.
 - `src/App.tsx` owns the Library start surface. `src/library/AdaptiveLibraryWorkspace.tsx` composes
   Grid, Loupe, Comparison, inspector, groups, Export, recovery surfaces, and shortcuts. `src/ui`
   supplies tokens and controls.
-- `electron/updater.mjs` owns update checks, consent-based downloads, progress, and installer launch. A
-  sandboxed preload bridge exposes only updater commands and state; the renderer has no general IPC.
+- `src/landing/Landing.tsx` owns the public product story and opens the workstation at `app.html` on
+  supported desktop browser layouts.
 
 ## State and command flow
 
@@ -80,7 +80,7 @@ concurrency and retry; caches enforce byte budgets rather than entry counts.
 - Rendering: `src/rendering/renderer.test.ts`, `src/rendering/export.test.ts`, and Loupe browser paths
 - Product workflow and accessibility: `e2e/firstImportExport.spec.ts` and
   `e2e/libraryWorkspace.spec.ts`
-- Desktop updates: `electron/updater.test.mjs` and `src/updates/DesktopUpdateNotice.test.tsx`
+- Landing and browser entry: `src/landing/Landing.test.tsx` and `e2e/landing.spec.ts`
 - Scale: `e2e/performance.spec.ts` plus `scripts/generate-performance-corpus.mjs`
 - Visual evidence: `e2e/visualEvidence.spec.ts` and tracked screenshots under `docs/screenshots/`
 

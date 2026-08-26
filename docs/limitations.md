@@ -1,18 +1,11 @@
 # Browser and release limitations
 
-OpenFilm's measured release evidence comes from current Chromium on macOS. The desktop shell ships
-the same bundled Chromium runtime on macOS and Windows, but the Windows package has not yet received
-the same hardware-specific performance and assistive-technology pass. OpenFilm depends on the File
-System Access API, IndexedDB, Web Workers, Canvas, and WebGL2. A browser without directory-handle
-support cannot open a durable Library. A lost WebGL2 context pauses rendered preview and Export until
-the browser restores
-the context or the page is reloaded.
-
-## Desktop updates
-
-Version 0.1.0 cannot update itself and needs one manual replacement. Version 0.2.0 and later can
-check GitHub Releases, ask before downloading, and open the downloaded platform installer. The app
-does not replace itself. Gatekeeper or SmartScreen may ask the user to confirm unsigned installers.
+OpenFilm's measured release evidence comes from current Chromium on macOS. Windows and other
+Chromium browsers have not yet received the same hardware-specific performance and
+assistive-technology pass. OpenFilm depends on the File System Access API, IndexedDB, Web Workers,
+Canvas, and WebGL2. A browser without directory-handle support cannot open a durable Library. A lost
+WebGL2 context pauses rendered preview and Export until the browser restores the context or the page
+is reloaded. OpenFilm does not ship a desktop shell, installer, or application updater.
 
 ## Formats and color
 

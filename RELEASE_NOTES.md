@@ -1,7 +1,7 @@
 # OpenFilm Library Workstation
 
-This release replaces the single-photo landing/editor path with the local-first Library workstation
-and adds desktop packages for universal macOS and x64 Windows systems.
+This release replaces the single-photo landing/editor path with the local-first browser Library
+workstation.
 
 ## Highlights
 
@@ -15,7 +15,6 @@ and adds desktop packages for universal macOS and x64 Windows systems.
   migrations, Missing Sources, and WebGL2 loss.
 - A quieter start screen and workstation command bar with filters and secondary actions disclosed
   only when needed.
-- Consent-based desktop update checks, visible download progress, and platform installer launch.
 - Accessibility, responsive-layout, reduced-motion, visual-evidence, anti-slop, and 2,000-record
   performance gates.
 
@@ -26,8 +25,7 @@ Similarity and Sharpness models are implemented and tested but do not appear in 
 a rights-cleared validation corpus meets the documented precision/recall gate. Export assumes sRGB,
 strips Source metadata, and is not an archival or print-fidelity workflow. Measured performance and
 assistive-technology evidence comes from current Chromium on macOS; results do not imply universal
-browser or device support. The first macOS and Windows preview packages are unsigned. The desktop
-updater downloads the current platform installer, then opens it so the user can replace the existing
-app.
+browser or device support. OpenFilm does not ship a desktop shell, platform installer, or application
+updater.
 
 See [release evidence](./docs/release-evidence.md) and [limitations](./docs/limitations.md).

@@ -1,8 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test.describe('desktop download landing page', () => {
-  test('states the product boundary and links to both desktop releases', async ({ page }) => {
+test.describe('browser landing page', () => {
+  test('states the product boundary and opens the browser workstation', async ({ page }) => {
     await page.goto('/');
 
     await expect(
@@ -10,43 +10,32 @@ test.describe('desktop download landing page', () => {
         name: 'Review the whole shoot. Keep every photograph local.',
       }),
     ).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Download for macOS' }).first()).toHaveAttribute(
+    await expect(page.getByRole('link', { name: 'Open OpenFilm' }).first()).toHaveAttribute(
       'href',
-      /releases\/latest\/download\/OpenFilm\.dmg$/,
-    );
-    await expect(page.getByRole('link', { name: 'Download for Windows' }).first()).toHaveAttribute(
-      'href',
-      /releases\/latest\/download\/OpenFilm-Setup\.exe$/,
+      '/app.html',
     );
     await expect(
-      page.getByText(/contacts GitHub Releases only to check for updates/i),
+      page.getByText(/no account system, application backend, analytics, or upload path/i),
     ).toBeVisible();
 
     const accessibility = await new AxeBuilder({ page }).analyze();
     expect(accessibility.violations).toEqual([]);
   });
 
-  test('shows the coming-soon view inside phone and tablet viewports', async ({ page }) => {
-    for (const viewport of [
-      { width: 390, height: 844 },
-      { width: 1024, height: 768 },
-    ]) {
-      await page.setViewportSize(viewport);
-      await page.goto('/');
+  test('marks the workstation as coming soon on mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
 
-      const dimensions = await page.evaluate(() => ({
-        clientWidth: document.documentElement.clientWidth,
-        scrollWidth: document.documentElement.scrollWidth,
-      }));
+    await expect(page.getByText('Coming soon', { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Open OpenFilm' }).first()).toBeHidden();
 
-      expect(dimensions.scrollWidth).toBe(dimensions.clientWidth);
-      await expect(page.getByRole('heading', { name: 'Coming soon.' })).toBeVisible();
-      await expect(page.getByRole('link', { name: 'Follow the project' })).toBeVisible();
-      await expect(page.getByRole('link', { name: 'Download OpenFilm for macOS' })).toBeHidden();
-      await expect(page.getByRole('link', { name: 'Download OpenFilm for Windows' })).toBeHidden();
+    const dimensions = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }));
+    expect(dimensions.scrollWidth).toBe(dimensions.clientWidth);
 
-      const accessibility = await new AxeBuilder({ page }).analyze();
-      expect(accessibility.violations).toEqual([]);
-    }
+    const accessibility = await new AxeBuilder({ page }).analyze();
+    expect(accessibility.violations).toEqual([]);
   });
 });
