@@ -1,5 +1,3 @@
-import { useEffect, useRef } from 'react';
-
 import workstationScreenshot from '../../docs/screenshots/openfilm-workstation-wide.png';
 import closingCoast from '../assets/openfilm-closing-coast.webp';
 import darkroomHero from '../assets/openfilm-darkroom-hero.webp';
@@ -14,49 +12,6 @@ function ArrowIcon() {
     <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
       <path d="M5 12h13m-5-5 5 5-5 5" />
     </svg>
-  );
-}
-
-function FilmStrip() {
-  const stripRef = useRef<HTMLDivElement>(null);
-  const frames = [darkroomHero, comparisonStreet, closingCoast, coastalValley];
-
-  useEffect(() => {
-    const strip = stripRef.current;
-    if (!strip) return;
-    if (!('IntersectionObserver' in window)) {
-      strip.dataset.running = 'false';
-      return;
-    }
-
-    let intersects = false;
-    const updatePlayback = () => {
-      strip.dataset.running = String(intersects && !document.hidden);
-    };
-    const observer = new IntersectionObserver(([entry]) => {
-      intersects = entry.isIntersecting;
-      updatePlayback();
-    });
-
-    observer.observe(strip);
-    document.addEventListener('visibilitychange', updatePlayback);
-    return () => {
-      observer.disconnect();
-      document.removeEventListener('visibilitychange', updatePlayback);
-    };
-  }, []);
-
-  return (
-    <div aria-hidden="true" className="landing-film-strip" ref={stripRef}>
-      <div className="landing-film-strip__track">
-        {[...frames, ...frames].map((src, index) => (
-          <figure key={`${src}-${index}`}>
-            <span>{String((index % frames.length) + 1).padStart(2, '0')}</span>
-            <img alt="" src={src} />
-          </figure>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -112,7 +67,7 @@ function MobileWorkstationStatus() {
   return (
     <div className="landing-mobile-status" role="status">
       <strong>Desktop workstation</strong>
-      <span>Open this page on a computer. Mobile access is coming soon.</span>
+      <span>Desktop browser required. Mobile access is not supported.</span>
       <a href={browserSupportUrl} rel="noreferrer" target="_blank">
         Browser requirements <ArrowIcon />
       </a>
@@ -132,7 +87,7 @@ function ProofFrame({ cropped = false, eager = false }: { cropped?: boolean; eag
       </div>
       <div className="proof-frame__image">
         <img
-          alt="OpenFilm showing a photograph grid, review controls, and the Edit inspector"
+          alt="OpenFilm showing a photograph grid with review controls"
           decoding="async"
           fetchPriority={eager ? 'high' : 'auto'}
           height="900"
@@ -160,8 +115,6 @@ export function HomePage() {
               src={darkroomHero}
               width="1536"
             />
-            <FilmStrip />
-            <figcaption>Local-first photography software</figcaption>
           </figure>
           <div className="landing-hero__copy">
             <h1 aria-label="Review the whole shoot. Keep every photograph local.">
@@ -170,8 +123,8 @@ export function HomePage() {
             </h1>
             <div className="landing-hero__details">
               <p>
-                A browser workstation for culling, comparing, editing, and exporting a folder of
-                photographs. No account. No upload path.
+                Review, Edit, and Export a folder of JPEG, PNG, or WebP photographs in your browser.
+                Source files stay where they are.
               </p>
               <div className="landing-hero__actions">
                 <a
@@ -184,11 +137,8 @@ export function HomePage() {
                   </span>
                 </a>
                 <MobileWorkstationStatus />
-                <a className="landing-text-link" href="#workstation">
-                  See the workstation <ArrowIcon />
-                </a>
                 <p className="landing-launch-note">
-                  Desktop browser · JPEG, PNG, WebP · choose a folder after launch.{' '}
+                  Desktop browser · choose a folder after launch.{' '}
                   <a href={browserSupportUrl} rel="noreferrer" target="_blank">
                     Browser limits
                   </a>
@@ -196,59 +146,8 @@ export function HomePage() {
               </div>
             </div>
           </div>
-          <div className="landing-hero__frame">
+          <div className="landing-hero__frame" id="workstation">
             <ProofFrame cropped eager />
-          </div>
-        </section>
-        <section aria-label="Product facts" className="landing-facts">
-          <p>
-            <strong>Folders, not uploads.</strong> Source photographs stay where you put them.
-          </p>
-          <p>
-            <strong>A durable Library.</strong> Review and Edit state lives beside the shoot.
-          </p>
-          <p>
-            <strong>One rendering path.</strong> Loupe and Export apply the same adjustments.
-          </p>
-        </section>
-        <section className="landing-workstation" id="workstation">
-          <div className="landing-section-heading">
-            <h2>A contact sheet that remembers.</h2>
-            <p>
-              Ratings, Picks, Rejects, Selection, reusable Looks, and crop or rotation settings stay
-              with the Library. Close the browser, reopen the folder, and continue the review.
-            </p>
-          </div>
-          <ProofFrame cropped />
-          <div className="landing-workstation__caption">
-            <span>Grid / Loupe / Comparison</span>
-            <p>Move from the full shoot to a single frame without losing review context.</p>
-          </div>
-          <div className="landing-review-controls">
-            <p>
-              Review from each photograph's actions menu, or keep both hands on the keyboard.
-              Selection stays visible as you move into Comparison.
-            </p>
-            <div aria-label="Workstation keyboard shortcuts" className="landing-key-map">
-              <span>
-                <kbd>P</kbd> Pick
-              </span>
-              <span>
-                <kbd>X</kbd> Reject
-              </span>
-              <span>
-                <kbd>0–5</kbd> Rate
-              </span>
-              <span>
-                <kbd>Space</kbd> Select
-              </span>
-              <span>
-                <kbd>Enter</kbd> Loupe
-              </span>
-              <span>
-                <kbd>C</kbd> Compare
-              </span>
-            </div>
           </div>
         </section>
         <section className="landing-workflow" id="workflow">
@@ -307,10 +206,10 @@ export function HomePage() {
           <div className="landing-local__copy">
             <h2>Your files never need to leave the machine.</h2>
             <p>
-              OpenFilm has no account system, application backend, analytics, or upload path. The
-              browser reads Source photographs only after you choose their folder. Chrome and Edge
-              can store Library state beside the shoot. Other supported desktop browsers use a
-              Browser Library. Source photographs stay in place and are not backed up by OpenFilm.
+              No account system, application backend, analytics, or upload path. Choose a folder and
+              OpenFilm reads Source photographs locally. Supported desktop browsers save Library
+              state beside the folder; others use a Browser Library in this browser. Source
+              photographs stay in place and are never backed up.
             </p>
             <dl>
               <div>
@@ -320,10 +219,6 @@ export function HomePage() {
               <div>
                 <dt>Source files</dt>
                 <dd>Referenced in place</dd>
-              </div>
-              <div>
-                <dt>License</dt>
-                <dd>MIT</dd>
               </div>
             </dl>
           </div>
@@ -354,7 +249,6 @@ export function HomePage() {
             <a className="landing-launch landing-launch--desktop" href="/app.html">
               Open the workstation <ArrowIcon />
             </a>
-            <MobileWorkstationStatus />
           </div>
         </section>
       </main>

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import App from './App';
 
@@ -12,9 +12,14 @@ describe('OpenFilm workstation entry', () => {
     expect(screen.getByText(/Browser Library state stays in this browser/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /sample/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /choose a photo/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/no account or upload/i)).toBeInTheDocument();
+    expect(screen.getByText('Storage and recovery', { exact: true })).toBeInTheDocument();
+    expect(screen.getByText(/no account or upload/i)).not.toBeVisible();
+    fireEvent.click(screen.getByText('Storage and recovery', { exact: true }));
+    expect(screen.getByText(/no account or upload/i)).toBeVisible();
     await waitFor(() =>
-      expect(screen.getByText(/Recent Libraries will appear here/)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/No recent Libraries yet. Open a folder to begin/),
+      ).toBeInTheDocument(),
     );
   });
 });

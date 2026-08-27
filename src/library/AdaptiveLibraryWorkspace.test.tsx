@@ -96,8 +96,10 @@ describe('Adaptive Library workstation', () => {
   it('guides the review workflow and enables Comparison after two photographs are selected', () => {
     render(<AdaptiveLibraryWorkspace {...props()} />);
     expect(screen.getByText('Saved')).toHaveClass('visually-hidden');
-    expect(screen.getByText('Review your Library')).toBeInTheDocument();
-    expect(screen.getByText('Review and select')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Grid' })).toHaveAttribute(
+      'aria-describedby',
+      'grid-mode-description',
+    );
     const comparison = screen.getByRole('button', { name: 'Comparison' });
     expect(comparison).toBeDisabled();
 
@@ -116,7 +118,7 @@ describe('Adaptive Library workstation', () => {
 
     expect(comparison).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Compare 2' })).toBeEnabled();
-    expect(screen.getByLabelText('Quick keyboard shortcuts')).toHaveTextContent('Pick');
+    expect(screen.getByText('More')).toBeInTheDocument();
   });
 
   it('filters the Grid to Rejects from the main review toolbar', () => {

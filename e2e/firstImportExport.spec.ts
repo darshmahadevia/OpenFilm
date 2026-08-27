@@ -13,6 +13,7 @@ test('ships the workstation without legacy product paths', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Open folder' })).toBeVisible();
   await expect(page.getByRole('button', { name: /sample/i })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /choose a photo/i })).toHaveCount(0);
+  await page.getByText('Storage and recovery', { exact: true }).click();
   await expect(page.getByText(/no account or upload/i)).toBeVisible();
 });
 

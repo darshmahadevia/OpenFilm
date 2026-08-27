@@ -108,7 +108,19 @@ function MigrationNotice({
             Export recovery JSON
           </Button>
         ) : null}
-        <Button onClick={() => onResolve('discard')} size="small" variant="quiet">
+        <Button
+          onClick={() => {
+            if (
+              globalThis.confirm(
+                'Dismiss the recovered legacy state? Any quarantined Edit will be discarded.',
+              )
+            ) {
+              onResolve('discard');
+            }
+          }}
+          size="small"
+          variant="quiet"
+        >
           Dismiss legacy state
         </Button>
       </div>
@@ -147,7 +159,6 @@ function StartWorkspace({
     <main className="library-start">
       <header className="library-start__topbar">
         <span className="library-start__brand">OpenFilm</span>
-        <span>Local photography workstation</span>
       </header>
       <div className="library-start__body">
         <section aria-labelledby="library-start-title" className="library-start__intro">
@@ -165,30 +176,42 @@ function StartWorkspace({
           <p className="library-start__format-note">
             {browserLibraryMode ? (
               <>
-                Browser Library state stays in this browser. Choose the folder again after a reload
-                and download a Library backup from More. No account or upload.
+                Browser Library state stays in this browser. Choose the folder again after a reload.
               </>
             ) : (
               <>
-                Library state is stored in <code>.openfilm/library.json</code>. No account or
-                upload.
+                Library state is stored in <code>.openfilm/library.json</code>.
               </>
             )}
           </p>
-          <Button onClick={onImportBackup} size="small" variant="quiet">
-            Import Library backup
-          </Button>
+          {migration ? (
+            <MigrationNotice migration={migration} onResolve={onResolveMigration} />
+          ) : null}
+          <details className="library-start__support">
+            <summary>Storage and recovery</summary>
+            <div>
+              <p>
+                {browserLibraryMode
+                  ? 'Download a Library backup from More after opening. No account or upload.'
+                  : 'Source photographs stay in place. No account or upload.'}
+              </p>
+              <Button onClick={onImportBackup} size="small" variant="quiet">
+                Import Library backup
+              </Button>
+            </div>
+          </details>
         </section>
 
         <section aria-labelledby="recent-libraries-title" className="library-recent">
           <div className="library-section-heading">
             <h2 id="recent-libraries-title">Recent Libraries</h2>
-            <span>{recent.length}</span>
           </div>
           {isLoading ? (
             <p className="library-recent__empty">Checking recent Libraries…</p>
           ) : recent.length === 0 ? (
-            <p className="library-recent__empty">Recent Libraries will appear here.</p>
+            <p className="library-recent__empty">
+              No recent Libraries yet. Open a folder to begin.
+            </p>
           ) : (
             <ul className="library-recent__list">
               {recent.map((entry) => (
@@ -224,9 +247,6 @@ function StartWorkspace({
           )}
         </section>
 
-        {migration ? (
-          <MigrationNotice migration={migration} onResolve={onResolveMigration} />
-        ) : null}
         {!storageAvailable ? (
           <p className="library-start__feedback" role="status">
             {browserLibraryMode

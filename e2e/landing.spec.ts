@@ -27,7 +27,7 @@ test.describe('browser landing page', () => {
     await page.goto('/');
 
     await expect(page.getByText('Desktop workstation', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(/mobile access is coming soon/i).first()).toBeVisible();
+    await expect(page.getByText(/mobile access is not supported/i).first()).toBeVisible();
     await expect(page.getByRole('link', { name: 'Browser requirements' }).first()).toBeVisible();
     await expect(page.getByRole('link', { name: 'Open the workstation' }).first()).toBeHidden();
 
