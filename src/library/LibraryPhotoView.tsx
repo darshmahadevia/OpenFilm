@@ -52,6 +52,15 @@ export function LibraryPhotoView({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      setMessage(
+        'Graphics context lost. OpenFilm will restore this view when the browser recovers it.',
+      );
+    };
+    const handleContextRestored = () => setMessage('Restoring graphics…');
+    canvas.addEventListener('webglcontextlost', handleContextLost);
+    canvas.addEventListener('webglcontextrestored', handleContextRestored);
     const renderer = createRenderer(canvas, {
       onError: (error) => setMessage(error.message),
       onStatusChange: (status) => {
@@ -64,7 +73,10 @@ export function LibraryPhotoView({
     });
     if (!renderer) {
       setMessage('This browser does not provide the WebGL2 renderer OpenFilm needs.');
-      return;
+      return () => {
+        canvas.removeEventListener('webglcontextlost', handleContextLost);
+        canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+      };
     }
     rendererRef.current = renderer;
     const resize = () =>
@@ -77,6 +89,8 @@ export function LibraryPhotoView({
     window.addEventListener('resize', resize);
     return () => {
       window.removeEventListener('resize', resize);
+      canvas.removeEventListener('webglcontextlost', handleContextLost);
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored);
       renderer.dispose();
       rendererRef.current = null;
     };

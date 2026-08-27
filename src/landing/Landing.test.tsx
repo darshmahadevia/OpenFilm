@@ -17,10 +17,8 @@ describe('OpenFilm website', () => {
     }
     expect(screen.getAllByText('Desktop workstation')).toHaveLength(1);
     expect(screen.getAllByRole('link', { name: /browser requirements/i })).toHaveLength(1);
-    expect(
-      screen.getByText(/no account system, application backend, analytics/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText('.openfilm/library.json')).toBeInTheDocument();
+    expect(screen.getByText(/no account or upload path/i)).toBeInTheDocument();
+    expect(screen.getAllByText('.openfilm/library.json')).not.toHaveLength(0);
     expect(container.querySelector('.landing-film-strip')).not.toBeInTheDocument();
     expect(container.querySelectorAll('.proof-frame')).toHaveLength(1);
     expect(container.querySelector('.landing-review-controls')).not.toBeInTheDocument();

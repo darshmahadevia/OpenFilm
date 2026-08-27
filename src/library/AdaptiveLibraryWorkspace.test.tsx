@@ -96,12 +96,10 @@ describe('Adaptive Library workstation', () => {
   it('guides the review workflow and enables Comparison after two photographs are selected', () => {
     render(<AdaptiveLibraryWorkspace {...props()} />);
     expect(screen.getByText('Saved')).toHaveClass('visually-hidden');
-    expect(screen.getByRole('button', { name: 'Grid' })).toHaveAttribute(
-      'aria-describedby',
-      'grid-mode-description',
-    );
+    expect(screen.getByRole('button', { name: 'Grid' })).not.toHaveAttribute('aria-describedby');
     const comparison = screen.getByRole('button', { name: 'Comparison' });
     expect(comparison).toBeDisabled();
+    expect(comparison).toHaveAttribute('title', 'Select two to four photographs in Grid first');
 
     fireEvent.click(screen.getByLabelText('Photo actions for 1.jpg'));
     fireEvent.click(
@@ -121,7 +119,7 @@ describe('Adaptive Library workstation', () => {
     expect(screen.getByText('More')).toBeInTheDocument();
   });
 
-  it('filters the Grid to Rejects from the main review toolbar', () => {
+  it('filters the Grid to Rejects from the Filters disclosure', () => {
     const options = props();
     options.snapshot = {
       ...options.snapshot,
@@ -136,22 +134,18 @@ describe('Adaptive Library workstation', () => {
     };
     render(<AdaptiveLibraryWorkspace {...options} />);
 
-    const statusFilter = screen.getByRole('group', { name: 'Review status filter' });
-    expect(
-      within(statusFilter).getByRole('button', { name: 'Rejects, 1 photograph' }),
-    ).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByText('Tools', { exact: false }));
+    fireEvent.click(screen.getByText('Filters', { exact: true }));
+    const statusFilter = screen.getByLabelText('Review status filter');
+    expect(statusFilter).toHaveValue('');
 
-    fireEvent.click(within(statusFilter).getByRole('button', { name: 'Rejects, 1 photograph' }));
+    fireEvent.change(statusFilter, { target: { value: 'reject' } });
 
     expect(screen.getByRole('button', { name: /2\.jpg\. Source photograph/ })).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /1\.jpg\. Source photograph/ }),
     ).not.toBeInTheDocument();
-    expect(
-      within(statusFilter).getByRole('button', { name: 'Rejects, 1 photograph' }),
-    ).toHaveAttribute('aria-pressed', 'true');
-
-    fireEvent.click(within(statusFilter).getByRole('button', { name: 'All, 3 photographs' }));
+    fireEvent.change(statusFilter, { target: { value: '' } });
     expect(screen.getByRole('button', { name: /1\.jpg\. Source photograph/ })).toBeInTheDocument();
   });
 

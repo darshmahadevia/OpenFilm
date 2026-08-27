@@ -2390,3 +2390,222 @@ summary:focus-visible,
     width: 100%;
   }
 }
+
+/* Distilled command rail: one review surface, with secondary filters on demand. */
+.library-workstation--condensed {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.workstation-context-bar {
+  min-height: 0;
+  border-bottom-color: var(--color-line);
+  padding: 0.45rem 0.75rem;
+  background: var(--color-control);
+}
+
+.workstation-context-bar__identity {
+  flex: 0 1 13rem;
+  min-width: 8rem;
+}
+
+.workstation-context-bar__actions {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.workstation-context-bar__actions > .workstation-context-tools {
+  margin-left: auto;
+}
+
+.workstation-context-bar__actions > .workstation-toolbar__message {
+  flex: 1 1 12rem;
+  max-width: 26rem;
+}
+
+.workstation-context-bar__actions > .button {
+  flex: 0 0 auto;
+}
+
+.workstation-context-tools {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.workstation-context-tools > summary {
+  min-height: var(--control-height-compact);
+  border: 1px solid var(--color-line-strong);
+  padding: 0.35rem 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--color-control);
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  font-size: var(--type-label);
+  list-style: none;
+}
+
+.workstation-context-tools > summary::after {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  content: '';
+  transform: rotate(45deg) translateY(-0.12rem);
+  transition: transform var(--motion-fast) ease;
+}
+
+.workstation-context-tools[open] > summary::after {
+  transform: rotate(225deg) translate(-0.08rem, -0.08rem);
+}
+
+.workstation-context-tools > summary > span {
+  color: var(--color-muted);
+  font-size: var(--type-micro);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.workstation-context-tools__panel {
+  position: absolute;
+  z-index: 35;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  width: min(30rem, calc(100vw - 1rem));
+  border: 1px solid var(--color-line-strong);
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.75rem;
+  background: var(--color-surface);
+  box-shadow: 0 1rem 2rem rgb(0 0 0 / 55%);
+}
+
+.workstation-context-tools__panel .workstation-filters {
+  position: static;
+}
+
+.workstation-context-tools__panel .workstation-filters > summary {
+  border: 0;
+  padding-inline: 0;
+  color: var(--color-ink);
+}
+
+.workstation-context-tools__panel .workstation-filters__panel {
+  position: static;
+  width: auto;
+  border: 0;
+  padding: 0.65rem 0 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.workstation-more__group-label {
+  border-top: 1px solid var(--color-line);
+  padding: 0.55rem 0.65rem 0.2rem;
+  color: var(--color-muted);
+  font-size: var(--type-micro);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 1100px) {
+  .workstation-context-bar__actions > .workstation-context-tools {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .workstation-context-bar__actions > .workstation-context-tools {
+    margin-left: 0;
+  }
+
+  .workstation-context-bar__actions > .workstation-toolbar__message {
+    max-width: none;
+  }
+
+  .workstation-context-tools {
+    width: 100%;
+  }
+
+  .workstation-context-tools > summary {
+    justify-content: space-between;
+  }
+
+  .workstation-context-tools__panel {
+    position: static;
+    width: 100%;
+    margin-top: 0.25rem;
+  }
+
+  .workstation-context-tools__panel .workstation-filters__panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Hardened browser surfaces: keep recovery copy readable under expansion and alternate contrast. */
+.library-start__recovery,
+.library-start__feedback,
+.unsupported-results,
+.unsupported-results li,
+.reconciliation-banner,
+.workstation-context-tools__panel,
+.workstation-toolbar__message {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.workstation-toolbar__message {
+  max-height: 2.8rem;
+  overflow: auto;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+@media (forced-colors: active) {
+  .button,
+  .workstation-modes button,
+  .workstation-more summary,
+  .workstation-context-tools > summary,
+  .workstation-filters summary {
+    border-color: ButtonText;
+  }
+
+  .button--primary {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  summary:focus-visible,
+  [tabindex]:focus-visible {
+    outline-color: Highlight;
+  }
+
+  .workstation-modes button[aria-current='page'],
+  .library-grid__cell--active::before,
+  .library-grid__cell--selected::after {
+    border-color: Highlight;
+    box-shadow: inset 0 0 0 2px Highlight;
+  }
+}
+
+@media (max-width: 560px) {
+  .comparison-pane footer {
+    flex-wrap: wrap;
+    align-content: flex-start;
+    overflow-x: visible;
+  }
+
+  .comparison-pane footer span {
+    flex: 1 0 100%;
+    margin-right: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+}

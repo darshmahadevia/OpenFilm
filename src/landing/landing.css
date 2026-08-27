@@ -429,37 +429,7 @@ a.landing-launch:hover {
 .landing-workflow {
   border-block: 1px solid var(--color-line);
   display: grid;
-  grid-template-columns: minmax(18rem, 0.8fr) minmax(26rem, 1.2fr);
-  gap: clamp(3rem, 8vw, 8rem);
-  align-items: start;
-}
-
-.landing-workflow__visual {
-  position: sticky;
-  top: 2rem;
-  margin: 0;
-}
-
-.landing-workflow__visual img {
-  width: 100%;
-  aspect-ratio: 4 / 5;
-  object-fit: cover;
-}
-
-.landing-workflow__visual figcaption,
-.landing-local figcaption {
-  color: var(--color-muted);
-  font-size: var(--type-caption);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-
-.landing-workflow__visual figcaption {
-  width: 82%;
-  margin-left: auto;
-  border-bottom: 1px solid var(--color-line-strong);
-  padding: 1rem 0;
-  line-height: 1.5;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .landing-workflow__title {
@@ -512,8 +482,7 @@ a.landing-launch:hover {
 
 .landing-local {
   display: grid;
-  grid-template-columns: minmax(20rem, 0.8fr) minmax(0, 1.2fr);
-  gap: clamp(3rem, 8vw, 8rem);
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
 }
 
@@ -547,25 +516,6 @@ a.landing-launch:hover {
   color: var(--color-ink-soft);
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-
-.landing-local__image {
-  position: relative;
-  margin: 0;
-}
-
-.landing-local__image img {
-  width: 100%;
-  aspect-ratio: 3 / 2;
-  object-fit: cover;
-}
-
-.landing-local__image figcaption {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  padding: 0.7rem 0.9rem;
-  background: var(--color-chrome);
 }
 
 .landing-closing {
@@ -687,18 +637,6 @@ a.landing-launch:hover {
   .landing-workflow,
   .landing-local {
     grid-template-columns: 1fr;
-  }
-
-  .landing-workflow__visual {
-    position: static;
-  }
-
-  .landing-workflow__visual img {
-    aspect-ratio: 3 / 2;
-  }
-
-  .landing-workflow__visual figcaption {
-    width: 100%;
   }
 
   .landing-footer {
@@ -824,5 +762,45 @@ a.landing-launch:hover {
 
   .landing-hero__frame {
     animation: none;
+  }
+}
+
+/* Distilled landing path: one proof, one workflow, one local-facts block. */
+.landing-hero {
+  min-height: min(48rem, calc(100svh - 4.5rem));
+}
+
+.landing-workflow {
+  display: block;
+  padding-block: clamp(4rem, 8vw, 7rem);
+}
+
+.landing-workflow__content {
+  width: min(68rem, 100%);
+  margin-inline: auto;
+}
+
+.landing-workflow__title {
+  max-width: 34rem;
+  margin-bottom: clamp(2rem, 5vw, 4rem);
+}
+
+.landing-local {
+  display: block;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.landing-local__copy {
+  width: min(68rem, 100%);
+  margin-inline: auto;
+}
+
+.landing-local__copy > p {
+  max-width: 46rem;
+}
+
+@media (max-width: 560px) {
+  .landing-hero {
+    min-height: auto;
   }
 }

@@ -14,9 +14,7 @@ test.describe('browser landing page', () => {
       'href',
       '/app.html',
     );
-    await expect(
-      page.getByText(/no account system, application backend, analytics, or upload path/i),
-    ).toBeVisible();
+    await expect(page.getByText(/no account or upload path/i)).toBeVisible();
 
     const accessibility = await new AxeBuilder({ page }).analyze();
     expect(accessibility.violations).toEqual([]);

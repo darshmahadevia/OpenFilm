@@ -86,10 +86,11 @@ function MigrationNotice({
     <section aria-labelledby="migration-title" className="library-start__recovery">
       <h2 id="migration-title">Previous OpenFilm state found</h2>
       <p>
-        {migration.looks.length} valid Look{migration.looks.length === 1 ? '' : 's'} can continue in
-        v2.{' '}
+        {migration.looks.length
+          ? `${migration.looks.length} valid Look${migration.looks.length === 1 ? '' : 's'} are ready to keep.`
+          : 'No reusable Looks were found.'}{' '}
         {migration.quarantinedEdit
-          ? `The recoverable Edit for ${migration.quarantinedEdit.sourceFileName ?? 'a Source photograph'} stays quarantined until you export or discard it.`
+          ? `A recoverable Edit for ${migration.quarantinedEdit.sourceFileName ?? 'a Source photograph'} is ready to export or discard.`
           : ''}
       </p>
       {migration.errors.map((error) => (
@@ -163,24 +164,19 @@ function StartWorkspace({
       <div className="library-start__body">
         <section aria-labelledby="library-start-title" className="library-start__intro">
           <h1 id="library-start-title">Open a Library</h1>
-          <p>
-            Choose a shoot folder. Your Source photographs stay in place, and OpenFilm saves your
-            review {browserLibraryMode ? 'in this browser' : 'beside them'}.
-          </p>
+          <p>Choose a shoot folder. Source photographs stay in place.</p>
           <div className="library-start__primary-action">
             <Button disabled={isOpening} onClick={onOpen} variant="primary">
               {isOpening ? 'Opening Library…' : 'Open folder'}
             </Button>
-            <span>JPEG, PNG, or WebP</span>
+            <span>JPEG · PNG · WebP</span>
           </div>
           <p className="library-start__format-note">
             {browserLibraryMode ? (
-              <>
-                Browser Library state stays in this browser. Choose the folder again after a reload.
-              </>
+              <>Browser Library stays in this browser. Choose the folder again after a reload.</>
             ) : (
               <>
-                Library state is stored in <code>.openfilm/library.json</code>.
+                Saved to <code>.openfilm/library.json</code>.
               </>
             )}
           </p>
@@ -209,9 +205,7 @@ function StartWorkspace({
           {isLoading ? (
             <p className="library-recent__empty">Checking recent Libraries…</p>
           ) : recent.length === 0 ? (
-            <p className="library-recent__empty">
-              No recent Libraries yet. Open a folder to begin.
-            </p>
+            <p className="library-recent__empty">No recent Libraries. Open a folder to begin.</p>
           ) : (
             <ul className="library-recent__list">
               {recent.map((entry) => (

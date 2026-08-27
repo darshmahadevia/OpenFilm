@@ -72,14 +72,10 @@ workstation is coming soon.
 - **Hero:** A 12-column composition pairs the factual promise with a real workstation frame. The
   frame enters as one vertical reveal; the darkroom photograph sits behind the upper-right edge as
   atmosphere and photographic authority, never as a second panel.
-- **Facts strip:** Three short, ruled statements make folders, durable Library state, and the shared
-  WebGL2 rendering path legible without invented metrics.
-- **Workstation proof:** One wide screenshot follows the hero. A fine-rule caption names Grid,
-  Loupe, and Comparison and explains the continuity of review context.
 - **Workflow:** Four ordered rows keep the shipped sequence visible: Open a Library, Review the
   Grid, Make the Edit, Export the set.
-- **Local architecture:** A photograph and text pair name `.openfilm/library.json`, in-place Source
-  files, and the MIT license. The copy describes local behavior precisely and makes no account,
+- **Local architecture:** A concise copy block and ruled evidence list name `.openfilm/library.json`
+  and in-place Source files. The copy describes local behavior precisely and makes no account,
   cloud, analytics, or backup promise.
 - **Closing:** A 90svh photograph, dark veil, centered copy, and one browser launch action provide
   the final beat. The image remains the largest object; the CTA is simple and factual.
@@ -95,7 +91,8 @@ and folder reselection before the photographer begins. The workstation then keep
 
 1. Library identity, Grid / Loupe / Comparison, save state, and Export in the top bar.
 2. One workflow sentence and a concise photograph or scan count below it.
-3. Filters, contextual Selection and history, Edit, and a View disclosure in the command strip.
+3. Review and contextual Selection controls in the command strip; Filters and scan detail live in a
+   Tools disclosure, while Edit and history stay one action away.
 4. Grid, Loupe, or Comparison in the central stage.
 5. Inspector and sheets as true overlays, with contained focus and explicit Close actions.
 
@@ -131,7 +128,7 @@ controls wrap without changing their reading order and overlays use most of the 
 pixels, labels may stack, but every action remains at least 44 CSS pixels on coarse pointers. The
 interface must remain operable at 200-percent zoom without document-level horizontal scrolling.
 
-The landing surface uses a 12-column hero and split editorial sections at desktop widths. Below 900
+The landing surface uses a 12-column hero and ruled editorial sections at desktop widths. Below 900
 CSS pixels it stacks into one column. At phone widths, browser launch actions become a Coming soon
 status while the product story remains readable.
 

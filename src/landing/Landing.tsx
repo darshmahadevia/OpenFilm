@@ -1,8 +1,6 @@
 import workstationScreenshot from '../../docs/screenshots/openfilm-workstation-wide.png';
 import closingCoast from '../assets/openfilm-closing-coast.webp';
 import darkroomHero from '../assets/openfilm-darkroom-hero.webp';
-import coastalValley from '../assets/openfilm-landing-coastal-valley.webp';
-import comparisonStreet from '../assets/openfilm-comparison-street.webp';
 
 const repositoryUrl = 'https://github.com/darshmahadevia/OpenFilm';
 const browserSupportUrl = `${repositoryUrl}/blob/main/README.md#browser-support`;
@@ -123,8 +121,8 @@ export function HomePage() {
             </h1>
             <div className="landing-hero__details">
               <p>
-                Review, Edit, and Export a folder of JPEG, PNG, or WebP photographs in your browser.
-                Source files stay where they are.
+                Review, Edit, and Export JPEG, PNG, or WebP photographs in your browser. Source
+                files stay in place.
               </p>
               <div className="landing-hero__actions">
                 <a
@@ -140,7 +138,7 @@ export function HomePage() {
                 <p className="landing-launch-note">
                   Desktop browser · choose a folder after launch.{' '}
                   <a href={browserSupportUrl} rel="noreferrer" target="_blank">
-                    Browser limits
+                    Requirements
                   </a>
                 </p>
               </div>
@@ -151,21 +149,9 @@ export function HomePage() {
           </div>
         </section>
         <section className="landing-workflow" id="workflow">
-          <figure className="landing-workflow__visual">
-            <img
-              alt="A coastal valley photographed in soft morning light"
-              decoding="async"
-              height="1024"
-              loading="lazy"
-              src={coastalValley}
-              width="1536"
-            />
-            <figcaption>Source photographs remain in place throughout the review.</figcaption>
-          </figure>
           <div className="landing-workflow__content">
             <div className="landing-workflow__title">
-              <h2>One folder in. A finished set out.</h2>
-              <p>Four clear steps keep every decision attached to the Library.</p>
+              <h2>From folder to finished set.</h2>
             </div>
             <ol className="landing-workflow__steps">
               <li>
@@ -179,24 +165,21 @@ export function HomePage() {
                 <span>02</span>
                 <div>
                   <h3>Review the Grid</h3>
-                  <p>
-                    Use a photograph's actions menu or keyboard shortcuts to Rate, Select, mark
-                    Picks, and Rejects.
-                  </p>
+                  <p>Rate, Select, Pick, or Reject as you move through the shoot.</p>
                 </div>
               </li>
               <li>
                 <span>03</span>
                 <div>
                   <h3>Make the Edit</h3>
-                  <p>Shape Light, Color, Curve, Finish, Geometry, and reusable Looks.</p>
+                  <p>Adjust Light, Color, Curve, Finish, Geometry, or a Look.</p>
                 </div>
               </li>
               <li>
                 <span>04</span>
                 <div>
                   <h3>Export the set</h3>
-                  <p>Write Picks or the Selection to a folder with resumable progress.</p>
+                  <p>Write Picks or the Selection to a folder.</p>
                 </div>
               </li>
             </ol>
@@ -204,12 +187,11 @@ export function HomePage() {
         </section>
         <section className="landing-local">
           <div className="landing-local__copy">
-            <h2>Your files never need to leave the machine.</h2>
+            <h2>Local by default.</h2>
             <p>
-              No account system, application backend, analytics, or upload path. Choose a folder and
-              OpenFilm reads Source photographs locally. Supported desktop browsers save Library
-              state beside the folder; others use a Browser Library in this browser. Source
-              photographs stay in place and are never backed up.
+              No account or upload path. OpenFilm reads Source photographs from a folder. Supported
+              desktop browsers save Library state in <code>.openfilm/library.json</code>; others use
+              a Browser Library in this browser. Source files stay in place.
             </p>
             <dl>
               <div>
@@ -222,17 +204,6 @@ export function HomePage() {
               </div>
             </dl>
           </div>
-          <figure className="landing-local__image">
-            <img
-              alt="A street photograph at dusk"
-              decoding="async"
-              height="1024"
-              loading="lazy"
-              src={comparisonStreet}
-              width="1536"
-            />
-            <figcaption>Source photograph / rendered locally</figcaption>
-          </figure>
         </section>
         <section className="landing-closing">
           <img
@@ -245,7 +216,7 @@ export function HomePage() {
           />
           <div className="landing-closing__content">
             <h2>The shoot stays yours.</h2>
-            <p>Open the folder. Make the decisions. Export the photographs.</p>
+            <p>Open the folder. Make the decisions. Export when ready.</p>
             <a className="landing-launch landing-launch--desktop" href="/app.html">
               Open the workstation <ArrowIcon />
             </a>
