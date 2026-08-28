@@ -47,7 +47,7 @@ function SiteFooter() {
       <a className="landing-wordmark" href="/">
         OpenFilm
       </a>
-      <p>Local-first photography software.</p>
+      <p>Source photographs stay in place.</p>
       <div>
         <a href={repositoryUrl} rel="noreferrer" target="_blank">
           GitHub
@@ -189,9 +189,9 @@ export function HomePage() {
           <div className="landing-local__copy">
             <h2>Local by default.</h2>
             <p>
-              No account or upload path. OpenFilm reads Source photographs from a folder. Supported
-              desktop browsers save Library state in <code>.openfilm/library.json</code>; others use
-              a Browser Library in this browser. Source files stay in place.
+              OpenFilm reads Source photographs from a folder. Supported desktop browsers save
+              Library state in <code>.openfilm/library.json</code>; others use a Browser Library in
+              this browser. Source files stay in place.
             </p>
             <dl>
               <div>
@@ -220,6 +220,7 @@ export function HomePage() {
             <a className="landing-launch landing-launch--desktop" href="/app.html">
               Open the workstation <ArrowIcon />
             </a>
+            <MobileWorkstationStatus />
           </div>
         </section>
       </main>

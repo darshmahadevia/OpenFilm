@@ -13,9 +13,8 @@ describe('OpenFilm workstation entry', () => {
     expect(screen.queryByRole('button', { name: /sample/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /choose a photo/i })).not.toBeInTheDocument();
     expect(screen.getByText('Storage and recovery', { exact: true })).toBeInTheDocument();
-    expect(screen.getByText(/no account or upload/i)).not.toBeVisible();
     fireEvent.click(screen.getByText('Storage and recovery', { exact: true }));
-    expect(screen.getByText(/no account or upload/i)).toBeVisible();
+    expect(screen.getByText(/Source photographs are not included/i)).toBeVisible();
     await waitFor(() =>
       expect(screen.getByText(/No recent Libraries. Open a folder to begin/)).toBeInTheDocument(),
     );

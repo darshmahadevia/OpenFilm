@@ -188,8 +188,8 @@ function StartWorkspace({
             <div>
               <p>
                 {browserLibraryMode
-                  ? 'Download a Library backup from More after opening. No account or upload.'
-                  : 'Source photographs stay in place. No account or upload.'}
+                  ? 'Download a Library backup from More. Source photographs are not included.'
+                  : 'The Library file stores review and Edit state. Source photographs are not included.'}
               </p>
               <Button onClick={onImportBackup} size="small" variant="quiet">
                 Import Library backup

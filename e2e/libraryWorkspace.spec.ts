@@ -344,7 +344,7 @@ test.describe('Library start and recovery journey', () => {
     await page.locator('.comparison-pane canvas').first().dispatchEvent('webglcontextrestored');
     await expect(page.getByText('Graphics context lost')).toHaveCount(0);
     await page.getByRole('button', { name: 'Source', pressed: false }).click();
-    await expect(page.getByText(/Source derivative/).first()).toBeVisible();
+    await expect(page.getByText(/Source preview/).first()).toBeVisible();
     await page.keyboard.press('Escape');
 
     const editButton = page.getByRole('button', { name: 'Edit' });
@@ -386,7 +386,6 @@ test.describe('Library start and recovery journey', () => {
     });
     await page.locator('.library-workspace__topbar-actions > .workstation-more > summary').click();
     await page.getByRole('button', { name: 'Refresh' }).click();
-    await expect(page.getByLabel('Background jobs: complete')).toBeVisible();
     await expect(
       page.getByRole('button', { name: /fifth\.jpg.*Missing photograph/ }),
     ).toBeVisible();

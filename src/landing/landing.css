@@ -595,11 +595,7 @@ a.landing-launch:hover {
   }
 
   .landing-nav {
-    grid-column: 1 / -1;
-    width: 100%;
-    border-top: 1px solid var(--color-line);
-    padding: 0.7rem 0;
-    justify-content: space-between;
+    display: none;
   }
 
   .landing-hero {
@@ -755,9 +751,8 @@ a.landing-launch:hover {
 
   .landing-page * {
     scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
+    transition: none !important;
+    animation: none !important;
   }
 
   .landing-hero__frame {
@@ -802,5 +797,32 @@ a.landing-launch:hover {
 @media (max-width: 560px) {
   .landing-hero {
     min-height: auto;
+  }
+}
+
+.landing-local code,
+.landing-local dd,
+.landing-mobile-status,
+.landing-footer {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (forced-colors: active) {
+  .landing-launch,
+  .landing-mobile-status,
+  .proof-frame,
+  .landing-workflow__steps li,
+  .landing-local dl > div {
+    border-color: ButtonText;
+  }
+
+  .landing-launch {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .landing-page a:focus-visible {
+    outline-color: Highlight;
   }
 }

@@ -174,6 +174,7 @@ function GridPhotographCell({
         aria-label={photographLabel(photograph, isActive, isSelected)}
         aria-pressed={isSelected}
         className="library-grid__photograph"
+        data-photograph-id={photograph.id}
         onClick={() => onActivate(photograph.id)}
         onKeyDown={(event) => {
           if (event.key === ' ') {
@@ -316,10 +317,12 @@ export function LibraryGrid({
 }: LibraryGridProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const initialScrollTopRef = useRef(initialScrollTop);
+  const focusedPhotographIdRef = useRef(activePhotographId);
   const [geometry, setGeometry] = useState<GridGeometry>(() =>
     calculateGridGeometry(0, 0, density),
   );
   const [scrollTop, setScrollTop] = useState(initialScrollTop);
+  const activeIndex = photographs.findIndex((photograph) => photograph.id === activePhotographId);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -351,6 +354,29 @@ export function LibraryGrid({
     viewport.scrollTop = initialScrollTop;
     setScrollTop(initialScrollTop);
   }, [initialScrollTop, scrollRestoreRevision]);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || activeIndex < 0 || focusedPhotographIdRef.current === activePhotographId) {
+      return;
+    }
+    focusedPhotographIdRef.current = activePhotographId;
+
+    const activeRow = Math.floor(activeIndex / geometry.columns);
+    const rowTop = activeRow * geometry.cellHeight;
+    const rowBottom = rowTop + geometry.cellHeight;
+    if (rowTop < viewport.scrollTop) viewport.scrollTop = rowTop;
+    else if (rowBottom > viewport.scrollTop + viewport.clientHeight) {
+      viewport.scrollTop = Math.max(0, rowBottom - viewport.clientHeight);
+    }
+
+    requestAnimationFrame(() => {
+      const activeButton = Array.from(
+        viewport.querySelectorAll<HTMLElement>('[data-photograph-id]'),
+      ).find((element) => element.dataset.photographId === activePhotographId);
+      activeButton?.focus({ preventScroll: true });
+    });
+  }, [activeIndex, activePhotographId, geometry.cellHeight, geometry.columns]);
 
   const rowCount = Math.ceil(photographs.length / geometry.columns);
   const firstVisibleRow = Math.max(0, Math.floor(scrollTop / geometry.cellHeight) - 2);
@@ -408,6 +434,7 @@ export function LibraryGrid({
   return (
     <div
       aria-colcount={geometry.columns}
+      aria-description={`${photographs.length.toLocaleString()} photograph${photographs.length === 1 ? '' : 's'}`}
       aria-label="Library Grid"
       aria-rowcount={rowCount}
       className="library-grid"

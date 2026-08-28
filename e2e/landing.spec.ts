@@ -14,7 +14,7 @@ test.describe('browser landing page', () => {
       'href',
       '/app.html',
     );
-    await expect(page.getByText(/no account or upload path/i)).toBeVisible();
+    await expect(page.getByText(/OpenFilm reads Source photographs from a folder/i)).toBeVisible();
 
     const accessibility = await new AxeBuilder({ page }).analyze();
     expect(accessibility.violations).toEqual([]);
@@ -37,5 +37,29 @@ test.describe('browser landing page', () => {
 
     const accessibility = await new AxeBuilder({ page }).analyze();
     expect(accessibility.violations).toEqual([]);
+  });
+
+  test('keeps focus visible with reduced motion and forced colors', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' });
+    await page.goto('/');
+
+    const launch = page.getByRole('link', { name: 'Open the workstation' }).first();
+    await launch.focus();
+    await expect(launch).toBeFocused();
+
+    const focusStyle = await launch.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        outlineStyle: style.outlineStyle,
+        outlineWidth: style.outlineWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+      };
+    });
+
+    expect(focusStyle.outlineStyle).toBe('solid');
+    expect(focusStyle.outlineWidth).not.toBe('0px');
+    expect(focusStyle.scrollWidth).toBe(focusStyle.viewportWidth);
+    await expect(page).toHaveTitle(/OpenFilm/);
   });
 });

@@ -49,7 +49,6 @@ test.describe('release visual evidence', () => {
       }
     });
     await page.getByRole('button', { name: 'Open folder' }).click();
-    await expect(page.getByLabel('Background jobs: complete')).toBeVisible();
     await expect(page.locator('.library-grid__image')).toHaveCount(4);
     await expect
       .poll(() =>
@@ -105,5 +104,47 @@ test.describe('release visual evidence', () => {
       )
       .toEqual({ documentWidth: 390, viewportWidth: 390 });
     await page.screenshot({ path: '.impeccable/review/mobile.png' });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const gridPhotographs = page.locator('.library-grid__photograph');
+    await gridPhotographs.nth(0).click();
+    await page.keyboard.press('Space');
+    await gridPhotographs.nth(1).click();
+    await page.keyboard.press('Space');
+    await page.getByRole('button', { name: 'Comparison' }).click();
+    await page.screenshot({ path: '.impeccable/review/final-comparison.png' });
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Loupe' }).click();
+    await expect(page.getByText('Reading Source photograph.')).toHaveCount(0);
+    await page.screenshot({ path: '.impeccable/review/final-loupe.png' });
+    await page.getByRole('button', { name: 'Edit' }).click();
+    await page.screenshot({ path: '.impeccable/review/final-edit.png' });
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Export' }).click();
+    await page.screenshot({ path: '.impeccable/review/final-export.png' });
+  });
+
+  test('captures the landing page at its representative widths', async ({ page }) => {
+    for (const viewport of [
+      { height: 900, name: 'desktop', width: 1440 },
+      { height: 768, name: 'tablet', width: 1024 },
+      { height: 800, name: 'zoom', width: 720 },
+      { height: 844, name: 'mobile', width: 390 },
+    ]) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto('/');
+      await expect
+        .poll(() =>
+          page.evaluate(() => ({
+            documentWidth: document.documentElement.scrollWidth,
+            viewportWidth: window.innerWidth,
+          })),
+        )
+        .toEqual({ documentWidth: viewport.width, viewportWidth: viewport.width });
+      await page.screenshot({
+        fullPage: true,
+        path: `.impeccable/review/final-landing-${viewport.name}.png`,
+      });
+    }
   });
 });

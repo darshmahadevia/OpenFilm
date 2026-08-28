@@ -15,9 +15,11 @@ describe('OpenFilm website', () => {
     for (const link of screen.getAllByRole('link', { name: 'Open the workstation' })) {
       expect(link).toHaveAttribute('href', '/app.html');
     }
-    expect(screen.getAllByText('Desktop workstation')).toHaveLength(1);
-    expect(screen.getAllByRole('link', { name: /browser requirements/i })).toHaveLength(1);
-    expect(screen.getByText(/no account or upload path/i)).toBeInTheDocument();
+    expect(screen.getAllByText('Desktop workstation')).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: /browser requirements/i })).toHaveLength(2);
+    expect(
+      screen.getByText(/OpenFilm reads Source photographs from a folder/i),
+    ).toBeInTheDocument();
     expect(screen.getAllByText('.openfilm/library.json')).not.toHaveLength(0);
     expect(container.querySelector('.landing-film-strip')).not.toBeInTheDocument();
     expect(container.querySelectorAll('.proof-frame')).toHaveLength(1);

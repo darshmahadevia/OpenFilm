@@ -134,7 +134,6 @@ describe('Adaptive Library workstation', () => {
     };
     render(<AdaptiveLibraryWorkspace {...options} />);
 
-    fireEvent.click(screen.getByText('Tools', { exact: false }));
     fireEvent.click(screen.getByText('Filters', { exact: true }));
     const statusFilter = screen.getByLabelText('Review status filter');
     expect(statusFilter).toHaveValue('');
