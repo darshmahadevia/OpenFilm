@@ -104,6 +104,11 @@ test.describe('release visual evidence', () => {
       )
       .toEqual({ documentWidth: 390, viewportWidth: 390 });
     await page.screenshot({ path: '.impeccable/review/mobile.png' });
+    await page.locator('.workstation-context-tools > summary').click();
+    await page.getByRole('combobox', { name: 'Review status filter' }).click();
+    await page.screenshot({ path: '.impeccable/review/mobile-select.png' });
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
 
     await page.setViewportSize({ width: 1440, height: 900 });
     const gridPhotographs = page.locator('.library-grid__photograph');
@@ -112,6 +117,7 @@ test.describe('release visual evidence', () => {
     await gridPhotographs.nth(1).click();
     await page.keyboard.press('Space');
     await page.locator('.workstation-context-tools > summary').click();
+    await page.getByRole('combobox', { name: 'Review status filter' }).click();
     await page.screenshot({ path: '.impeccable/review/final-tools.png' });
     await page.getByRole('button', { name: 'Compare 2' }).click();
     await page.screenshot({ path: '.impeccable/review/final-comparison.png' });

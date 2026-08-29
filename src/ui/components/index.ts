@@ -10,5 +10,7 @@ export { IconButton } from './IconButton';
 export type { IconButtonProps } from './IconButton';
 export { Panel } from './Panel';
 export type { PanelProps } from './Panel';
+export { Select } from './Select';
+export type { SelectOption, SelectProps } from './Select';
 export { Slider } from './Slider';
 export type { SliderProps } from './Slider';

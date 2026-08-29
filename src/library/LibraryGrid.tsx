@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 
+import { Select } from '../ui/components';
 import { LIBRARY_GRID_THUMBNAIL_MAX_WIDTH, type LibraryThumbnail } from './libraryThumbnail';
 import type { LibraryGridDensity } from './libraryGridModel';
 import type { LibraryPhotographRecord } from './libraryModel';
@@ -115,6 +116,7 @@ function GridPhotographCell({
   const [imageError, setImageError] = useState(false);
   const [imageReady, setImageReady] = useState(false);
   const thumbnailRef = useRef<LibraryThumbnail | null>(null);
+  const actionsRef = useRef<HTMLDetailsElement>(null);
   const isMissing = photograph.sourceState === 'missing';
 
   useEffect(() => {
@@ -224,7 +226,7 @@ function GridPhotographCell({
           </span>
         </span>
       </button>
-      <details className="library-grid__actions" data-workstation-popover="true">
+      <details className="library-grid__actions" data-workstation-popover="true" ref={actionsRef}>
         <summary aria-label={`Photo actions for ${photograph.fileName}`}>
           <span aria-hidden="true" />
         </summary>
@@ -272,28 +274,31 @@ function GridPhotographCell({
               </kbd>
             </button>
           ))}
-          <label>
-            Rating
-            <select
-              aria-label={`Rating for ${photograph.fileName}`}
+          <div className="library-grid__rating-field">
+            <span>Rating</span>
+            <Select
+              align="end"
               disabled={!canReview}
-              onChange={(event) => {
+              label={`Rating for ${photograph.fileName}`}
+              onValueChange={(value) => {
                 onReview(photograph.id, {
                   kind: 'rate',
-                  rating: event.currentTarget.value ? Number(event.currentTarget.value) : null,
+                  rating: value ? Number(value) : null,
                 });
-                event.currentTarget.closest('details')?.removeAttribute('open');
+                actionsRef.current?.removeAttribute('open');
+                actionsRef.current?.querySelector('summary')?.focus();
               }}
-              value={photograph.rating ?? ''}
-            >
-              <option value="">Unrated</option>
-              {[1, 2, 3, 4, 5].map((rating) => (
-                <option key={rating} value={rating}>
-                  {rating} star{rating === 1 ? '' : 's'}
-                </option>
-              ))}
-            </select>
-          </label>
+              options={[
+                { label: 'Unrated', value: '' },
+                ...[1, 2, 3, 4, 5].map((rating) => ({
+                  label: `${rating} star${rating === 1 ? '' : 's'}`,
+                  value: String(rating),
+                })),
+              ]}
+              restoreFocusOnSelect={false}
+              value={String(photograph.rating ?? '')}
+            />
+          </div>
         </div>
       </details>
     </div>

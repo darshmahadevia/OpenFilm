@@ -343,7 +343,16 @@ code {
   background: var(--color-surface);
   box-shadow: 0 1rem 2rem rgb(0 0 0 / 55%);
 }
-.workstation-view__panel select {
+.workstation-view__field {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--color-muted);
+  font-size: var(--type-micro);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.workstation-view__field .custom-select {
   width: 100%;
 }
 .workstation-view__density {
@@ -806,7 +815,7 @@ code {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.library-grid__actions label {
+.library-grid__rating-field {
   border-top: 1px solid var(--color-line);
   padding: 0.5rem;
   display: grid;
@@ -816,14 +825,9 @@ code {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.library-grid__actions select {
-  min-height: 2rem;
-  border: 1px solid var(--color-line-strong);
-  padding: 0.25rem 0.4rem;
-  background: var(--color-control);
-  color: var(--color-ink);
-  text-transform: none;
-  letter-spacing: 0;
+
+.library-grid__rating-field .custom-select {
+  width: 100%;
 }
 .library-grid__cell--active {
   z-index: 2;
@@ -1510,6 +1514,132 @@ summary:focus-visible,
   transform: translateY(1px);
 }
 
+.custom-select {
+  position: relative;
+  min-width: 0;
+  color: var(--color-ink);
+  font-size: var(--type-caption);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.custom-select > .custom-select__trigger {
+  width: 100%;
+  min-height: var(--control-height-compact);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.55rem 0.35rem 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  background: #0d0d0d;
+  color: var(--color-ink);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.custom-select > .custom-select__trigger:hover:not(:disabled),
+.custom-select > .custom-select__trigger[aria-expanded='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-surface-hover);
+}
+
+.custom-select__trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select__trigger svg {
+  width: 0.65rem;
+  flex: 0 0 0.65rem;
+  fill: none;
+  stroke: var(--color-muted);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.custom-select__trigger[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.custom-select__listbox {
+  position: absolute;
+  z-index: 80;
+  left: 0;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(18rem, calc(100vw - 1rem));
+  max-height: min(17rem, calc(100vh - 1rem));
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-md);
+  padding: 0.3rem;
+  overflow: auto;
+  background: var(--color-surface-raised);
+  box-shadow: 0 0.8rem 2rem rgb(0 0 0 / 72%);
+}
+
+.custom-select__listbox--below {
+  top: calc(100% + 0.35rem);
+}
+
+.custom-select__listbox--above {
+  bottom: calc(100% + 0.35rem);
+}
+
+.custom-select--end .custom-select__listbox {
+  right: 0;
+  left: auto;
+}
+
+.custom-select__option {
+  min-height: var(--control-height-small);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.2rem;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  outline: none;
+  white-space: nowrap;
+}
+
+.custom-select__option:hover,
+.custom-select__option[data-highlighted='true'] {
+  background: var(--color-surface-hover);
+  color: var(--color-ink);
+  box-shadow: inset 0 0 0 1px var(--color-line-strong);
+}
+
+.custom-select__option[aria-selected='true'] {
+  background: var(--color-surface-selected);
+  color: var(--color-ink);
+}
+
+.custom-select__option svg {
+  width: 0.7rem;
+  flex: 0 0 0.7rem;
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.custom-select__option[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .library-start__topbar {
   min-height: 4.25rem;
   padding-inline: clamp(1rem, 3vw, 2.5rem);
@@ -1776,16 +1906,8 @@ summary:focus-visible,
   text-transform: uppercase;
 }
 
-.workstation-rating-control select {
-  min-height: var(--control-height-compact);
-  border: 1px solid var(--color-line-strong);
-  border-radius: var(--radius-sm);
-  padding: 0.2rem 1.35rem 0.2rem 0.4rem;
-  background: var(--color-control);
-  color: var(--color-ink);
-  font-size: var(--type-caption);
-  letter-spacing: 0;
-  text-transform: none;
+.workstation-rating-control .custom-select {
+  min-width: 6.5rem;
 }
 
 .workstation-selection-group {
@@ -2600,11 +2722,25 @@ summary:focus-visible,
 
 @media (forced-colors: active) {
   .button,
+  .custom-select__listbox,
+  .custom-select__trigger,
   .workstation-modes button,
   .workstation-more summary,
   .workstation-context-tools > summary,
   .workstation-filters summary {
     border-color: ButtonText;
+  }
+
+  .custom-select__trigger:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+
+  .custom-select__option[aria-selected='true'] {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
   }
 
   .button--primary {
@@ -2667,7 +2803,7 @@ summary:focus-visible,
   gap: 0.75rem;
 }
 
-.workstation-review-tools__filters > label {
+.workstation-review-tools__field {
   min-width: 0;
   display: grid;
   gap: 0.3rem;
@@ -2677,16 +2813,8 @@ summary:focus-visible,
   text-transform: uppercase;
 }
 
-.workstation-review-tools__filters select {
+.workstation-review-tools__field .custom-select {
   width: 100%;
-  min-height: var(--control-height-small);
-  border: 1px solid var(--color-line-strong);
-  border-radius: var(--radius-sm);
-  padding: 0.3rem 1.5rem 0.3rem 0.45rem;
-  background: var(--color-control);
-  color: var(--color-ink);
-  letter-spacing: 0;
-  text-transform: none;
 }
 
 .workstation-selection-toggle {
@@ -2816,6 +2944,7 @@ summary:focus-visible,
 }
 
 @media (pointer: coarse) {
+  .custom-select__trigger,
   .edit-inspector__number-row button,
   .edit-inspector__section > button,
   .edit-inspector input[type='number'],

@@ -150,8 +150,10 @@ landing launch action. Green, amber, and coral are status-only.
 **The One Signal Rule.** Sand is a functional signal for action, focus, Selection, and direct
 manipulation, not a decorative wash; status colors remain status-only.
 
-Depth comes from value changes and one-pixel rules. Shadows are reserved for genuine overlap. Do not
-add gradients, glass effects, blur-backed panels, blobs, glow, or a second accent family.
+Depth comes from value changes and one-pixel rules. Shadows are reserved for genuine overlap. Custom
+listbox controls replace platform select popups and keep keyboard behavior, focus, and selected state
+visible in the Matte Proof Studio palette. Do not add gradients, glass effects, blur-backed panels,
+blobs, glow, or a second accent family.
 
 **The Matte Layer Rule.** Separate surfaces by value before reaching for a shadow; use elevation only
 when an element overlaps content or needs a clear state response.

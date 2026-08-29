@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import { Button, Dialog, Disclosure, Field, IconButton, Panel, Slider } from './index';
+import { Button, Dialog, Disclosure, Field, IconButton, Panel, Select, Slider } from './index';
 
 describe('base UI components', () => {
   it('renders a button with its selected visual variant', () => {
@@ -50,6 +50,32 @@ describe('base UI components', () => {
     expect(screen.getByLabelText('Exposure')).toHaveAttribute('aria-valuetext', '0.00');
     expect(screen.getByRole('spinbutton', { name: 'Exposure value' })).toHaveValue(0);
     expect(screen.queryByText('0.00')).not.toBeInTheDocument();
+  });
+
+  it('opens a custom Select and supports keyboard selection', () => {
+    const onValueChange = vi.fn();
+
+    render(
+      <Select
+        label="Library ordering"
+        onValueChange={onValueChange}
+        options={[
+          { label: 'Oldest first', value: 'ascending' },
+          { label: 'Newest first', value: 'descending' },
+        ]}
+        value="ascending"
+      />,
+    );
+
+    const trigger = screen.getByRole('combobox', { name: 'Library ordering' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    expect(screen.getByRole('listbox', { name: 'Library ordering options' })).toBeInTheDocument();
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+
+    expect(onValueChange).toHaveBeenCalledWith('descending');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('provides a titled panel and closable dialog', () => {

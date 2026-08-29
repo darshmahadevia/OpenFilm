@@ -135,16 +135,18 @@ describe('Adaptive Library workstation', () => {
     render(<AdaptiveLibraryWorkspace {...options} />);
 
     fireEvent.click(screen.getByText('Tools', { exact: true }));
-    const statusFilter = screen.getByLabelText('Review status filter');
-    expect(statusFilter).toHaveValue('');
+    const statusFilter = screen.getByRole('combobox', { name: 'Review status filter' });
+    expect(statusFilter).toHaveTextContent('All (3)');
 
-    fireEvent.change(statusFilter, { target: { value: 'reject' } });
+    fireEvent.click(statusFilter);
+    fireEvent.click(screen.getByRole('option', { name: 'Rejects (1)' }));
 
     expect(screen.getByRole('button', { name: /2\.jpg\. Source photograph/ })).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /1\.jpg\. Source photograph/ }),
     ).not.toBeInTheDocument();
-    fireEvent.change(statusFilter, { target: { value: '' } });
+    fireEvent.click(statusFilter);
+    fireEvent.click(screen.getByRole('option', { name: 'All (3)' }));
     expect(screen.getByRole('button', { name: /1\.jpg\. Source photograph/ })).toBeInTheDocument();
   });
 

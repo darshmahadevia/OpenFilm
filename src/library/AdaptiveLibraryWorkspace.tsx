@@ -8,7 +8,7 @@ import {
 import { neutralGeometry, type GeometryRotation } from '../editor/geometry';
 import { interpolateToneCurve } from '../editor/toneCurve';
 import { createRenderer, neutralRendererAdjustments } from '../rendering/renderer';
-import { Button } from '../ui/components';
+import { Button, Select } from '../ui/components';
 import type { ExportFormat } from '../rendering/export';
 import { LibraryGrid } from './LibraryGrid';
 import { LibraryPhotoView } from './LibraryPhotoView';
@@ -660,27 +660,27 @@ function ActiveReviewRail({
               Reject
             </Button>
           </div>
-          <label className="workstation-rating-control">
+          <div className="workstation-rating-control">
             <span>Rating</span>
-            <select
-              aria-label={`Rating for ${active.fileName}`}
+            <Select
               disabled={!canMutate}
-              onChange={(event) =>
+              label={`Rating for ${active.fileName}`}
+              onValueChange={(value) =>
                 onReview({
                   kind: 'rate',
-                  rating: event.currentTarget.value ? Number(event.currentTarget.value) : null,
+                  rating: value ? Number(value) : null,
                 })
               }
-              value={active.rating ?? ''}
-            >
-              <option value="">Unrated</option>
-              {[1, 2, 3, 4, 5].map((rating) => (
-                <option key={rating} value={rating}>
-                  {rating} stars
-                </option>
-              ))}
-            </select>
-          </label>
+              options={[
+                { label: 'Unrated', value: '' },
+                ...[1, 2, 3, 4, 5].map((rating) => ({
+                  label: `${rating} stars`,
+                  value: String(rating),
+                })),
+              ]}
+              value={String(active.rating ?? '')}
+            />
+          </div>
           <Button
             aria-pressed={isSelected}
             className="workstation-selection-toggle"
@@ -1510,22 +1510,23 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
               <div className="workstation-view workstation-more__view">
                 <strong>Sort and layout</strong>
                 <div className="workstation-view__panel">
-                  <label>
-                    Order
-                    <select
-                      aria-label="Library ordering"
-                      onChange={(event) =>
+                  <div className="workstation-view__field">
+                    <span>Order</span>
+                    <Select
+                      label="Library ordering"
+                      onValueChange={(value) =>
                         setContext((current) => ({
                           ...current,
-                          ordering: event.currentTarget.value as LibraryReviewContext['ordering'],
+                          ordering: value as LibraryReviewContext['ordering'],
                         }))
                       }
+                      options={[
+                        { label: 'Oldest first', value: 'capture-ascending' },
+                        { label: 'Newest first', value: 'capture-descending' },
+                      ]}
                       value={context.ordering}
-                    >
-                      <option value="capture-ascending">Oldest first</option>
-                      <option value="capture-descending">Newest first</option>
-                    </select>
-                  </label>
+                    />
+                  </div>
                   <label className="workstation-toggle">
                     <input
                       checked={context.autoAdvance}
@@ -1677,84 +1678,87 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
                 </p>
               ) : null}
               <div className="workstation-review-tools__filters">
-                <label>
-                  Review
-                  <select
-                    aria-label="Review status filter"
-                    onChange={(event) =>
+                <div className="workstation-review-tools__field">
+                  <span>Review</span>
+                  <Select
+                    label="Review status filter"
+                    onValueChange={(value) =>
                       setFilter({
-                        disposition: event.currentTarget.value
-                          ? (event.currentTarget.value as LibraryPhotographRecord['disposition'])
+                        disposition: value
+                          ? (value as LibraryPhotographRecord['disposition'])
                           : undefined,
                       })
                     }
+                    options={[
+                      { label: `All (${photographs.length})`, value: '' },
+                      {
+                        label: `Unreviewed (${reviewStatusCounts.unmarked})`,
+                        value: 'unmarked',
+                      },
+                      { label: `Picks (${reviewStatusCounts.pick})`, value: 'pick' },
+                      { label: `Rejects (${reviewStatusCounts.reject})`, value: 'reject' },
+                    ]}
                     value={context.filter.disposition ?? ''}
-                  >
-                    <option value="">All ({photographs.length})</option>
-                    <option value="unmarked">Unreviewed ({reviewStatusCounts.unmarked})</option>
-                    <option value="pick">Picks ({reviewStatusCounts.pick})</option>
-                    <option value="reject">Rejects ({reviewStatusCounts.reject})</option>
-                  </select>
-                </label>
-                <label>
-                  Rating
-                  <select
-                    aria-label="Minimum Rating filter"
-                    onChange={(event) =>
+                  />
+                </div>
+                <div className="workstation-review-tools__field">
+                  <span>Rating</span>
+                  <Select
+                    label="Minimum Rating filter"
+                    onValueChange={(value) =>
                       setFilter({
-                        minimumRating: event.currentTarget.value
-                          ? Number(event.currentTarget.value)
-                          : undefined,
+                        minimumRating: value ? Number(value) : undefined,
                       })
                     }
-                    value={context.filter.minimumRating ?? ''}
-                  >
-                    <option value="">Any</option>
-                    {[1, 2, 3, 4, 5].map((rating) => (
-                      <option key={rating} value={rating}>
-                        {rating}+ stars
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Source
-                  <select
-                    aria-label="Source state filter"
-                    onChange={(event) => {
-                      const value = event.currentTarget.value;
+                    options={[
+                      { label: 'Any', value: '' },
+                      ...[1, 2, 3, 4, 5].map((rating) => ({
+                        label: `${rating}+ stars`,
+                        value: String(rating),
+                      })),
+                    ]}
+                    value={String(context.filter.minimumRating ?? '')}
+                  />
+                </div>
+                <div className="workstation-review-tools__field">
+                  <span>Source</span>
+                  <Select
+                    label="Source state filter"
+                    onValueChange={(value) =>
                       setFilter({
                         sourceState:
                           value === 'available' || value === 'missing' ? value : undefined,
                         unsupportedOnly: value === 'unsupported' ? true : undefined,
-                      });
-                    }}
+                      })
+                    }
+                    options={[
+                      { label: 'All', value: '' },
+                      { label: 'Available', value: 'available' },
+                      { label: 'Missing', value: 'missing' },
+                      { label: 'Unsupported scan results', value: 'unsupported' },
+                    ]}
                     value={
                       context.filter.unsupportedOnly
                         ? 'unsupported'
                         : (context.filter.sourceState ?? '')
                     }
-                  >
-                    <option value="">All</option>
-                    <option value="available">Available</option>
-                    <option value="missing">Missing</option>
-                    <option value="unsupported">Unsupported scan results</option>
-                  </select>
-                </label>
-                <label>
-                  Analysis
-                  <select
-                    aria-label="Analysis completion filter"
-                    onChange={(event) =>
+                  />
+                </div>
+                <div className="workstation-review-tools__field">
+                  <span>Analysis</span>
+                  <Select
+                    label="Analysis completion filter"
+                    onValueChange={(value) =>
                       setFilter({
                         analysisComplete:
-                          event.currentTarget.value === 'complete'
-                            ? true
-                            : event.currentTarget.value === 'pending'
-                              ? false
-                              : undefined,
+                          value === 'complete' ? true : value === 'pending' ? false : undefined,
                       })
                     }
+                    options={[
+                      { label: 'Any', value: '' },
+                      { label: 'Complete', value: 'complete' },
+                      { label: 'Not complete', value: 'pending' },
+                    ]}
                     value={
                       context.filter.analysisComplete === true
                         ? 'complete'
@@ -1762,12 +1766,8 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
                           ? 'pending'
                           : ''
                     }
-                  >
-                    <option value="">Any</option>
-                    <option value="complete">Complete</option>
-                    <option value="pending">Not complete</option>
-                  </select>
-                </label>
+                  />
+                </div>
               </div>
               {activeFilterCount ? (
                 <Button
