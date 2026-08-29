@@ -318,7 +318,8 @@ code {
   z-index: 40;
   top: calc(100% + 0.45rem);
   right: 0;
-  width: 12.5rem;
+  width: 15.5rem;
+  max-width: calc(100vw - 1.5rem);
   border: 1px solid var(--color-line-strong);
   padding: 0.35rem;
   display: grid;
@@ -1707,10 +1708,14 @@ summary:focus-visible,
 .library-workspace__topbar {
   min-height: 3.5rem;
   padding: 0.4rem 0.75rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
   background: var(--color-chrome);
 }
 
 .library-workspace__identity {
+  justify-self: start;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -1735,6 +1740,7 @@ summary:focus-visible,
 }
 
 .library-workspace__topbar-actions {
+  justify-self: end;
   gap: 0.5rem;
 }
 
@@ -1755,6 +1761,7 @@ summary:focus-visible,
 }
 
 .workstation-modes {
+  justify-self: center;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
   padding: 0.2rem;
@@ -1769,6 +1776,9 @@ summary:focus-visible,
   border: 0;
   border-radius: var(--radius-sm);
   padding: 0.35rem 0.75rem;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
   transition:
     background-color var(--motion-fast) ease,
     color var(--motion-fast) ease;
@@ -2412,6 +2422,7 @@ summary:focus-visible,
 }
 
 .workstation-more > div > .workstation-more__view {
+  min-width: 0;
   border-top: 1px solid var(--color-line);
   margin-top: 0.25rem;
   padding-top: 0.25rem;
@@ -2429,10 +2440,24 @@ summary:focus-visible,
 .workstation-more__view > .workstation-view__panel {
   position: static;
   width: auto;
+  min-width: 0;
   border: 0;
   padding: 0.45rem 0.65rem 0.65rem;
   box-shadow: none;
   background: transparent;
+}
+
+.workstation-more__view .library-grid-density {
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-content: stretch;
+}
+
+.workstation-more__view .library-grid-density button {
+  min-width: 0;
+  padding-inline: 0.35rem;
+  text-align: center;
 }
 
 .workstation-more > div > .workstation-history {
