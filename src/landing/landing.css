@@ -1,14 +1,30 @@
 @font-face {
-  font-family: 'OpenFilm Bodoni';
+  font-family: 'Archivo';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('../assets/bodoni-moda-400.ttf') format('truetype');
+  src: url('../assets/archivo-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../assets/archivo-500.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../assets/archivo-600.ttf') format('truetype');
 }
 
 :root {
   color-scheme: dark;
-  --landing-display: 'Helvetica Neue', 'Avenir Next', Helvetica, Arial, sans-serif;
+  --landing-display: 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --landing-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -87,8 +103,9 @@ img {
   width: max-content;
   color: var(--color-ink);
   font-family: var(--font-display);
-  font-size: 1.55rem;
-  letter-spacing: -0.025em;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
   text-decoration: none;
 }
 
@@ -118,10 +135,14 @@ img {
 
 .header-launch {
   min-height: var(--touch-target);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.85rem;
   justify-self: end;
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
+  background: var(--color-control);
   color: var(--color-accent);
   font-size: var(--type-caption);
   letter-spacing: 0.09em;
@@ -130,6 +151,8 @@ img {
 }
 
 .header-launch:hover {
+  border-color: var(--color-accent);
+  background: var(--color-surface);
   color: var(--color-ink);
 }
 
@@ -272,7 +295,8 @@ img {
   min-height: 3.2rem;
   width: max-content;
   border: 1px solid var(--color-accent);
-  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  padding: 0.8rem 1.1rem;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
@@ -298,7 +322,7 @@ a.landing-launch:hover {
 
 .landing-launch--icon-button {
   border-radius: var(--radius-md);
-  padding: 0.45rem 0.5rem 0.45rem 1rem;
+  padding: 0.5rem 0.55rem 0.5rem 1.1rem;
   gap: 1rem;
 }
 
@@ -343,7 +367,7 @@ a.landing-launch:hover {
 
 .landing-workflow,
 .landing-local {
-  padding: clamp(4rem, 8vw, 8rem) clamp(1rem, 5vw, 6rem);
+  padding: clamp(5rem, 9vw, 8rem) clamp(1.25rem, 5vw, 6rem);
 }
 
 .landing-workflow h2,
@@ -364,6 +388,7 @@ a.landing-launch:hover {
   width: 100%;
   margin: 0;
   border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-md);
   background: var(--color-paper);
   overflow: hidden;
 }

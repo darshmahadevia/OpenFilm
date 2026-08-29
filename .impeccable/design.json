@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-25T13:20:00Z",
+  "generatedAt": "2026-08-29T17:46:00Z",
   "title": "Design System: OpenFilm",
   "extensions": {
     "colorMeta": {
@@ -277,7 +277,7 @@
     },
     "typographyMeta": {
       "display": {
-        "displayName": "Editorial Display",
+        "displayName": "Clean Display",
         "purpose": "Landing promises, section headings, and the image-led closing statement."
       },
       "heading": {
@@ -332,9 +332,9 @@
       "name": "Browser Launch Link",
       "kind": "button",
       "refersTo": "browser-launch-link",
-      "description": "The squared sand action used in the landing hero, header, and closing photograph.",
+      "description": "The gently rounded sand action used in the landing hero, header, and closing photograph.",
       "html": "<a class=\"ds-launch\" href=\"/app.html\"><span>Open OpenFilm</span><svg aria-hidden=\"true\" fill=\"none\" viewBox=\"0 0 24 24\"><path d=\"M5 12h13m-5-5 5 5-5 5\" /></svg></a>",
-      "css": ".ds-launch { align-items: center; background: var(--color-accent); border: 1px solid var(--color-accent); color: var(--color-accent-ink); display: inline-flex; font: 600 0.8rem/1 var(--font-body); gap: 2.2rem; min-height: 3.2rem; padding: 0.75rem 0.85rem 0.75rem 1.05rem; text-decoration: none; text-transform: uppercase; } .ds-launch svg { stroke: currentColor; stroke-width: 1.5; width: 1.15rem; } .ds-launch:hover { background: transparent; color: var(--color-accent); } .ds-launch:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 4px; }"
+      "css": ".ds-launch { align-items: center; background: var(--color-accent); border: 1px solid var(--color-accent); border-radius: var(--radius-sm); color: var(--color-accent-ink); display: inline-flex; font: 600 0.8rem/1 var(--font-body); gap: 2.2rem; min-height: 3.2rem; padding: 0.8rem 1.1rem; text-decoration: none; text-transform: uppercase; } .ds-launch svg { stroke: currentColor; stroke-width: 1.5; width: 1.15rem; } .ds-launch:hover { background: transparent; color: var(--color-accent); } .ds-launch:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 4px; }"
     },
     {
       "name": "Primary Button",
@@ -342,7 +342,7 @@
       "refersTo": "button-primary",
       "description": "The sand workstation action for opening a folder or confirming a focused task.",
       "html": "<button class=\"ds-btn-primary\" type=\"button\">Open folder</button>",
-      "css": ".ds-btn-primary { background: var(--color-accent); border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--color-accent-ink); font: 500 var(--type-body)/1 var(--font-body); min-height: 2.6rem; padding: 0.6rem 0.9rem; } .ds-btn-primary:hover { background: var(--color-accent-dark); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }"
+      "css": ".ds-btn-primary { background: var(--color-accent); border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--color-accent-ink); font: 500 var(--type-body)/1 var(--font-body); min-height: 2.75rem; padding: 0.65rem 1rem; } .ds-btn-primary:hover { background: var(--color-accent-dark); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }"
     },
     {
       "name": "Workstation Proof Frame",
@@ -350,7 +350,7 @@
       "refersTo": "proof-frame",
       "description": "Fine-rule documentary chrome around a real workstation screenshot.",
       "html": "<figure class=\"ds-proof\"><div class=\"ds-proof-bar\">OPENFILM / LIBRARY</div><div class=\"ds-proof-image\">Real workstation screenshot</div></figure>",
-      "css": ".ds-proof { background: var(--color-paper); border: 1px solid var(--color-line-strong); box-shadow: 0 2rem 5rem rgb(0 0 0 / 48%); color: var(--color-ink); margin: 0; } .ds-proof-bar { background: #0b0b0b; border-bottom: 1px solid var(--color-line); color: var(--color-muted); font: 500 0.58rem/2rem var(--font-body); letter-spacing: 0.1em; padding: 0 0.75rem; text-align: right; } .ds-proof-image { align-items: center; aspect-ratio: 16 / 10; display: flex; justify-content: center; }"
+      "css": ".ds-proof { background: var(--color-paper); border: 1px solid var(--color-line-strong); border-radius: var(--radius-md); box-shadow: 0 2rem 5rem rgb(0 0 0 / 48%); color: var(--color-ink); margin: 0; overflow: hidden; } .ds-proof-bar { background: #0b0b0b; border-bottom: 1px solid var(--color-line); color: var(--color-muted); font: 500 0.58rem/2rem var(--font-body); letter-spacing: 0.1em; padding: 0 0.75rem; text-align: right; } .ds-proof-image { align-items: center; aspect-ratio: 16 / 10; display: flex; justify-content: center; }"
     }
   ],
   "narrative": {
@@ -358,7 +358,7 @@
     "overview": "OpenFilm is primarily a working surface. Near-black chrome, warm-white type, fine rules, and one restrained sand signal frame the Source photograph. The landing page uses the same world at editorial scale, with real workstation proof, full-bleed photography, and factual product language.",
     "keyCharacteristics": [
       "Matte near-black chrome, warm-white type, fine rules, and a restrained sand signal.",
-      "OpenFilm Bodoni display paired with Helvetica Neue interface copy and tabular numeric values.",
+      "Self-hosted Archivo display paired with Helvetica Neue interface copy and tabular numeric values.",
       "Photograph-first proof through real workstation screenshots and grounded photographic assets.",
       "Local-first language with no ornamental claims, social proof, or cloud and account theatre."
     ],
@@ -391,7 +391,7 @@
     ],
     "dos": [
       "Do make a real photograph the strongest object in the landing first viewport, workstation proof, and final CTA.",
-      "Do keep the near-black ground, warm-white type, fine rules, OpenFilm Bodoni display, and one restrained sand interaction signal across workstation and landing surfaces.",
+      "Do keep the near-black ground, warm-white type, fine rules, compact Archivo display, and one restrained sand interaction signal across workstation and landing surfaces.",
       "Do make local behavior, Library durability, recovery, and export language plain and visible.",
       "Do keep keyboard focus visible and browser launch links explicitly named."
     ],

@@ -347,6 +347,7 @@ test.describe('Library start and recovery journey', () => {
     await expect(page.getByText(/Source preview/).first()).toBeVisible();
     await page.keyboard.press('Escape');
 
+    await page.locator('.workstation-context-tools > summary').click();
     const editButton = page.getByRole('button', { name: 'Edit' });
     await editButton.click();
     const inspector = page.getByRole('dialog', { name: 'Edit inspector' });

@@ -111,12 +111,15 @@ test.describe('release visual evidence', () => {
     await page.keyboard.press('Space');
     await gridPhotographs.nth(1).click();
     await page.keyboard.press('Space');
-    await page.getByRole('button', { name: 'Comparison' }).click();
+    await page.locator('.workstation-context-tools > summary').click();
+    await page.screenshot({ path: '.impeccable/review/final-tools.png' });
+    await page.getByRole('button', { name: 'Compare 2' }).click();
     await page.screenshot({ path: '.impeccable/review/final-comparison.png' });
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Loupe' }).click();
     await expect(page.getByText('Reading Source photograph.')).toHaveCount(0);
     await page.screenshot({ path: '.impeccable/review/final-loupe.png' });
+    await page.locator('.workstation-context-tools > summary').click();
     await page.getByRole('button', { name: 'Edit' }).click();
     await page.screenshot({ path: '.impeccable/review/final-edit.png' });
     await page.keyboard.press('Escape');

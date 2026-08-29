@@ -597,23 +597,15 @@ function EditInspector({
 function ActiveReviewRail({
   active,
   canMutate,
-  comparisonCount,
-  comparisonReady,
   context,
   children,
-  onClearSelection,
-  onCompare,
   onReview,
   onToggleSelection,
 }: {
   active: LibraryPhotographRecord;
   canMutate: boolean;
-  comparisonCount: number;
-  comparisonReady: boolean;
   context: LibraryReviewContext;
   children?: ReactNode;
-  onClearSelection: () => void;
-  onCompare: () => void;
   onReview: (command: ReviewCommand) => void;
   onToggleSelection: () => void;
 }) {
@@ -667,16 +659,6 @@ function ActiveReviewRail({
             >
               Reject
             </Button>
-            {active.disposition !== 'unmarked' ? (
-              <Button
-                disabled={!canMutate}
-                onClick={() => onReview({ kind: 'set-disposition', disposition: 'unmarked' })}
-                size="small"
-                variant="quiet"
-              >
-                Clear mark
-              </Button>
-            ) : null}
           </div>
           <label className="workstation-rating-control">
             <span>Rating</span>
@@ -699,36 +681,15 @@ function ActiveReviewRail({
               ))}
             </select>
           </label>
-        </div>
-        <div
-          aria-label="Selection actions"
-          className="workstation-action-group workstation-selection-group"
-          role="group"
-        >
-          <span className="workstation-selection-count">
-            <span>Selection</span>
-            <strong aria-label={`Selection count: ${context.selection.length}`}>
-              {context.selection.length}
-            </strong>
-          </span>
           <Button
             aria-pressed={isSelected}
+            className="workstation-selection-toggle"
             onClick={onToggleSelection}
             size="small"
             variant="outline"
           >
             {isSelected ? 'Remove from Selection' : 'Add to Selection'}
           </Button>
-          {comparisonReady ? (
-            <Button onClick={onCompare} size="small" variant="primary">
-              Compare {comparisonCount}
-            </Button>
-          ) : null}
-          {context.selection.length ? (
-            <Button onClick={onClearSelection} size="small" variant="quiet">
-              Clear
-            </Button>
-          ) : null}
         </div>
         {children}
       </div>
@@ -1118,6 +1079,11 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
 
   function enterComparison() {
     try {
+      globalThis.document
+        .querySelectorAll<HTMLDetailsElement>('details[data-workstation-popover][open]')
+        .forEach((details) => {
+          details.open = false;
+        });
       const comparisonIds = context.selection.slice(0, 4);
       const state = createComparisonState(comparisonIds);
       setComparison(state);
@@ -1486,25 +1452,6 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
             <span>Loupe</span>
             {!active ? <small>Choose a photograph</small> : null}
           </button>
-          <button
-            aria-label="Comparison"
-            aria-current={context.mode === 'comparison' ? 'page' : undefined}
-            aria-describedby="comparison-requirement"
-            disabled={!comparisonReady}
-            onClick={enterComparison}
-            title={
-              comparisonReady
-                ? 'Compare the selected photographs'
-                : 'Select two to four photographs in Grid first'
-            }
-            type="button"
-          >
-            <span>Comparison</span>
-            <small>{comparisonReady ? `${comparisonCount} selected` : 'Select 2–4'}</small>
-          </button>
-          <span className="visually-hidden" id="comparison-requirement">
-            Select two to four photographs in Grid to use Comparison.
-          </span>
         </nav>
         <div className="library-workspace__topbar-actions">
           {props.snapshot.status === 'saved' ? (
@@ -1532,7 +1479,7 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
             </Button>
           ) : null}
           <details className="workstation-more" data-workstation-popover="true">
-            <summary>More</summary>
+            <summary>Menu</summary>
             <div>
               <strong className="workstation-more__group-label">Library</strong>
               <Button
@@ -1668,120 +1615,160 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
         <ActiveReviewRail
           active={active}
           canMutate={canMutate}
-          comparisonCount={comparisonCount}
-          comparisonReady={comparisonReady}
           context={context}
-          onClearSelection={() => setContext((current) => ({ ...current, selection: [] }))}
-          onCompare={enterComparison}
           onReview={review}
           onToggleSelection={() =>
             setContext((current) => toggleLibrarySelection(current, active.id))
           }
         >
-          <Button
-            disabled={!active || !canMutate}
-            onClick={() => (inspectorOpen ? closeInspector() : openInspector())}
-            size="small"
-            variant="outline"
-          >
-            Edit
-          </Button>
           <details className="workstation-context-tools" data-workstation-popover="true">
             <summary>
-              Filters
-              {activeFilterCount ? <span>{activeFilterCount} active</span> : null}
+              Tools
+              <span aria-label={`Selection count: ${context.selection.length}`}>
+                {context.selection.length
+                  ? `${context.selection.length} selected`
+                  : activeFilterCount
+                    ? `${activeFilterCount} filtered`
+                    : 'Review options'}
+              </span>
             </summary>
-            <div className="workstation-context-tools__panel workstation-filters__panel">
-              <label>
-                Review
-                <select
-                  aria-label="Review status filter"
-                  onChange={(event) =>
-                    setFilter({
-                      disposition: event.currentTarget.value
-                        ? (event.currentTarget.value as LibraryPhotographRecord['disposition'])
-                        : undefined,
-                    })
-                  }
-                  value={context.filter.disposition ?? ''}
+            <div className="workstation-context-tools__panel workstation-review-tools__panel">
+              <div className="workstation-review-tools__actions">
+                <Button
+                  disabled={!canMutate}
+                  onClick={() => (inspectorOpen ? closeInspector() : openInspector())}
+                  size="small"
+                  variant="primary"
                 >
-                  <option value="">All ({photographs.length})</option>
-                  <option value="unmarked">Unreviewed ({reviewStatusCounts.unmarked})</option>
-                  <option value="pick">Picks ({reviewStatusCounts.pick})</option>
-                  <option value="reject">Rejects ({reviewStatusCounts.reject})</option>
-                </select>
-              </label>
-              <label>
-                Rating
-                <select
-                  aria-label="Minimum Rating filter"
-                  onChange={(event) =>
-                    setFilter({
-                      minimumRating: event.currentTarget.value
-                        ? Number(event.currentTarget.value)
-                        : undefined,
-                    })
-                  }
-                  value={context.filter.minimumRating ?? ''}
+                  Edit
+                </Button>
+                <Button
+                  aria-describedby={!comparisonReady ? 'comparison-requirement' : undefined}
+                  disabled={!comparisonReady}
+                  onClick={enterComparison}
+                  size="small"
+                  variant="outline"
                 >
-                  <option value="">Any</option>
-                  {[1, 2, 3, 4, 5].map((rating) => (
-                    <option key={rating} value={rating}>
-                      {rating}+ stars
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Source
-                <select
-                  aria-label="Source state filter"
-                  onChange={(event) => {
-                    const value = event.currentTarget.value;
-                    setFilter({
-                      sourceState: value === 'available' || value === 'missing' ? value : undefined,
-                      unsupportedOnly: value === 'unsupported' ? true : undefined,
-                    });
-                  }}
-                  value={
-                    context.filter.unsupportedOnly
-                      ? 'unsupported'
-                      : (context.filter.sourceState ?? '')
-                  }
-                >
-                  <option value="">All</option>
-                  <option value="available">Available</option>
-                  <option value="missing">Missing</option>
-                  <option value="unsupported">Unsupported scan results</option>
-                </select>
-              </label>
-              <label>
-                Analysis
-                <select
-                  aria-label="Analysis completion filter"
-                  onChange={(event) =>
-                    setFilter({
-                      analysisComplete:
-                        event.currentTarget.value === 'complete'
-                          ? true
-                          : event.currentTarget.value === 'pending'
-                            ? false
-                            : undefined,
-                    })
-                  }
-                  value={
-                    context.filter.analysisComplete === true
-                      ? 'complete'
-                      : context.filter.analysisComplete === false
-                        ? 'pending'
-                        : ''
-                  }
-                >
-                  <option value="">Any</option>
-                  <option value="complete">Complete</option>
-                  <option value="pending">Not complete</option>
-                </select>
-              </label>
+                  {comparisonReady ? `Compare ${comparisonCount}` : 'Compare'}
+                </Button>
+                {active.disposition !== 'unmarked' ? (
+                  <Button
+                    disabled={!canMutate}
+                    onClick={() => review({ kind: 'set-disposition', disposition: 'unmarked' })}
+                    size="small"
+                    variant="quiet"
+                  >
+                    Clear mark
+                  </Button>
+                ) : null}
+                {context.selection.length ? (
+                  <Button
+                    onClick={() => setContext((current) => ({ ...current, selection: [] }))}
+                    size="small"
+                    variant="quiet"
+                  >
+                    Clear Selection
+                  </Button>
+                ) : null}
+              </div>
+              {!comparisonReady ? (
+                <p className="workstation-review-tools__requirement" id="comparison-requirement">
+                  Select two to four photographs to compare them.
+                </p>
+              ) : null}
+              <div className="workstation-review-tools__filters">
+                <label>
+                  Review
+                  <select
+                    aria-label="Review status filter"
+                    onChange={(event) =>
+                      setFilter({
+                        disposition: event.currentTarget.value
+                          ? (event.currentTarget.value as LibraryPhotographRecord['disposition'])
+                          : undefined,
+                      })
+                    }
+                    value={context.filter.disposition ?? ''}
+                  >
+                    <option value="">All ({photographs.length})</option>
+                    <option value="unmarked">Unreviewed ({reviewStatusCounts.unmarked})</option>
+                    <option value="pick">Picks ({reviewStatusCounts.pick})</option>
+                    <option value="reject">Rejects ({reviewStatusCounts.reject})</option>
+                  </select>
+                </label>
+                <label>
+                  Rating
+                  <select
+                    aria-label="Minimum Rating filter"
+                    onChange={(event) =>
+                      setFilter({
+                        minimumRating: event.currentTarget.value
+                          ? Number(event.currentTarget.value)
+                          : undefined,
+                      })
+                    }
+                    value={context.filter.minimumRating ?? ''}
+                  >
+                    <option value="">Any</option>
+                    {[1, 2, 3, 4, 5].map((rating) => (
+                      <option key={rating} value={rating}>
+                        {rating}+ stars
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Source
+                  <select
+                    aria-label="Source state filter"
+                    onChange={(event) => {
+                      const value = event.currentTarget.value;
+                      setFilter({
+                        sourceState:
+                          value === 'available' || value === 'missing' ? value : undefined,
+                        unsupportedOnly: value === 'unsupported' ? true : undefined,
+                      });
+                    }}
+                    value={
+                      context.filter.unsupportedOnly
+                        ? 'unsupported'
+                        : (context.filter.sourceState ?? '')
+                    }
+                  >
+                    <option value="">All</option>
+                    <option value="available">Available</option>
+                    <option value="missing">Missing</option>
+                    <option value="unsupported">Unsupported scan results</option>
+                  </select>
+                </label>
+                <label>
+                  Analysis
+                  <select
+                    aria-label="Analysis completion filter"
+                    onChange={(event) =>
+                      setFilter({
+                        analysisComplete:
+                          event.currentTarget.value === 'complete'
+                            ? true
+                            : event.currentTarget.value === 'pending'
+                              ? false
+                              : undefined,
+                      })
+                    }
+                    value={
+                      context.filter.analysisComplete === true
+                        ? 'complete'
+                        : context.filter.analysisComplete === false
+                          ? 'pending'
+                          : ''
+                    }
+                  >
+                    <option value="">Any</option>
+                    <option value="complete">Complete</option>
+                    <option value="pending">Not complete</option>
+                  </select>
+                </label>
+              </div>
               {activeFilterCount ? (
                 <Button
                   onClick={() =>
@@ -1798,11 +1785,6 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
               ) : null}
             </div>
           </details>
-          {statusMessage ? (
-            <p aria-live="polite" className="workstation-toolbar__message" role="status">
-              {statusMessage}
-            </p>
-          ) : null}
           {props.snapshot.scan.status !== 'complete' ||
           props.snapshot.scan.unsupportedFiles.length ? (
             <div className="workstation-scan-summary">
@@ -1813,11 +1795,15 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
                 snapshot={props.snapshot}
               />
             </div>
-          ) : (
-            <span aria-live="polite" className="visually-hidden">
-              Background jobs complete. {photographs.length.toLocaleString()} photographs ready.
-            </span>
-          )}
+          ) : null}
+          {statusMessage ? (
+            <p aria-live="polite" className="workstation-toolbar__message" role="status">
+              {statusMessage}
+            </p>
+          ) : null}
+          <span aria-live="polite" className="visually-hidden">
+            Background jobs complete. {photographs.length.toLocaleString()} photographs ready.
+          </span>
         </ActiveReviewRail>
       ) : null}
 

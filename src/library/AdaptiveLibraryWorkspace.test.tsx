@@ -97,9 +97,9 @@ describe('Adaptive Library workstation', () => {
     render(<AdaptiveLibraryWorkspace {...props()} />);
     expect(screen.getByText('Saved')).toHaveClass('visually-hidden');
     expect(screen.getByRole('button', { name: 'Grid' })).not.toHaveAttribute('aria-describedby');
-    const comparison = screen.getByRole('button', { name: 'Comparison' });
+    const comparison = screen.getByRole('button', { name: 'Compare' });
     expect(comparison).toBeDisabled();
-    expect(comparison).toHaveAttribute('title', 'Select two to four photographs in Grid first');
+    expect(comparison).toHaveAttribute('aria-describedby', 'comparison-requirement');
 
     fireEvent.click(screen.getByLabelText('Photo actions for 1.jpg'));
     fireEvent.click(
@@ -116,7 +116,7 @@ describe('Adaptive Library workstation', () => {
 
     expect(comparison).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Compare 2' })).toBeEnabled();
-    expect(screen.getByText('More')).toBeInTheDocument();
+    expect(screen.getByText('Menu')).toBeInTheDocument();
   });
 
   it('filters the Grid to Rejects from the Filters disclosure', () => {
@@ -134,7 +134,7 @@ describe('Adaptive Library workstation', () => {
     };
     render(<AdaptiveLibraryWorkspace {...options} />);
 
-    fireEvent.click(screen.getByText('Filters', { exact: true }));
+    fireEvent.click(screen.getByText('Tools', { exact: true }));
     const statusFilter = screen.getByLabelText('Review status filter');
     expect(statusFilter).toHaveValue('');
 

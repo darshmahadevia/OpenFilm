@@ -22,13 +22,14 @@ colors:
   warning-surface: '#171109'
   danger: '#ffb59f'
 typography:
-  display: 'OpenFilm Bodoni, Iowan Old Style, Times New Roman, serif'
-  heading: 'Helvetica Neue, Avenir Next, Helvetica, Arial, sans-serif'
+  display: 'Archivo, Helvetica Neue, Helvetica, Arial, sans-serif'
+  heading: 'Archivo, Helvetica Neue, Helvetica, Arial, sans-serif'
   interface: 'Helvetica Neue, Helvetica, Arial, sans-serif'
   numeric: 'tabular-nums'
 rounded:
-  sm: '0.4rem'
-  md: '0.5rem'
+  sm: '0.625rem'
+  md: '0.875rem'
+  lg: '1rem'
   round: '999px'
 spacing:
   touch-target: '2.75rem'
@@ -50,8 +51,8 @@ workstation; the workstation itself keeps actions compact and task-specific.
 **Key Characteristics:**
 
 - Matte near-black chrome, warm-white type, fine rules, and a restrained sand signal.
-- OpenFilm Bodoni wordmark paired with Helvetica Neue headings, interface copy, and tabular numeric
-  values.
+- A compact Archivo wordmark and heading voice paired with Helvetica Neue interface copy and tabular
+  numeric values.
 - Photograph-first proof: real workstation screenshots and grounded photographic assets carry the
   visual authority.
 - Compact, precise workstation controls extended to the landing page at editorial scale.
@@ -89,10 +90,10 @@ The start surface does one job: create a Library, reopen a folder, recover a rec
 import a Library backup. Browsers without writable folder access name Browser Library persistence
 and folder reselection before the photographer begins. The workstation then keeps this order stable:
 
-1. Library identity, Grid / Loupe / Comparison, save state, and Export in the top bar.
-2. One workflow sentence and a concise photograph or scan count below it.
-3. Review and contextual Selection controls in the command strip; Filters and scan detail live in a
-   Tools disclosure, while Edit and history stay one action away.
+1. Library identity, Grid / Loupe modes, save state, Export, and the Library menu in the top bar.
+2. Active photograph identity with Pick, Reject, Rating, and Add to Selection in the review rail.
+3. Edit, Comparison, Filters, and Selection management in a contextual Tools disclosure; active scan
+   progress remains visible while background work is running.
 4. Grid, Loupe, or Comparison in the central stage.
 5. Inspector and sheets as true overlays, with contained focus and explicit Close actions.
 
@@ -141,10 +142,9 @@ is allowed; reduced motion removes it rather than replacing it with another effe
 
 ## Type, color, and depth
 
-OpenFilm Bodoni is reserved for the wordmark and compact Library heading in the workstation.
-Landing, section, and closing headings use a tightly set Helvetica Neue with system fallbacks.
-Interface copy uses the same sans-serif family at a smaller scale. Primary text is warm white; muted
-gray is supporting information; sand indicates focus, Selection, direct manipulation, and the
+Self-hosted Archivo carries the OpenFilm wordmark, landing headings, and compact Library headings in
+the workstation. Interface copy uses Helvetica Neue at a smaller scale. Primary text is warm white;
+muted gray is supporting information; sand indicates focus, Selection, direct manipulation, and the
 landing launch action. Green, amber, and coral are status-only.
 
 **The One Signal Rule.** Sand is a functional signal for action, focus, Selection, and direct
@@ -164,7 +164,7 @@ for those domain terms. Describe local behavior precisely; never imply cloud bac
 unsupported formats, universal performance, archival fidelity, or automatic quality judgment.
 
 Errors state the consequence and the next safe action. Empty states say which filter or Selection
-caused the result. Shortcuts remain discoverable through the `?` key and the More menu.
+caused the result. Shortcuts remain discoverable through the `?` key and the Menu disclosure.
 
 Landing copy may state only shipped facts: local folder references, durable Library sidecars,
 Browser Library persistence, the supported JPEG / PNG / WebP boundary, the shared WebGL2 path,
@@ -176,9 +176,9 @@ its documented browser boundary; atmosphere never stands in for evidence.
 
 ## Landing component grammar
 
-- **Launch links:** Sand-filled, squared browser links with compact arrow icons. Hover swaps to the
-  matte ground and sand text; focus uses the shared visible focus treatment. Mobile replaces these
-  links with a non-interactive Coming soon status.
+- **Launch links:** Sand-filled browser links use gently rounded corners and compact arrow icons.
+  Hover swaps to the matte ground and sand text; focus uses the shared visible focus treatment.
+  Mobile replaces these links with a non-interactive Coming soon status.
 - **Proof frame:** A near-black, fine-rule frame around the real workstation screenshot. Landing
   proofs crop to the upper controls and photograph row. The small window bar and filename readout
   are documentary chrome only.
@@ -201,7 +201,7 @@ source of truth remains `src/ui/tokens.css`.
 
 - **Do** make a real photograph the strongest object in the landing first viewport, workstation
   proof, and final CTA.
-- **Do** keep the near-black ground, warm-white type, fine rules, Bodoni wordmark, precise sans-serif
+- **Do** keep the near-black ground, warm-white type, fine rules, compact Archivo wordmark and
   headings, and one restrained sand interaction signal across workstation and landing surfaces.
 - **Do** make local behavior, Library durability, Browser Library limits, recovery, and Export
   language plain and visible.
