@@ -4,11 +4,11 @@ OpenFilm is a local-first browser workstation for reviewing, culling, comparing,
 
 [Try OpenFilm](https://openfilm.vercel.app/app.html) · [Product site](https://openfilm.vercel.app) · [CI](https://github.com/darshmahadevia/OpenFilm/actions/workflows/ci.yml)
 
-![OpenFilm workstation showing a four-photo Library in Grid view](./docs/screenshots/openfilm-workstation-wide.png)
+![OpenFilm editing a photograph in Loupe view](./docs/screenshots/openfilm-editor.webp)
 
 ## Why I built it
 
-I built OpenFilm to answer a specific question: can a browser handle the difficult parts of a desktop photo workflow without taking custody of the photographs? The project pushed me into file-system permissions, atomic recovery, GPU resource limits, and cross-browser fallbacks. Those became the most interesting parts of the codebase.
+I built OpenFilm to see how much of a desktop photo workflow could live in the browser without taking custody of the photographs. That meant dealing with file-system permissions, crash-safe saves, GPU resource limits, and cross-browser fallbacks. Those became the most interesting parts of the codebase.
 
 ## What you can do
 
