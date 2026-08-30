@@ -5,6 +5,7 @@ import {
   AdaptiveLibraryWorkspace,
   type AdaptiveLibraryWorkspaceProps,
 } from './AdaptiveLibraryWorkspace';
+import { createFinalSetExport } from './libraryFinalSetExport';
 import { createEmptyLibraryDocument, type LibraryPhotographRecord } from './libraryModel';
 
 function photo(id: string): LibraryPhotographRecord {
@@ -33,6 +34,18 @@ function props(
   return {
     customLooks: [],
     feedback: null,
+    finalSetExport: createFinalSetExport({
+      chooseFolder: async () => ({
+        paths: [],
+        read: async () => null,
+        write: async () => undefined,
+      }),
+      getLibrary: () => library,
+      readSourcePhotograph: async (path) =>
+        new File(['image'], path, { lastModified: 1, type: 'image/jpeg' }),
+      render: async () => new Blob(['rendered'], { type: 'image/jpeg' }),
+      requestDownload: async () => undefined,
+    }),
     historyStatus: { canRedo: false, canUndo: false },
     onCancelScan: vi.fn(),
     onClose: vi.fn(),
@@ -41,12 +54,6 @@ function props(
     onLoadSource: vi.fn(async () => new File(['image'], 'photo.jpg', { type: 'image/jpeg' })),
     onLoadComparisonThumbnail: vi.fn(() => new Promise<never>(() => undefined)),
     onLoadThumbnail: vi.fn(() => new Promise<never>(() => undefined)),
-    onPickExportDestination: vi.fn(async () => ({
-      handle: {} as FileSystemDirectoryHandle,
-      paths: [],
-    })),
-    onReadExportFile: vi.fn(async () => null),
-    onRenderExport: vi.fn(async () => new Blob()),
     onReauthorize: vi.fn(),
     onReauthorizeScan: vi.fn(async () => undefined),
     onRedo: vi.fn(async () => true),
@@ -55,7 +62,6 @@ function props(
     onRetry: vi.fn(),
     onSaveCopy: vi.fn(),
     onUndo: vi.fn(async () => true),
-    onWriteExportFile: vi.fn(async () => undefined),
     snapshot: {
       library,
       libraryId: library.libraryId,

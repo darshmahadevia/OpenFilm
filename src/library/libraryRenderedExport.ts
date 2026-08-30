@@ -17,7 +17,9 @@ export async function renderLibraryPhotograph(
   file: File,
   photograph: LibraryPhotographRecord,
   options: { format: ExportFormat; quality: number },
+  signal?: AbortSignal,
 ): Promise<Blob> {
+  signal?.throwIfAborted();
   const objectUrl = URL.createObjectURL(file);
   const canvas = document.createElement('canvas');
   const renderer = createRenderer(canvas);
@@ -27,12 +29,16 @@ export async function renderLibraryPhotograph(
   }
   try {
     const dimensions = await imageDimensions(objectUrl);
+    signal?.throwIfAborted();
     const edit = getLibraryEdit(photograph);
     await renderer.replaceImage({ ...dimensions, objectUrl });
+    signal?.throwIfAborted();
     renderer.setAdjustments(edit.adjustments);
     renderer.setGeometry(edit.geometry);
     renderer.setGrainSeed(edit.grainSeed);
-    return await renderer.exportImage(options);
+    const rendered = await renderer.exportImage(options);
+    signal?.throwIfAborted();
+    return rendered;
   } finally {
     renderer.dispose();
     URL.revokeObjectURL(objectUrl);

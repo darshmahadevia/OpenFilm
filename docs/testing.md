@@ -23,9 +23,9 @@ browser scale gate explicitly because it produces machine-specific evidence.
 
 Vitest exercises the durable file protocol and recovery, scanner, metadata parser, virtualized Grid,
 bounded scheduler/cache, review commands, atomic Look copy, groups, Comparison geometry, Edit
-persistence, analysis cache invalidation, migration/quarantine, Source reconciliation, Export
-planning/resume, renderer, Browser Library folder selection and recovery, backup import, and storage
-boundaries.
+persistence, analysis cache invalidation, migration/quarantine, Source reconciliation, Final-set
+Export planning and run behavior through in-memory adapters, renderer, Browser Library folder
+selection and recovery, backup import, and storage seams.
 
 Playwright covers:
 
@@ -33,7 +33,7 @@ Playwright covers:
   recovery states;
 - Grid keyboard review, range Selection, auto-advance, Loupe, Comparison, Edit inspector focus, and
   Source/context-loss states;
-- resumable mixed-success Export in the browser and every interrupted Library commit phase;
+- Final-set Export preview in the workstation and every interrupted Library commit phase;
 - axe-core checks at the start and populated workstation, visible focus, narrow widths, 200-percent
   zoom proxy, and reduced-motion preference;
 - a 2,000-record performance fixture at baseline and 4× CPU throttling.

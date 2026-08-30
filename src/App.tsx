@@ -16,6 +16,7 @@ import {
   resolveLegacyMigration,
   type LegacyMigrationState,
 } from './library/libraryMigration';
+import type { FinalSetExport } from './library/libraryFinalSetExport';
 import type { LibraryThumbnail } from './library/libraryThumbnail';
 import {
   createBrowserStorage,
@@ -263,6 +264,7 @@ export default function App() {
   const [snapshot, setSnapshot] = useState<LibraryWorkspaceSnapshot | null>(null);
   const [recent, setRecent] = useState<RecentLibraryEntry[]>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [finalSetExport, setFinalSetExport] = useState<FinalSetExport | null>(null);
   const [loading, setLoading] = useState(true);
   const [opening, setOpening] = useState(false);
   const [migration, setMigration] = useState<LegacyMigrationState | null>(null);
@@ -314,7 +316,7 @@ export default function App() {
     })();
     return () => {
       cancelled = true;
-      applicationRef.current?.close();
+      void applicationRef.current?.close();
       applicationRef.current = null;
       storageRef.current = null;
       delete (window as Window & { __openfilmLibraryMetrics?: () => unknown })
@@ -326,6 +328,7 @@ export default function App() {
     if (result.kind === 'cancelled') return;
     if (result.kind === 'opened' || result.kind === 'read-only') {
       setSnapshot(result.snapshot);
+      setFinalSetExport(applicationRef.current?.finalSetExport() ?? null);
       setFeedback(null);
       setHistoryStatus(
         applicationRef.current?.historyStatus() ?? { canRedo: false, canUndo: false },
@@ -463,18 +466,23 @@ export default function App() {
   }
 
   const application = applicationRef.current;
+  if (!finalSetExport) return null;
   return (
     <AdaptiveLibraryWorkspace
       customLooks={customLooks}
       feedback={feedback}
+      finalSetExport={finalSetExport}
       historyStatus={historyStatus}
       key={snapshot.libraryId ?? 'library'}
       onCancelScan={() => application?.cancelScan()}
       onClose={() => {
-        application?.close();
-        setSnapshot(null);
-        setFeedback(null);
-        void refreshRecent();
+        void (async () => {
+          await application?.close();
+          setSnapshot(null);
+          setFinalSetExport(null);
+          setFeedback(null);
+          await refreshRecent();
+        })();
       }}
       onCommit={async (library, message) => {
         if (!application) return false;
@@ -497,10 +505,6 @@ export default function App() {
       onLoadSource={loadSource}
       onLoadComparisonThumbnail={loadComparisonThumbnail}
       onLoadThumbnail={loadThumbnail}
-      onPickExportDestination={async () => {
-        if (!application) throw new Error('Open a Library first.');
-        return await application.pickExportDestination();
-      }}
       onReauthorize={() => {
         if (snapshot.libraryId && application)
           void open(() => application.reauthorizeRecentLibrary(snapshot.libraryId!));
@@ -513,14 +517,6 @@ export default function App() {
           await application.scanLibrary(setSnapshot, { cacheContentHashes: true });
         }
         await refreshRecent();
-      }}
-      onReadExportFile={async (destination, path) => {
-        if (!application) throw new Error('Open a Library first.');
-        return await application.readExportFile(destination, path);
-      }}
-      onRenderExport={async (photograph, options, signal) => {
-        if (!application) throw new Error('Open a Library first.');
-        return await application.renderExportPhotograph(photograph, options, signal);
       }}
       onRedo={async () => {
         if (!application) return false;
@@ -548,10 +544,6 @@ export default function App() {
         const result = await application.undo();
         await applyAction(Promise.resolve(result));
         return result.kind === 'updated' && result.snapshot.status === 'saved';
-      }}
-      onWriteExportFile={async (destination, path, bytes, options) => {
-        if (!application) throw new Error('Open a Library first.');
-        await application.writeExportFile(destination, path, bytes, options);
       }}
       snapshot={snapshot}
     />

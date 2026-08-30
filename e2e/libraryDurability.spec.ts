@@ -22,22 +22,6 @@ test.describe('Library-file durability gate', () => {
     expect(report.cases.every((testCase) => testCase.passed)).toBe(true);
   });
 
-  test('reconciles a mixed-success Export after interruption without overwriting collisions', async ({
-    page,
-  }) => {
-    await page.goto('/app.html');
-    const report = await page.evaluate(async () => {
-      const harness = await import('/src/library/exportResumeHarness.ts');
-      return harness.runExportResumeBrowserHarness();
-    });
-    expect(report).toEqual({
-      collisionPaths: ['frame-2.jpg', 'frame-3.jpg', 'third.jpg'],
-      completedSkipped: true,
-      failedRetried: true,
-      pendingRetried: true,
-    });
-  });
-
   test('reconciles unchanged, restored, changed, moved, missing, new, and ambiguous Sources', async ({
     page,
   }) => {

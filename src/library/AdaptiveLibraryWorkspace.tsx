@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 
 import {
   adjustmentDefinitions,
@@ -9,7 +17,6 @@ import { neutralGeometry, type GeometryRotation } from '../editor/geometry';
 import { interpolateToneCurve } from '../editor/toneCurve';
 import { createRenderer, neutralRendererAdjustments } from '../rendering/renderer';
 import { Button, Select } from '../ui/components';
-import type { ExportFormat } from '../rendering/export';
 import { LibraryGrid } from './LibraryGrid';
 import { LibraryPhotoView } from './LibraryPhotoView';
 import {
@@ -20,15 +27,7 @@ import {
   toggleComparisonPaneLink,
   type LibraryComparisonState,
 } from './libraryComparison';
-import {
-  DOWNLOAD_FALLBACK_LIMIT,
-  createExportPlan,
-  isFinalSetExportManifest,
-  markExportComplete,
-  markExportFailed,
-  reconcileExportManifest,
-  type FinalSetExportManifest,
-} from './libraryExportSet';
+import type { FinalSetExport } from './libraryFinalSetExport';
 import { LIBRARY_GRID_DENSITIES, type LibraryGridDensity } from './libraryGridModel';
 import type { LibraryThumbnail } from './libraryThumbnail';
 import type { LibraryWorkspaceSnapshot } from './libraryApplication';
@@ -62,6 +61,7 @@ import type { StoredLook } from '../storage/browserStorage';
 export interface AdaptiveLibraryWorkspaceProps {
   customLooks: readonly StoredLook[];
   feedback: string | null;
+  finalSetExport: FinalSetExport;
   historyStatus: { canRedo: boolean; canUndo: boolean };
   onCancelScan: () => void;
   onClose: () => void;
@@ -80,16 +80,6 @@ export interface AdaptiveLibraryWorkspaceProps {
     signal?: AbortSignal,
     cacheRevision?: string,
   ) => Promise<LibraryThumbnail>;
-  onPickExportDestination: () => Promise<{ handle: FileSystemDirectoryHandle; paths: string[] }>;
-  onReadExportFile: (
-    destination: FileSystemDirectoryHandle,
-    relativePath: string,
-  ) => Promise<File | null>;
-  onRenderExport: (
-    photograph: LibraryPhotographRecord,
-    options: { format: ExportFormat; quality: number },
-    signal?: AbortSignal,
-  ) => Promise<Blob>;
   onReauthorize: () => void;
   onReauthorizeScan: () => Promise<void>;
   onRedo: () => Promise<boolean>;
@@ -98,17 +88,10 @@ export interface AdaptiveLibraryWorkspaceProps {
   onRetry: () => void;
   onSaveCopy: () => void;
   onUndo: () => Promise<boolean>;
-  onWriteExportFile: (
-    destination: FileSystemDirectoryHandle,
-    relativePath: string,
-    bytes: Blob | Uint8Array,
-    options?: { overwrite?: boolean },
-  ) => Promise<void>;
   snapshot: LibraryWorkspaceSnapshot;
 }
 
 const editSections = ['light', 'color', 'curve', 'finish', 'geometry', 'looks'] as const;
-const EXPORT_MANIFEST_PATH = 'openfilm-export-manifest.json';
 const HISTORY_LIMIT = 50;
 const FILMSTRIP_WINDOW = 21;
 type EditSection = (typeof editSections)[number];
@@ -748,22 +731,6 @@ function updateLibraryRotation(
   return updateLibraryGeometry(document, active, { rotation });
 }
 
-async function checksum(blob: Blob): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
-  return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, '0')).join(
-    '',
-  );
-}
-
-function download(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
 export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
   const initialDocument = props.snapshot.library;
   const [documentState, setDocumentState] = useState<OpenFilmLibraryDocument | null>(
@@ -787,13 +754,11 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
   const [showGroups, setShowGroups] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [exportMode, setExportMode] = useState<'picks' | 'selection'>('picks');
-  const [exportManifest, setExportManifest] = useState<FinalSetExportManifest | null>(null);
-  const [exportDestination, setExportDestination] = useState<FileSystemDirectoryHandle | null>(
-    null,
+  const exportSnapshot = useSyncExternalStore(
+    props.finalSetExport.subscribe,
+    props.finalSetExport.getSnapshot,
+    props.finalSetExport.getSnapshot,
   );
-  const [exportRunning, setExportRunning] = useState(false);
-  const [exportCancelled, setExportCancelled] = useState(false);
-  const exportCancelledRef = useRef(false);
   const focusBeforeOverlay = useRef<HTMLElement | null>(null);
   const popoverBeforeOverlay = useRef<HTMLDetailsElement | null>(null);
   const workstationRef = useRef<HTMLElement>(null);
@@ -951,13 +916,21 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
     },
     { pick: 0, reject: 0, unmarked: 0 },
   );
-  const exportCounts = exportManifest?.entries.reduce(
+  const exportCounts = exportSnapshot.entries.reduce(
     (counts, entry) => {
-      counts[entry.state] += 1;
+      if (entry.state === 'complete') counts.complete += 1;
+      else if (entry.state === 'download-requested') counts.downloadRequested += 1;
+      else if (entry.state === 'failed') counts.failed += 1;
+      else if (entry.state === 'cancelled') counts.cancelled += 1;
+      else counts.remaining += 1;
       return counts;
     },
-    { cancelled: 0, complete: 0, failed: 0, pending: 0, writing: 0 },
+    { cancelled: 0, complete: 0, downloadRequested: 0, failed: 0, remaining: 0 },
   );
+  const exportActive =
+    exportSnapshot.phase === 'preparing' ||
+    exportSnapshot.phase === 'awaiting-confirmation' ||
+    exportSnapshot.phase === 'running';
   async function commit(
     next: OpenFilmLibraryDocument,
     nextMessage: string,
@@ -1201,198 +1174,16 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
     setContext((current) => ({ ...current, filter: { ...current.filter, ...update } }));
   }
 
-  function exportPhotographs(): LibraryPhotographRecord[] {
-    const selectedRecords =
-      exportMode === 'selection'
-        ? (context.selection
-            .map((id) => photographs.find((photo) => photo.id === id))
-            .filter(Boolean) as LibraryPhotographRecord[])
-        : photographs.filter((photo) => photo.disposition === 'pick');
-    if (selectedRecords.length === 0) {
-      throw new Error(
+  function startFinalSetExport(target: 'browser-downloads' | 'folder') {
+    void props.finalSetExport.start({
+      format: 'jpeg',
+      quality: 0.92,
+      source:
         exportMode === 'selection'
-          ? 'The Selection is empty.'
-          : 'This Library has no Picks to Export.',
-      );
-    }
-    return selectedRecords;
-  }
-
-  async function persistExportManifest(
-    destination: FileSystemDirectoryHandle,
-    manifest: FinalSetExportManifest,
-    overwrite: boolean,
-  ) {
-    await props.onWriteExportFile(
-      destination,
-      EXPORT_MANIFEST_PATH,
-      new TextEncoder().encode(JSON.stringify(manifest, null, 2)),
-      { overwrite },
-    );
-  }
-
-  async function prepareExport() {
-    if (!document) return;
-    try {
-      const destination = await props.onPickExportDestination();
-      const storedManifestPath = destination.paths.find(
-        (path) => path.toLocaleLowerCase('en-US') === EXPORT_MANIFEST_PATH,
-      );
-      setExportDestination(destination.handle);
-      if (storedManifestPath) {
-        const storedFile = await props.onReadExportFile(destination.handle, storedManifestPath);
-        const parsed: unknown = storedFile ? JSON.parse(await storedFile.text()) : null;
-        if (!isFinalSetExportManifest(parsed)) {
-          throw new Error('The destination contains an unsupported OpenFilm Export manifest.');
-        }
-        const destinationChecksums = new Map<string, string>();
-        for (const entry of parsed.entries) {
-          const output = await props.onReadExportFile(destination.handle, entry.destinationPath);
-          if (output) destinationChecksums.set(entry.destinationPath, await checksum(output));
-        }
-        const reconciled = reconcileExportManifest(parsed, photographs, destinationChecksums);
-        await persistExportManifest(destination.handle, reconciled, true);
-        setExportManifest(reconciled);
-        setMessage(
-          `Resumed ${reconciled.entries.length} Export entries; checksum-valid outputs will be skipped.`,
-        );
-        return;
-      }
-      const selectedRecords = exportPhotographs();
-      const manifest = createExportPlan(selectedRecords, {
-        existingDestinationPaths: new Set(destination.paths),
-        format: 'jpeg',
-        preserveSourceFolders: true,
-        quality: 0.92,
-      });
-      await persistExportManifest(destination.handle, manifest, false);
-      setExportManifest(manifest);
-      setMessage(`Prepared ${selectedRecords.length} collision-safe Export names.`);
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : 'OpenFilm could not prepare the Export folder.',
-      );
-    }
-  }
-
-  function prepareDownloadFallback() {
-    try {
-      const selectedRecords = exportPhotographs();
-      if (selectedRecords.length > DOWNLOAD_FALLBACK_LIMIT) {
-        throw new Error(`Download fallback is limited to ${DOWNLOAD_FALLBACK_LIMIT} photographs.`);
-      }
-      setExportDestination(null);
-      setExportManifest(
-        createExportPlan(selectedRecords, {
-          existingDestinationPaths: new Set(),
-          format: 'jpeg',
-          preserveSourceFolders: false,
-          quality: 0.92,
-        }),
-      );
-      setMessage(
-        `Prepared ${selectedRecords.length} browser downloads. This fallback cannot resume.`,
-      );
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'OpenFilm could not prepare downloads.');
-    }
-  }
-
-  async function runExport(folder: boolean) {
-    if (!document || !exportManifest || (folder && !exportDestination)) return;
-    setExportRunning(true);
-    setExportCancelled(false);
-    exportCancelledRef.current = false;
-    let manifest = exportManifest;
-    for (const entry of manifest.entries) {
-      if (exportCancelledRef.current) break;
-      if (entry.state === 'complete') continue;
-      const photograph = photographs.find((candidate) => candidate.id === entry.photographId);
-      if (!photograph || photograph.sourceState === 'missing') {
-        manifest = markExportFailed(
-          manifest,
-          entry.photographId,
-          'The Source photograph is Missing.',
-        );
-        setExportManifest(manifest);
-        if (folder && exportDestination) {
-          try {
-            await persistExportManifest(exportDestination, manifest, true);
-          } catch (error) {
-            setExportRunning(false);
-            setMessage(
-              error instanceof Error
-                ? `Export paused because its manifest did not save. ${error.message}`
-                : 'Export paused because its manifest did not save.',
-            );
-            return;
-          }
-        }
-        continue;
-      }
-      try {
-        manifest = {
-          ...manifest,
-          entries: manifest.entries.map((candidate) =>
-            candidate.photographId === entry.photographId
-              ? { ...candidate, failure: null, state: 'writing' }
-              : candidate,
-          ),
-        };
-        setExportManifest(manifest);
-        if (folder && exportDestination) {
-          await persistExportManifest(exportDestination, manifest, true);
-        }
-        const blob = await props.onRenderExport(photograph, {
-          format: entry.format,
-          quality: entry.quality,
-        });
-        if (folder) await props.onWriteExportFile(exportDestination!, entry.destinationPath, blob);
-        else download(blob, entry.destinationPath.split('/').at(-1) ?? entry.destinationPath);
-        manifest = markExportComplete(manifest, entry.photographId, await checksum(blob));
-      } catch (error) {
-        manifest = markExportFailed(
-          manifest,
-          entry.photographId,
-          error instanceof Error ? error.message : 'Export failed.',
-        );
-      }
-      setExportManifest(manifest);
-      if (folder && exportDestination) {
-        try {
-          await persistExportManifest(exportDestination, manifest, true);
-        } catch (error) {
-          setExportRunning(false);
-          setMessage(
-            error instanceof Error
-              ? `Export paused because its manifest did not save. ${error.message}`
-              : 'Export paused because its manifest did not save.',
-          );
-          return;
-        }
-      }
-    }
-    if (exportCancelledRef.current) {
-      manifest = {
-        ...manifest,
-        entries: manifest.entries.map((entry) =>
-          entry.state === 'pending' ? { ...entry, state: 'cancelled' } : entry,
-        ),
-      };
-      setExportManifest(manifest);
-      if (folder && exportDestination) {
-        try {
-          await persistExportManifest(exportDestination, manifest, true);
-        } catch (error) {
-          setMessage(
-            error instanceof Error
-              ? `Export stopped, but its cancellation state did not save. ${error.message}`
-              : 'Export stopped, but its cancellation state did not save.',
-          );
-        }
-      }
-    }
-    setExportRunning(false);
+          ? { kind: 'selection', photographIds: context.selection }
+          : { kind: 'picks' },
+      target,
+    });
   }
 
   if (!document)
@@ -2396,28 +2187,36 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
               Current Selection · {context.selection.length}
             </label>
           </fieldset>
-          <Button disabled={exportRunning} onClick={() => void prepareExport()} variant="primary">
+          <Button
+            disabled={exportActive}
+            onClick={() => startFinalSetExport('folder')}
+            variant="primary"
+          >
             Choose folder to preview or resume
           </Button>
-          <Button disabled={exportRunning} onClick={prepareDownloadFallback} variant="outline">
+          <Button
+            disabled={exportActive}
+            onClick={() => startFinalSetExport('browser-downloads')}
+            variant="outline"
+          >
             Prepare bounded downloads
           </Button>
-          {exportManifest ? (
+          {exportSnapshot.entries.length > 0 || exportSnapshot.phase === 'failed' ? (
             <>
               <div aria-live="polite" className="export-summary" role="status">
                 <strong>
-                  {exportCounts?.complete ?? 0} of {exportManifest.entries.length} exported
+                  {exportCounts.complete + exportCounts.downloadRequested} of{' '}
+                  {exportSnapshot.entries.length} processed
                 </strong>
                 <span>
-                  {exportCounts?.failed ? `${exportCounts.failed} failed` : 'No failures'}
-                  {(exportCounts?.pending ?? 0) + (exportCounts?.writing ?? 0) > 0
-                    ? ` · ${(exportCounts?.pending ?? 0) + (exportCounts?.writing ?? 0)} remaining`
-                    : ''}
-                  {exportCounts?.cancelled ? ` · ${exportCounts.cancelled} cancelled` : ''}
+                  {exportCounts.failed ? `${exportCounts.failed} failed` : 'No failures'}
+                  {exportCounts.remaining ? ` · ${exportCounts.remaining} remaining` : ''}
+                  {exportCounts.cancelled ? ` · ${exportCounts.cancelled} cancelled` : ''}
                 </span>
+                <span>{exportSnapshot.message}</span>
               </div>
               <ol className="export-manifest-preview">
-                {exportManifest.entries.map((entry) => (
+                {exportSnapshot.entries.map((entry) => (
                   <li key={entry.photographId}>
                     <span>{entry.destinationPath}</span>
                     <span>
@@ -2428,50 +2227,25 @@ export function AdaptiveLibraryWorkspace(props: AdaptiveLibraryWorkspaceProps) {
                 ))}
               </ol>
               <div className="workstation-sheet__actions">
-                {!exportDestination ? (
-                  <p className="export-requirement" id="folder-export-requirement">
-                    Choose a folder above to start or resume a folder Export.
-                  </p>
+                {exportSnapshot.canConfirm ? (
+                  <Button onClick={props.finalSetExport.confirm} variant="primary">
+                    {exportSnapshot.target === 'folder'
+                      ? 'Start folder Export'
+                      : 'Request browser downloads'}
+                  </Button>
                 ) : null}
-                <Button
-                  aria-describedby={!exportDestination ? 'folder-export-requirement' : undefined}
-                  disabled={exportRunning || !exportDestination}
-                  onClick={() => void runExport(true)}
-                  variant="primary"
-                >
-                  {exportRunning
-                    ? 'Exporting…'
-                    : exportCounts?.failed && !exportCounts.pending && !exportCounts.writing
-                      ? 'Retry failed'
-                      : 'Start folder Export'}
-                </Button>
-                <Button
-                  aria-describedby="download-fallback-limit"
-                  disabled={
-                    exportRunning || exportManifest.entries.length > DOWNLOAD_FALLBACK_LIMIT
-                  }
-                  onClick={() => void runExport(false)}
-                  variant="outline"
-                >
-                  Download fallback
-                </Button>
-                {exportRunning ? (
-                  <Button
-                    onClick={() => {
-                      exportCancelledRef.current = true;
-                      setExportCancelled(true);
-                    }}
-                    variant="quiet"
-                  >
-                    Cancel after current photograph
+                {exportSnapshot.canRetry ? (
+                  <Button onClick={() => void props.finalSetExport.retry()} variant="primary">
+                    Retry unfinished
+                  </Button>
+                ) : null}
+                {exportSnapshot.phase === 'running' ? (
+                  <Button onClick={props.finalSetExport.cancel} variant="quiet">
+                    Cancel safely
                   </Button>
                 ) : null}
               </div>
-              {exportCancelled ? <p role="status">Export cancellation requested.</p> : null}
-              <p id="download-fallback-limit">
-                The download fallback is limited to {DOWNLOAD_FALLBACK_LIMIT} photographs and cannot
-                resume after reload.
-              </p>
+              <p>Browser downloads are bounded and cannot resume after reload.</p>
             </>
           ) : null}
         </aside>

@@ -26,8 +26,11 @@ Library mode stores the same versioned Library envelope in IndexedDB.
 - `src/library/libraryReviewGroups.ts` owns deterministic Burst proposals and explicit group
   provenance. `libraryAnalysis.ts` owns versioned perceptual-hash and relative-sharpness signals;
   these are intentionally not connected to the shipped UI until their quality gate can be met.
-- `src/library/libraryExportSet.ts` owns collision-safe paths and resumable manifests.
-  `libraryRenderedExport.ts` renders each final result through the same WebGL2 renderer as Loupe.
+- `src/library/libraryFinalSetExport.ts` owns each session-scoped Final-set Export run, including
+  frozen Photograph records and Edits, preview confirmation, safe cancellation, progress, retry, and
+  the folder and browser-download adapters. `libraryExportSet.ts` owns collision-safe paths and
+  resumable manifests. `libraryRenderedExport.ts` renders each final result through the same WebGL2
+  renderer as Loupe.
 - `src/library/libraryMigration.ts` and `libraryReconciliation.ts` isolate legacy migration,
   quarantine, fingerprint resolution, and unique-hash move reconciliation.
 - `src/editor` owns normalized adjustments, RGB tone curves, Geometry, Looks, and rendering-safe Edit
@@ -79,7 +82,8 @@ concurrency and retry; caches enforce byte budgets rather than entry counts.
   and `e2e/libraryDurability.spec.ts`
 - Scan, reconciliation, metadata, scheduler, Grid, and resources: matching tests under `src/library`
 - Review, groups, Comparison, Edit persistence, analysis, migration, and Export: matching focused
-  Vitest files under `src/library`
+  Vitest files under `src/library`, including run-level Final-set Export tests through in-memory
+  adapters
 - Rendering: `src/rendering/renderer.test.ts`, `src/rendering/export.test.ts`, and Loupe browser paths
 - Product workflow and accessibility: `e2e/firstImportExport.spec.ts` and
   `e2e/libraryWorkspace.spec.ts`

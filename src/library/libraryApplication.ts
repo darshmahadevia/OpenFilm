@@ -30,8 +30,11 @@ import {
 import { createLibraryGridThumbnail, type LibraryThumbnail } from './libraryThumbnail';
 import { createLibraryWorkScheduler, type LibraryWorkScheduler } from './libraryScheduler';
 import { renderLibraryPhotograph } from './libraryRenderedExport';
-import type { ExportFormat } from '../rendering/export';
-import type { LibraryPhotographRecord } from './libraryModel';
+import {
+  createFinalSetExport,
+  type FinalSetExport,
+  type FinalSetExportFolder,
+} from './libraryFinalSetExport';
 import { ByteBudgetedResourceCache } from './libraryResourceCache';
 import {
   countBrowserLibrarySourceMatches,
@@ -85,6 +88,7 @@ export type LibraryActionResult =
   | { kind: 'failed'; message: string };
 
 interface ActiveLibrary {
+  finalSetExport: FinalSetExport | null;
   fullResolutionReads: number;
   fullResolutionTail: Promise<unknown>;
   handle: FileSystemDirectoryHandle;
@@ -355,57 +359,8 @@ export class LibraryApplication {
     );
   }
 
-  async renderExportPhotograph(
-    photograph: LibraryPhotographRecord,
-    options: { format: ExportFormat; quality: number },
-    signal?: AbortSignal,
-  ): Promise<Blob> {
-    const active = this.active;
-    if (!active) throw new Error('Open a Library before rendering an Export.');
-    return await active.workScheduler.enqueue(
-      'background',
-      async () => {
-        return await this.runFullResolution(active, async () => {
-          active.fullResolutionReads += 1;
-          return await this.renderExport(
-            await this.gateway.readSourcePhotograph(active.handle, photograph.relativePath),
-            photograph,
-            options,
-          );
-        });
-      },
-      signal,
-    );
-  }
-
-  async pickExportDestination(): Promise<{ handle: FileSystemDirectoryHandle; paths: string[] }> {
-    if (!this.gateway.pickExportDirectory || !this.gateway.listExportPaths) {
-      throw new Error(
-        'This browser cannot authorize an Export folder. Use the bounded download fallback.',
-      );
-    }
-    const handle = await this.gateway.pickExportDirectory();
-    return { handle, paths: await this.gateway.listExportPaths(handle) };
-  }
-
-  async writeExportFile(
-    destination: FileSystemDirectoryHandle,
-    relativePath: string,
-    bytes: Blob | Uint8Array,
-    options?: { overwrite?: boolean },
-  ): Promise<void> {
-    if (!this.gateway.writeExportFile)
-      throw new Error('This browser cannot write to an Export folder.');
-    await this.gateway.writeExportFile(destination, relativePath, bytes, options);
-  }
-
-  async readExportFile(
-    destination: FileSystemDirectoryHandle,
-    relativePath: string,
-  ): Promise<File | null> {
-    if (!this.gateway.readExportFile)
-      throw new Error('This browser cannot resume from an Export folder.');
-    return await this.gateway.readExportFile(destination, relativePath);
+  finalSetExport(): FinalSetExport | null {
+    return this.active?.finalSetExport ?? null;
   }
 
   async loadLibraryThumbnail(
@@ -825,10 +780,13 @@ export class LibraryApplication {
     return { kind: 'failed', message: describeLoadFailure(result) };
   }
 
-  close(): void {
-    this.active?.scanAbortController?.abort();
-    this.active?.workScheduler.dispose();
-    this.active?.thumbnailCache.dispose();
+  async close(): Promise<void> {
+    const active = this.active;
+    active?.scanAbortController?.abort();
+    await active?.finalSetExport?.close();
+    if (this.active !== active) return;
+    active?.workScheduler.dispose();
+    active?.thumbnailCache.dispose();
     this.active = null;
     this.clearHistory();
   }
@@ -1003,11 +961,14 @@ export class LibraryApplication {
     snapshot: LibraryWorkspaceSnapshot,
     pendingFromIndexedDb: boolean,
   ): Promise<void> {
-    this.active?.scanAbortController?.abort();
-    this.active?.workScheduler.dispose();
-    this.active?.thumbnailCache.dispose();
+    const previous = this.active;
+    previous?.scanAbortController?.abort();
+    await previous?.finalSetExport?.close();
+    previous?.workScheduler.dispose();
+    previous?.thumbnailCache.dispose();
     this.clearHistory();
-    this.active = {
+    const active: ActiveLibrary = {
+      finalSetExport: null,
       fullResolutionReads: 0,
       fullResolutionTail: Promise.resolve(),
       handle,
@@ -1021,6 +982,58 @@ export class LibraryApplication {
       thumbnailCache: new ByteBudgetedResourceCache<LibraryThumbnail>(96 * 1024 * 1024),
       workScheduler: createLibraryWorkScheduler(),
     };
+    active.finalSetExport = createFinalSetExport({
+      chooseFolder: async (): Promise<FinalSetExportFolder> => {
+        if (
+          !this.gateway.pickExportDirectory ||
+          !this.gateway.listExportPaths ||
+          !this.gateway.readExportFile ||
+          !this.gateway.writeExportFile
+        ) {
+          throw new Error(
+            'This browser cannot authorize an Export folder. Use bounded browser downloads.',
+          );
+        }
+        const destination = await this.gateway.pickExportDirectory();
+        return {
+          paths: await this.gateway.listExportPaths(destination),
+          read: async (relativePath) =>
+            await this.gateway.readExportFile!(destination, relativePath),
+          write: async (relativePath, bytes, options) =>
+            await this.gateway.writeExportFile!(destination, relativePath, bytes, options),
+        };
+      },
+      getLibrary: () => active.snapshot.library,
+      readSourcePhotograph: async (relativePath, signal) =>
+        await active.workScheduler.enqueue(
+          'background',
+          async () =>
+            await this.runFullResolution(active, async () => {
+              active.fullResolutionReads += 1;
+              return await this.gateway.readSourcePhotograph(active.handle, relativePath);
+            }),
+          signal,
+        ),
+      render: async (file, photograph, options, signal) =>
+        await active.workScheduler.enqueue(
+          'background',
+          async () =>
+            await this.runFullResolution(
+              active,
+              async () => await this.renderExport(file, photograph, options, signal),
+            ),
+          signal,
+        ),
+      requestDownload: async (bytes, fileName) => {
+        const url = URL.createObjectURL(bytes);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+      },
+    });
+    this.active = active;
     await this.persistActive();
   }
 

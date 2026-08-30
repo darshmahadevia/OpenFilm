@@ -66,13 +66,16 @@ until a rights-cleared labeled corpus meets the quality gate.
 
 ## Final-set Export
 
-Export operates on all Picks or the current Selection. Planning resolves case-insensitive path
-collisions, optionally preserves Source folders, and records an explicit source-to-output binding.
-Folder writes refuse overwrite. A manifest records checksum, status, and failure per
-photograph; it is written before work and after every entry. Reopening the folder reconciles output
-checksums, skips valid results, and gives incomplete occupied paths a new collision-safe name rather
-than overwriting them. Cancel stops after the current photograph. Browser Library mode uses the
-download fallback, which is capped at 12 files and cannot resume after reload.
+Final-set Export operates on all Picks or the current Selection. Each run freezes its Photograph
+records and Edits before preview confirmation. Planning resolves case-insensitive path collisions,
+optionally preserves Source folders, and records an explicit source-to-output binding. Folder writes
+refuse overwrite. A manifest records checksum, status, and failure per photograph; it is written
+before output work and after every entry. Reopening the folder starts a new run from current Edits,
+reconciles output checksums, skips valid results, and gives incomplete occupied paths a new
+collision-safe name rather than overwriting them. Cancellation aborts rendering, finishes active
+writes, persists state at a safe checkpoint, and then stops. Browser Library mode uses bounded
+downloads, which are capped at 12 files and cannot resume after reload; OpenFilm reports each browser
+handoff as requested rather than saved.
 
 All final-set images use the shared renderer. Output assumes sRGB, strips Source metadata, and does
 not claim archival or print fidelity.

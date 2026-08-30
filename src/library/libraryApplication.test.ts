@@ -149,7 +149,7 @@ describe('Library application boundary', () => {
     });
     expect(recovery).not.toHaveProperty('source');
 
-    app.close();
+    await app.close();
     const reopened = await app.openRecentLibrary(opened.snapshot.libraryId ?? '');
     expect(reopened).toMatchObject({
       created: false,
@@ -187,7 +187,7 @@ describe('Library application boundary', () => {
       { libraryId, status: 'choose-folder' },
     ]);
 
-    firstApp.close();
+    await firstApp.close();
     const secondDirectory = createBrowserDirectory('June shoot', sources);
     const secondApp = new LibraryApplication(createBrowserGateway(secondDirectory), storage, {
       lock: createMemoryLibraryLock(),
@@ -202,7 +202,7 @@ describe('Library application boundary', () => {
     });
     expect(secondApp.snapshot()?.library?.photographs[0]?.id).toBe(photographId);
 
-    secondApp.close();
+    await secondApp.close();
     const changedSources = [
       {
         file: new File(['changed jpeg bytes'], 'first.jpg', {
@@ -489,42 +489,64 @@ describe('Library application boundary', () => {
     expect(app.snapshot()?.library).toHaveProperty('reviewNote', 'queued');
   });
 
-  it('renders Export work through the application scheduler boundary', async () => {
+  it('runs Final-set Export through the application scheduler seam', async () => {
     const directory = createDirectory('Export shoot');
     directory.sourceFiles = [
       {
-        file: new File(['source'], 'frame.jpg', { type: 'image/jpeg' }),
+        file: new File(['source'], 'frame.jpg', { lastModified: 10, type: 'image/jpeg' }),
         relativePath: 'frame.jpg',
       },
     ];
     const renderExport = vi.fn(async () => new Blob(['rendered'], { type: 'image/jpeg' }));
+    const createObjectUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:export');
+    const revokeObjectUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const clickDownload = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
     const app = new LibraryApplication(createGateway(directory), createMemoryStorage(), {
       lock: createMemoryLibraryLock(),
       now: () => 100,
       renderExport,
     });
     await app.openPickedFolder();
+    await app.commitCommand(
+      (document) => ({
+        ...document,
+        photographs: [
+          {
+            cameraSerial: null,
+            captureTime: null,
+            disposition: 'pick',
+            fileName: 'frame.jpg',
+            fingerprint: { byteSize: 6, lastModified: 10 },
+            id: 'frame',
+            mimeType: 'image/jpeg',
+            orientation: null,
+            rating: null,
+            relativePath: 'frame.jpg',
+            sourceState: 'available',
+          },
+        ],
+      }),
+      'Added photograph.',
+    );
+    const finalSetExport = app.finalSetExport()!;
 
-    await expect(
-      app.renderExportPhotograph(
-        {
-          cameraSerial: null,
-          captureTime: null,
-          disposition: 'pick',
-          fileName: 'frame.jpg',
-          fingerprint: { byteSize: 6, lastModified: 0 },
-          id: 'frame',
-          mimeType: 'image/jpeg',
-          orientation: null,
-          rating: null,
-          relativePath: 'frame.jpg',
-          sourceState: 'available',
-        },
-        { format: 'jpeg', quality: 0.9 },
-      ),
-    ).resolves.toBeInstanceOf(Blob);
+    const resultPromise = finalSetExport.start({
+      format: 'jpeg',
+      quality: 0.9,
+      source: { kind: 'picks' },
+      target: 'browser-downloads',
+    });
+    await vi.waitFor(() => expect(finalSetExport.getSnapshot().canConfirm).toBe(true));
+    finalSetExport.confirm();
+
+    await expect(resultPromise).resolves.toMatchObject({ outcome: 'completed' });
     expect(renderExport).toHaveBeenCalledOnce();
     expect(app.resourceStatus()?.fullResolutionReads).toBe(1);
+    createObjectUrl.mockRestore();
+    revokeObjectUrl.mockRestore();
+    clickDownload.mockRestore();
   });
 
   it('reuses Grid derivatives under an observable byte budget and releases them on close', async () => {
@@ -550,7 +572,7 @@ describe('Library application boundary', () => {
 
     expect(readSource).toHaveBeenCalledOnce();
     expect(app.resourceStatus()?.thumbnailCache).toMatchObject({ count: 1, bytes: 6 });
-    app.close();
+    await app.close();
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:cached');
     createObjectUrl.mockRestore();
     revokeObjectUrl.mockRestore();

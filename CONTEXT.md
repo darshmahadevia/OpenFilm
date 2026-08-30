@@ -92,6 +92,10 @@ _Avoid_: Duplicate decision, match
 A versioned, advisory measure used to compare relative detail within related photographs. It is not a quality verdict and never changes Disposition or Rating.
 _Avoid_: Quality score, best shot
 
+**Final-set Export**:
+The operation that turns Picks or an explicit Selection into Rendered images. It may target a resumable folder or bounded browser downloads.
+_Avoid_: Batch export, output job
+
 **Rendered image**:
 An exported image whose pixels contain the adjustments and geometry from an Edit.
 _Avoid_: Output file, flattened project
